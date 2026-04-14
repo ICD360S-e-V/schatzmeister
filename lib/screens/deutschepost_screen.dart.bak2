@@ -1,0 +1,2058 @@
+import 'dart:async';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:url_launcher/url_launcher.dart';
+import '../services/api_service.dart';
+import 'webview_screen.dart';
+
+class DeutschePostScreen extends StatefulWidget {
+  final ApiService apiService;
+  final VoidCallback onBack;
+
+  const DeutschePostScreen({
+    super.key,
+    required this.apiService,
+    required this.onBack,
+  });
+
+  @override
+  State<DeutschePostScreen> createState() => _DeutschePostScreenState();
+}
+
+class _DeutschePostScreenState extends State<DeutschePostScreen> {
+  // Subview navigation: null = overview, 'sendung', 'filialfinder', 'postcard'
+  String? _subview;
+
+  // Sendungsverfolgung
+  List<Map<String, dynamic>> _shipments = [];
+  bool _isLoading = true;
+
+  // Postcard Karten
+  List<Map<String, dynamic>> _postcards = [];
+  bool _isLoadingPostcards = true;
+
+  // DHL API status
+  String _apiStatus = 'yellow';
+  String _apiStatusText = 'Prüfe...';
+  bool _isCheckingApi = false;
+  Timer? _apiCheckTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadShipments();
+    _loadPostcards();
+    _checkApiStatus();
+    _apiCheckTimer = Timer.periodic(const Duration(hours: 1), (_) {
+      if (mounted) _checkApiStatus();
+    });
+  }
+
+  @override
+  void dispose() {
+    _apiCheckTimer?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _loadPostcards() async {
+    setState(() => _isLoadingPostcards = true);
+    final result = await widget.apiService.getPostcardKarten();
+    if (mounted && result['success'] == true) {
+      setState(() {
+        _postcards = List<Map<String, dynamic>>.from(result['karten'] ?? []);
+        _isLoadingPostcards = false;
+      });
+    } else if (mounted) {
+      setState(() => _isLoadingPostcards = false);
+    }
+  }
+
+  Future<void> _checkApiStatus() async {
+    if (_isCheckingApi) return;
+    setState(() => _isCheckingApi = true);
+
+    try {
+      // Use a known DHL test tracking number
+      final result = await widget.apiService.trackDhlShipment('00340434161094042557');
+      if (!mounted) return;
+
+      if (result['success'] == true) {
+        final tracking = result['tracking'] as List?;
+        if (tracking != null && tracking.isNotEmpty) {
+          setState(() {
+            _apiStatus = 'green';
+            _apiStatusText = 'API aktiv';
+            _isCheckingApi = false;
+          });
+        } else {
+          // success but no data - API works but number not found
+          setState(() {
+            _apiStatus = 'green';
+            _apiStatusText = 'API aktiv';
+            _isCheckingApi = false;
+          });
+        }
+      } else {
+        final msg = result['message'] as String? ?? '';
+        if (msg.contains('Autorisierung') || msg.contains('401')) {
+          setState(() {
+            _apiStatus = 'yellow';
+            _apiStatusText = 'Nicht autorisiert';
+            _isCheckingApi = false;
+          });
+        } else {
+          setState(() {
+            _apiStatus = 'red';
+            _apiStatusText = msg.isNotEmpty ? msg : 'API Fehler';
+            _isCheckingApi = false;
+          });
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _apiStatus = 'red';
+          _apiStatusText = 'Verbindungsfehler';
+          _isCheckingApi = false;
+        });
+      }
+    }
+  }
+
+  Color get _apiStatusColor {
+    switch (_apiStatus) {
+      case 'green':
+        return Colors.green;
+      case 'yellow':
+        return Colors.orange;
+      case 'red':
+        return Colors.red;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  Future<void> _loadShipments() async {
+    setState(() => _isLoading = true);
+    final result = await widget.apiService.getDhlShipments();
+    if (mounted && result['success'] == true) {
+      final shipments = List<Map<String, dynamic>>.from(result['data'] ?? []);
+      setState(() {
+        _shipments = shipments;
+        _isLoading = false;
+      });
+      _autoRefreshStale(shipments);
+    } else if (mounted) {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _autoRefreshStale(List<Map<String, dynamic>> shipments) async {
+    bool refreshed = false;
+    for (final s in shipments) {
+      if (!mounted) break;
+      final lastChecked = s['last_checked'] as String?;
+      if (_isStale(lastChecked)) {
+        await widget.apiService.trackDhlShipment(s['tracking_number'] as String);
+        refreshed = true;
+      }
+    }
+    if (refreshed && mounted) {
+      final result = await widget.apiService.getDhlShipments();
+      if (mounted && result['success'] == true) {
+        setState(() {
+          _shipments = List<Map<String, dynamic>>.from(result['data'] ?? []);
+        });
+      }
+    }
+  }
+
+  bool _isStale(String? lastChecked) {
+    if (lastChecked == null) return true;
+    try {
+      return DateTime.now().difference(DateTime.parse(lastChecked)).inMinutes >= 60;
+    } catch (_) {
+      return true;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Subview routing
+    if (_subview == 'sendung') {
+      return _buildSubviewWrapper('Sendungsverfolgung', Icons.track_changes, Colors.blue.shade700, _buildSendungsverfolgungCard());
+    } else if (_subview == 'postcard') {
+      return _buildSubviewWrapper('POSTCARD Karten', Icons.credit_card, Colors.deepPurple.shade700, _buildPostcardKartenCard());
+    }
+
+    // Overview
+    return Padding(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header
+          Row(
+            children: [
+              IconButton(
+                icon: const Icon(Icons.arrow_back),
+                onPressed: widget.onBack,
+                tooltip: 'Zurück',
+              ),
+              const SizedBox(width: 8),
+              Icon(Icons.local_shipping, size: 32, color: Colors.amber.shade700),
+              const SizedBox(width: 12),
+              const Text(
+                'Deutsche Post',
+                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+              ),
+              const Spacer(),
+              TextButton.icon(
+                icon: const Icon(Icons.open_in_new, size: 16),
+                label: const Text('deutschepost.de'),
+                onPressed: () => launchUrl(Uri.parse('https://www.deutschepost.de')),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+
+          // Dienste & Preise
+          _buildDiensteUebersicht(),
+          const SizedBox(height: 24),
+
+          // 3 clickable service cards
+          Expanded(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(child: _buildServiceCard(
+                  icon: Icons.track_changes,
+                  title: 'Sendungsverfolgung',
+                  subtitle: 'DHL Pakete & Briefe verfolgen',
+                  color: Colors.blue.shade700,
+                  badge: _shipments.isNotEmpty ? '${_shipments.length}' : null,
+                  statusDot: _apiStatusColor,
+                  statusText: _apiStatusText,
+                  onTap: () => setState(() => _subview = 'sendung'),
+                )),
+                const SizedBox(width: 16),
+                Expanded(child: _buildServiceCard(
+                  icon: Icons.storefront,
+                  title: 'Filialfinder',
+                  subtitle: 'Filialen, Packstationen & Briefkästen',
+                  color: Colors.red.shade700,
+                  comingSoon: true,
+                  onTap: null,
+                )),
+                const SizedBox(width: 16),
+                Expanded(child: _buildServiceCard(
+                  icon: Icons.credit_card,
+                  title: 'POSTCARD',
+                  subtitle: 'Geschäftskundenkarten verwalten',
+                  color: Colors.deepPurple.shade700,
+                  badge: _postcards.isNotEmpty ? '${_postcards.length}' : null,
+                  onTap: () => setState(() => _subview = 'postcard'),
+                )),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSubviewWrapper(String title, IconData icon, Color color, Widget content) {
+    return Padding(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              IconButton(
+                icon: const Icon(Icons.arrow_back),
+                onPressed: () => setState(() => _subview = null),
+                tooltip: 'Zurück zur Übersicht',
+              ),
+              const SizedBox(width: 8),
+              Icon(icon, size: 28, color: color),
+              const SizedBox(width: 12),
+              Text(title, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+              const Spacer(),
+              TextButton.icon(
+                icon: const Icon(Icons.open_in_new, size: 16),
+                label: const Text('deutschepost.de'),
+                onPressed: () => launchUrl(Uri.parse('https://www.deutschepost.de')),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Expanded(child: content),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildServiceCard({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required Color color,
+    String? badge,
+    Color? statusDot,
+    String? statusText,
+    bool comingSoon = false,
+    VoidCallback? onTap,
+  }) {
+    final effectiveColor = comingSoon ? Colors.grey : color;
+    return Card(
+      elevation: comingSoon ? 1 : 2,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: effectiveColor.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Icon(icon, color: effectiveColor, size: 40),
+              ),
+              const SizedBox(height: 16),
+              Text(title, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: comingSoon ? Colors.grey : null), textAlign: TextAlign.center),
+              const SizedBox(height: 6),
+              Text(subtitle, style: TextStyle(fontSize: 12, color: Colors.grey.shade500), textAlign: TextAlign.center),
+              const SizedBox(height: 12),
+              if (comingSoon)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.shade50,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text('Kommt bald', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.orange.shade700)),
+                ),
+              // Badge or status
+              if (!comingSoon && badge != null)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(badge, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: color)),
+                ),
+              if (!comingSoon && statusDot != null && statusText != null) ...[
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 8, height: 8,
+                      decoration: BoxDecoration(shape: BoxShape.circle, color: statusDot),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(statusText, style: TextStyle(fontSize: 11, color: statusDot, fontWeight: FontWeight.w500)),
+                  ],
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDiensteUebersicht() {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Dienste & Preise (2026)',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 12,
+              runSpacing: 8,
+              children: [
+                _buildDienstChip(Icons.email, 'Postkarte', '0,95 €', Colors.blue),
+                _buildDienstChip(Icons.mail, 'Standardbrief', '0,95 €', Colors.blue),
+                _buildDienstChip(Icons.mail_outline, 'Kompaktbrief', '1,10 €', Colors.blue),
+                _buildDienstChip(Icons.markunread_mailbox, 'Großbrief', '1,80 €', Colors.orange),
+                _buildDienstChip(Icons.inventory_2, 'Maxibrief', '2,90 €', Colors.orange),
+                _buildDienstChip(Icons.local_shipping, 'DHL Paket', 'ab 4,99 €', Colors.amber.shade800),
+                _buildDienstChip(Icons.flight, 'Int. Brief', 'ab 1,10 €', Colors.teal),
+                _buildDienstChip(Icons.credit_card, 'POSTCARD', 'Geschäftskarte', Colors.deepPurple),
+                _buildDienstChip(Icons.print, 'Online Frankierung', 'deutschepost.de', Colors.green),
+                _buildDienstChip(Icons.storefront, 'Filialfinder', 'postfinder.de', Colors.red),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDienstChip(IconData icon, String label, String detail, Color color) {
+    return InkWell(
+      onTap: () {
+        if (label == 'Online Frankierung') {
+          launchUrl(Uri.parse('https://www.deutschepost.de/de/o/online-frankieren.html'));
+        } else if (label == 'Filialfinder') {
+          launchUrl(Uri.parse('https://www.deutschepost.de/de/s/standorte.html'));
+        } else if (label == 'POSTCARD') {
+          launchUrl(Uri.parse('https://www.deutschepost.de/de/p/postcard.html'));
+        }
+      },
+      borderRadius: BorderRadius.circular(10),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: color.withValues(alpha: 0.25)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 18, color: color),
+            const SizedBox(width: 8),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: color)),
+                Text(detail, style: TextStyle(fontSize: 10, color: Colors.grey.shade600)),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ============= SENDUNGSVERFOLGUNG CARD =============
+
+  Widget _buildSendungsverfolgungCard() {
+    final color = Colors.blue.shade700;
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(Icons.track_changes, color: color, size: 24),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Sendungsverfolgung',
+                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 4),
+                      // API Status indicator (clickable)
+                      InkWell(
+                        onTap: _isCheckingApi ? null : _checkApiStatus,
+                        borderRadius: BorderRadius.circular(12),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: _apiStatusColor.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (_isCheckingApi)
+                                SizedBox(
+                                  width: 10, height: 10,
+                                  child: CircularProgressIndicator(strokeWidth: 1.5, color: _apiStatusColor),
+                                )
+                              else
+                                Container(
+                                  width: 8, height: 8,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: _apiStatusColor,
+                                  ),
+                                ),
+                              const SizedBox(width: 6),
+                              Text(
+                                _apiStatusText,
+                                style: TextStyle(fontSize: 10, color: _apiStatusColor, fontWeight: FontWeight.w600),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Text(
+                  '${_shipments.length}',
+                  style: TextStyle(color: Colors.grey.shade500, fontSize: 13),
+                ),
+                const SizedBox(width: 8),
+                IconButton(
+                  icon: Icon(Icons.add_circle_outline, color: color),
+                  onPressed: _showAddShipmentDialog,
+                  tooltip: 'Sendung hinzufügen',
+                  constraints: const BoxConstraints(),
+                  padding: const EdgeInsets.all(4),
+                ),
+                const SizedBox(width: 4),
+                IconButton(
+                  icon: Icon(Icons.settings, color: Colors.grey.shade600, size: 20),
+                  onPressed: _showDhlSettingsDialog,
+                  tooltip: 'DHL Portal Einstellungen',
+                  constraints: const BoxConstraints(),
+                  padding: const EdgeInsets.all(4),
+                ),
+              ],
+            ),
+            const Divider(height: 24),
+            // List
+            Expanded(
+              child: _isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : _shipments.isEmpty
+                      ? Center(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.track_changes, size: 40, color: Colors.grey.shade300),
+                              const SizedBox(height: 8),
+                              Text(
+                                'Keine Sendungen',
+                                style: TextStyle(color: Colors.grey.shade400, fontSize: 13),
+                              ),
+                            ],
+                          ),
+                        )
+                      : ListView.separated(
+                          itemCount: _shipments.length,
+                          separatorBuilder: (_, __) => const Divider(height: 1),
+                          itemBuilder: (context, index) {
+                            final s = _shipments[index];
+                            final status = s['last_status'] as String?;
+
+                            return ListTile(
+                              dense: true,
+                              contentPadding: EdgeInsets.zero,
+                              leading: Icon(_statusIcon(status), color: _statusColor(status), size: 20),
+                              title: Text(
+                                s['beschreibung'] ?? s['tracking_number'] ?? '',
+                                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              subtitle: Text(
+                                s['tracking_number'] ?? '',
+                                style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+                              ),
+                              trailing: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  if (s['last_status_text'] != null)
+                                    Container(
+                                      constraints: const BoxConstraints(maxWidth: 100),
+                                      child: Text(
+                                        _shortStatus(s['last_status_text']),
+                                        style: TextStyle(fontSize: 10, color: _statusColor(status)),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  IconButton(
+                                    icon: Icon(Icons.refresh, size: 16, color: Colors.grey.shade400),
+                                    onPressed: () => _trackShipment(s),
+                                    tooltip: 'Status aktualisieren',
+                                    constraints: const BoxConstraints(),
+                                    padding: const EdgeInsets.all(4),
+                                  ),
+                                ],
+                              ),
+                              onTap: () => _showShipmentDetails(s),
+                            );
+                          },
+                        ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ============= HELPERS =============
+
+  IconData _statusIcon(String? status) {
+    switch (status) {
+      case 'delivered':
+        return Icons.check_circle;
+      case 'transit':
+        return Icons.local_shipping;
+      case 'failure':
+        return Icons.error;
+      default:
+        return Icons.schedule;
+    }
+  }
+
+  Color _statusColor(String? status) {
+    switch (status) {
+      case 'delivered':
+        return Colors.green;
+      case 'transit':
+        return Colors.blue;
+      case 'failure':
+        return Colors.red;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  String _shortStatus(String? text) {
+    if (text == null) return '';
+    final parts = text.split(' - ');
+    return parts.first;
+  }
+
+  // ============= DIALOGS =============
+
+  Future<void> _showDhlSettingsDialog() async {
+    final emailController = TextEditingController();
+    final passwordController = TextEditingController();
+    bool isLoading = true;
+    bool obscurePassword = true;
+
+    // Load existing settings
+    final settings = await widget.apiService.getDhlSettings();
+    if (settings['success'] == true && settings['data'] != null) {
+      emailController.text = settings['data']['email'] ?? '';
+      passwordController.text = settings['data']['password'] ?? '';
+    }
+    isLoading = false;
+
+    if (!mounted) return;
+
+    await showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: Row(
+            children: [
+              Icon(Icons.settings, color: Colors.blue.shade700),
+              const SizedBox(width: 8),
+              const Text('DHL Portal Einstellungen', style: TextStyle(fontSize: 16)),
+            ],
+          ),
+          content: SizedBox(
+            width: 400,
+            child: isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Zugangsdaten für das DHL Developer Portal',
+                        style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                      ),
+                      const SizedBox(height: 16),
+                      TextField(
+                        controller: emailController,
+                        decoration: InputDecoration(
+                          labelText: 'E-Mail',
+                          hintText: 'DHL Portal E-Mail',
+                          prefixIcon: const Icon(Icons.email_outlined),
+                          border: const OutlineInputBorder(),
+                          isDense: true,
+                          suffixIcon: IconButton(
+                            icon: const Icon(Icons.copy, size: 18),
+                            tooltip: 'E-Mail kopieren',
+                            onPressed: () {
+                              if (emailController.text.trim().isNotEmpty) {
+                                Clipboard.setData(ClipboardData(text: emailController.text.trim()));
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('E-Mail kopiert'), duration: Duration(seconds: 1)),
+                                );
+                              }
+                            },
+                          ),
+                        ),
+                        keyboardType: TextInputType.emailAddress,
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: passwordController,
+                        obscureText: obscurePassword,
+                        decoration: InputDecoration(
+                          labelText: 'Passwort',
+                          hintText: 'DHL Portal Passwort',
+                          prefixIcon: const Icon(Icons.lock_outlined),
+                          border: const OutlineInputBorder(),
+                          isDense: true,
+                          suffixIcon: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton(
+                                icon: Icon(obscurePassword ? Icons.visibility_off : Icons.visibility),
+                                onPressed: () => setDialogState(() => obscurePassword = !obscurePassword),
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.copy, size: 18),
+                                tooltip: 'Passwort kopieren',
+                                onPressed: () {
+                                  if (passwordController.text.trim().isNotEmpty) {
+                                    Clipboard.setData(ClipboardData(text: passwordController.text.trim()));
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(content: Text('Passwort kopiert'), duration: Duration(seconds: 1)),
+                                    );
+                                  }
+                                },
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      // Open DHL Portal button
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          icon: const Icon(Icons.open_in_new, size: 16),
+                          label: const Text('DHL Developer Portal öffnen'),
+                          onPressed: () {
+                            launchUrl(Uri.parse('https://developer.dhl.com/user/login?destination=/node/102'));
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Abbrechen'),
+            ),
+            ElevatedButton.icon(
+              icon: const Icon(Icons.save, size: 16),
+              label: const Text('Speichern'),
+              onPressed: () async {
+                final email = emailController.text.trim();
+                final password = passwordController.text.trim();
+                if (email.isEmpty && password.isEmpty) {
+                  Navigator.pop(ctx);
+                  return;
+                }
+                final res = await widget.apiService.saveDhlSettings(
+                  email: email,
+                  password: password,
+                );
+                if (ctx.mounted) {
+                  Navigator.pop(ctx);
+                }
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(res['success'] == true ? 'Einstellungen gespeichert' : 'Fehler beim Speichern'),
+                      backgroundColor: res['success'] == true ? Colors.green : Colors.red,
+                    ),
+                  );
+                }
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+
+    emailController.dispose();
+    passwordController.dispose();
+  }
+
+  Future<void> _showAddShipmentDialog() async {
+    final numberController = TextEditingController();
+    final descController = TextEditingController();
+
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(Icons.track_changes, color: Colors.blue.shade700),
+            const SizedBox(width: 8),
+            const Text('Sendung hinzufügen'),
+          ],
+        ),
+        content: SizedBox(
+          width: 400,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: numberController,
+                decoration: const InputDecoration(
+                  labelText: 'Sendungsnummer *',
+                  hintText: 'z.B. 00340434161094042557',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: descController,
+                decoration: const InputDecoration(
+                  labelText: 'Beschreibung',
+                  hintText: 'z.B. Brief an Notar',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Abbrechen'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              if (numberController.text.trim().isEmpty) return;
+              final res = await widget.apiService.addDhlShipment(
+                numberController.text.trim(),
+                beschreibung: descController.text.trim().isNotEmpty ? descController.text.trim() : null,
+              );
+              if (ctx.mounted) {
+                Navigator.pop(ctx, res['success'] == true);
+              }
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.blue.shade700),
+            child: const Text('Speichern', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+
+    if (result == true && mounted) {
+      _loadShipments();
+    }
+  }
+
+  Future<void> _trackShipment(Map<String, dynamic> shipment) async {
+    final number = shipment['tracking_number'] as String;
+    final result = await widget.apiService.trackDhlShipment(number);
+    if (mounted) {
+      if (result['success'] == true) {
+        _loadShipments();
+        final tracking = result['tracking'] as List?;
+        if (tracking != null && tracking.isNotEmpty) {
+          _showTrackingResult(tracking[0], shipment);
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Sendung nicht gefunden oder DHL API noch nicht freigeschaltet'), backgroundColor: Colors.orange),
+          );
+        }
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(result['message'] ?? 'Fehler beim Tracking'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  void _showTrackingResult(Map<String, dynamic> tracking, Map<String, dynamic> shipment) {
+    var events = List<Map<String, dynamic>>.from(tracking['events'] ?? []);
+
+    // If no events but we have a status, create a pseudo-event from current status
+    if (events.isEmpty && tracking['status'] != null) {
+      events = [
+        {
+          'timestamp': tracking['timestamp'] ?? '',
+          'statusCode': tracking['status'] ?? '',
+          'status': tracking['statusText'] ?? '',
+          'description': tracking['description'] ?? tracking['statusText'] ?? '',
+          'location': tracking['location'] ?? '',
+        },
+      ];
+    }
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(_statusIcon(tracking['status']), color: _statusColor(tracking['status'])),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                shipment['beschreibung'] ?? tracking['trackingNumber'] ?? '',
+                style: const TextStyle(fontSize: 16),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+        content: SizedBox(
+          width: 500,
+          height: 400,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Current status banner
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: _statusColor(tracking['status']).withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  children: [
+                    Icon(_statusIcon(tracking['status']), color: _statusColor(tracking['status'])),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            tracking['statusText'] ?? 'Unbekannt',
+                            style: TextStyle(fontWeight: FontWeight.bold, color: _statusColor(tracking['status'])),
+                          ),
+                          if (tracking['description'] != null && tracking['description'].toString().isNotEmpty)
+                            Text(tracking['description'], style: const TextStyle(fontSize: 12)),
+                          if (tracking['location'] != null && tracking['location'].toString().isNotEmpty)
+                            Text(tracking['location'], style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text('Sendungsnummer: ${tracking['trackingNumber']}', style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+              if (tracking['productName'] != null && tracking['productName'].toString().isNotEmpty)
+                Text('Produkt: ${tracking['productName']}', style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+              const SizedBox(height: 8),
+              const Text('Sendungsverlauf:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+              const SizedBox(height: 8),
+              // Events timeline
+              Expanded(
+                child: events.isEmpty
+                    ? const Center(child: Text('Keine Ereignisse'))
+                    : ListView.builder(
+                        itemCount: events.length,
+                        itemBuilder: (_, i) {
+                          final e = events[i];
+                          final ts = e['timestamp'] as String? ?? '';
+                          final dateStr = ts.length >= 10 ? ts.substring(0, 10) : ts;
+                          final timeStr = ts.length >= 16 ? ts.substring(11, 16) : '';
+
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 8),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                SizedBox(
+                                  width: 70,
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.end,
+                                    children: [
+                                      Text(dateStr, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w500)),
+                                      Text(timeStr, style: TextStyle(fontSize: 10, color: Colors.grey.shade500)),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Column(
+                                  children: [
+                                    Container(
+                                      width: 10, height: 10,
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        color: i == 0 ? _statusColor(e['statusCode']) : Colors.grey.shade300,
+                                      ),
+                                    ),
+                                    if (i < events.length - 1)
+                                      Container(width: 2, height: 30, color: Colors.grey.shade300),
+                                  ],
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(e['description'] ?? e['status'] ?? '', style: const TextStyle(fontSize: 12)),
+                                      if (e['location'] != null && e['location'].toString().isNotEmpty)
+                                        Text(e['location'], style: TextStyle(fontSize: 10, color: Colors.grey.shade500)),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Schließen'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showShipmentDetails(Map<String, dynamic> shipment) async {
+    final action = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(Icons.local_shipping, color: Colors.amber.shade700),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                shipment['beschreibung'] ?? shipment['tracking_number'] ?? '',
+                style: const TextStyle(fontSize: 16),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+        content: SizedBox(
+          width: 400,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _detailRow('Sendungsnummer', shipment['tracking_number'] ?? '-'),
+              _detailRow('Beschreibung', shipment['beschreibung'] ?? '-'),
+              _detailRow('Status', shipment['last_status_text'] ?? 'Noch nicht abgefragt'),
+              _detailRow('Letzte Prüfung', shipment['last_checked'] ?? '-'),
+              _detailRow('Erstellt', shipment['created_at'] ?? '-'),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, 'delete'),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Löschen'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Schließen'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, 'track'),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.blue.shade700),
+            child: const Text('Status abfragen', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+
+    if (!mounted || action == null) return;
+
+    if (action == 'track') {
+      _trackShipment(shipment);
+    } else if (action == 'delete') {
+      final id = shipment['id'] as int;
+      final result = await widget.apiService.deleteDhlShipment(id);
+      if (mounted && result['success'] == true) {
+        _loadShipments();
+      }
+    }
+  }
+
+  Widget _detailRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 130,
+            child: Text(label, style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+          ),
+          Expanded(
+            child: Text(value, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ============= POSTCARD KARTEN CARD =============
+
+  Widget _buildPostcardKartenCard() {
+    final color = Colors.deepPurple.shade700;
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(Icons.credit_card, color: color, size: 24),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'POSTCARD Karten',
+                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      ),
+                      Text(
+                        'Geschäftskundenkarten',
+                        style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+                      ),
+                    ],
+                  ),
+                ),
+                Text(
+                  '${_postcards.length}',
+                  style: TextStyle(color: Colors.grey.shade500, fontSize: 13),
+                ),
+                const SizedBox(width: 8),
+                IconButton(
+                  icon: Icon(Icons.add_circle_outline, color: color),
+                  onPressed: _showAddPostcardDialog,
+                  tooltip: 'Karte hinzufügen',
+                  constraints: const BoxConstraints(),
+                  padding: const EdgeInsets.all(4),
+                ),
+                const SizedBox(width: 4),
+                IconButton(
+                  icon: Icon(Icons.settings, color: Colors.grey.shade600, size: 20),
+                  onPressed: _showPostcardAccountDialog,
+                  tooltip: 'Konto-Einstellungen',
+                  constraints: const BoxConstraints(),
+                  padding: const EdgeInsets.all(4),
+                ),
+              ],
+            ),
+            const Divider(height: 24),
+            // POSTCARD Service Info
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Colors.deepPurple.shade50,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Bargeldlos bezahlen - sicher & kostenlos',
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.deepPurple.shade800),
+                  ),
+                  const SizedBox(height: 6),
+                  _postcardInfoRow(Icons.check_circle, 'Kostenlos, ohne Mindestumsatz'),
+                  _postcardInfoRow(Icons.check_circle, 'Fast alle Post-Produkte bargeldlos bezahlen'),
+                  _postcardInfoRow(Icons.check_circle, 'Tägliches Kartenlimit (Sicherheit)'),
+                  _postcardInfoRow(Icons.check_circle, 'Taggenau Abrechnung per Lastschrift'),
+                  _postcardInfoRow(Icons.check_circle, 'Transaktionsübersicht im Shop'),
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      InkWell(
+                        onTap: () => launchUrl(Uri.parse('https://www.deutschepost.de/de/p/postcard.html')),
+                        child: Text(
+                          'Mehr erfahren',
+                          style: TextStyle(fontSize: 10, color: Colors.deepPurple.shade700, decoration: TextDecoration.underline),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      InkWell(
+                        onTap: () => launchUrl(Uri.parse('https://shop.deutschepost.de')),
+                        child: Text(
+                          'Zum Shop',
+                          style: TextStyle(fontSize: 10, color: Colors.deepPurple.shade700, decoration: TextDecoration.underline),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            // Unsere Karten header
+            Row(
+              children: [
+                Text('Unsere Karten', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.grey.shade700)),
+                const Spacer(),
+                Text('${_postcards.length} Karten', style: TextStyle(fontSize: 11, color: Colors.grey.shade500)),
+              ],
+            ),
+            const SizedBox(height: 8),
+            // List
+            Expanded(
+              child: _isLoadingPostcards
+                  ? const Center(child: CircularProgressIndicator())
+                  : _postcards.isEmpty
+                      ? Center(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.credit_card, size: 40, color: Colors.grey.shade300),
+                              const SizedBox(height: 8),
+                              Text(
+                                'Keine Karten',
+                                style: TextStyle(color: Colors.grey.shade400, fontSize: 13),
+                              ),
+                            ],
+                          ),
+                        )
+                      : ListView.separated(
+                          itemCount: _postcards.length,
+                          separatorBuilder: (_, __) => const Divider(height: 1),
+                          itemBuilder: (context, index) {
+                            final card = _postcards[index];
+                            final aktiv = card['aktiv'] == true;
+                            final bezeichnung = card['bezeichnung'] as String? ?? '';
+                            final kartennummer = card['kartennummer'] as String? ?? '';
+                            final limit = card['tageslimit'] as num? ?? 10;
+
+                            return ListTile(
+                              dense: true,
+                              contentPadding: EdgeInsets.zero,
+                              leading: Icon(
+                                Icons.credit_card,
+                                color: aktiv ? Colors.deepPurple : Colors.grey,
+                                size: 20,
+                              ),
+                              title: Text(
+                                bezeichnung.isNotEmpty ? bezeichnung : 'Karte ${index + 1}',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w500,
+                                  color: aktiv ? null : Colors.grey,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              subtitle: Row(
+                                children: [
+                                  Text(
+                                    kartennummer.length > 8
+                                        ? '${kartennummer.substring(0, 4)}...${kartennummer.substring(kartennummer.length - 4)}'
+                                        : kartennummer,
+                                    style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                                    decoration: BoxDecoration(
+                                      color: Colors.green.shade50,
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    child: Text(
+                                      '${limit.toStringAsFixed(0)}€/Tag',
+                                      style: TextStyle(fontSize: 10, color: Colors.green.shade700, fontWeight: FontWeight.w600),
+                                    ),
+                                  ),
+                                  if (!aktiv) ...[
+                                    const SizedBox(width: 6),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                                      decoration: BoxDecoration(
+                                        color: Colors.red.shade50,
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                      child: Text(
+                                        'Inaktiv',
+                                        style: TextStyle(fontSize: 10, color: Colors.red.shade700),
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                              onTap: () => _showPostcardDetailsDialog(card),
+                            );
+                          },
+                        ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _postcardInfoRow(IconData icon, String text) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 3),
+      child: Row(
+        children: [
+          Icon(icon, size: 12, color: Colors.green.shade600),
+          const SizedBox(width: 6),
+          Expanded(child: Text(text, style: TextStyle(fontSize: 11, color: Colors.grey.shade700))),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _showAddPostcardDialog() async {
+    final nummerCtrl = TextEditingController();
+    final pinCtrl = TextEditingController();
+    final bezCtrl = TextEditingController();
+    final limitCtrl = TextEditingController(text: '10');
+
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(Icons.credit_card, color: Colors.deepPurple.shade700),
+            const SizedBox(width: 8),
+            const Text('Karte hinzufügen', style: TextStyle(fontSize: 16)),
+          ],
+        ),
+        content: SizedBox(
+          width: 400,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: bezCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'Bezeichnung',
+                  hintText: 'z.B. Karte 1 - Vorsitzer',
+                  border: OutlineInputBorder(),
+                  isDense: true,
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: nummerCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'Kartennummer *',
+                  hintText: '17-stellige Postcard-Nummer',
+                  border: OutlineInputBorder(),
+                  isDense: true,
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: pinCtrl,
+                obscureText: true,
+                decoration: const InputDecoration(
+                  labelText: 'PIN',
+                  hintText: '4-stellige PIN',
+                  border: OutlineInputBorder(),
+                  isDense: true,
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: limitCtrl,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  labelText: 'Tageslimit (€)',
+                  border: OutlineInputBorder(),
+                  isDense: true,
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Abbrechen'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              if (nummerCtrl.text.trim().isEmpty) return;
+              final messenger = ScaffoldMessenger.of(context);
+              final res = await widget.apiService.createPostcardKarte(
+                kartennummer: nummerCtrl.text.trim(),
+                pin: pinCtrl.text.trim().isNotEmpty ? pinCtrl.text.trim() : null,
+                bezeichnung: bezCtrl.text.trim().isNotEmpty ? bezCtrl.text.trim() : null,
+                tageslimit: double.tryParse(limitCtrl.text.trim()) ?? 10.0,
+              );
+              if (ctx.mounted) Navigator.pop(ctx, res['success'] == true);
+              if (res['success'] != true) {
+                messenger.showSnackBar(
+                  SnackBar(content: Text(res['message'] ?? 'Fehler'), backgroundColor: Colors.red),
+                );
+              }
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.deepPurple.shade700),
+            child: const Text('Speichern', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+
+    nummerCtrl.dispose();
+    pinCtrl.dispose();
+    bezCtrl.dispose();
+    limitCtrl.dispose();
+
+    if (result == true && mounted) _loadPostcards();
+  }
+
+  Future<void> _showPostcardDetailsDialog(Map<String, dynamic> card) async {
+    final nummerCtrl = TextEditingController(text: card['kartennummer'] ?? '');
+    final pinCtrl = TextEditingController(text: card['pin'] ?? '');
+    final bezCtrl = TextEditingController(text: card['bezeichnung'] ?? '');
+    final limitCtrl = TextEditingController(text: (card['tageslimit'] as num? ?? 10).toStringAsFixed(0));
+    bool obscurePin = true;
+    bool isEditing = false;
+    final aktiv = card['aktiv'] == true;
+
+    final action = await showDialog<String>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) {
+          final color = Colors.deepPurple.shade700;
+          final bezeichnung = bezCtrl.text.isNotEmpty ? bezCtrl.text : 'POSTCARD';
+          final pin = pinCtrl.text;
+
+          // VIEW MODE
+          if (!isEditing) {
+            // Format card number with spaces for display (e.g. "5314 1598 34 2501 012")
+            final rawNumber = nummerCtrl.text.replaceAll(' ', '');
+            final formattedNumber = rawNumber.length >= 10
+                ? '${rawNumber.substring(0, 4)} ${rawNumber.substring(4, 8)} ${rawNumber.substring(8, 10)} ${rawNumber.length > 10 ? rawNumber.substring(10) : ''}'.trim()
+                : nummerCtrl.text;
+
+            return AlertDialog(
+              titlePadding: EdgeInsets.zero,
+              contentPadding: EdgeInsets.zero,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              content: SizedBox(
+                width: 440,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // ===== REALISTIC POSTCARD =====
+                    Container(
+                      margin: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+                      height: 230,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(14),
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFFDAA520), Color(0xFFF5D060), Color(0xFFE8B830)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.3),
+                            blurRadius: 12,
+                            offset: const Offset(0, 6),
+                          ),
+                        ],
+                      ),
+                      child: Stack(
+                        children: [
+                          // Subtle pattern overlay
+                          Positioned.fill(
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(14),
+                              child: CustomPaint(painter: _CardPatternPainter()),
+                            ),
+                          ),
+                          // Card content
+                          Padding(
+                            padding: const EdgeInsets.all(20),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                // Top row: Deutsche Post logo + status
+                                Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    // Post horn icon + "Deutsche Post"
+                                    Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Row(
+                                          children: [
+                                            // Post horn icon
+                                            Container(
+                                              width: 28,
+                                              height: 28,
+                                              decoration: BoxDecoration(
+                                                color: const Color(0xFFCC8800),
+                                                borderRadius: BorderRadius.circular(14),
+                                              ),
+                                              child: const Center(
+                                                child: Icon(Icons.local_post_office, size: 16, color: Colors.white),
+                                              ),
+                                            ),
+                                            const SizedBox(width: 8),
+                                            const Text(
+                                              'Deutsche Post',
+                                              style: TextStyle(
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.bold,
+                                                color: Color(0xFF4A3000),
+                                                letterSpacing: 0.5,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 2),
+                                        const Padding(
+                                          padding: EdgeInsets.only(left: 36),
+                                          child: Text(
+                                            'POSTCARD',
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.w700,
+                                              color: Color(0xFF7A5500),
+                                              letterSpacing: 3.0,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const Spacer(),
+                                    // Status badge
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                      decoration: BoxDecoration(
+                                        color: aktiv
+                                            ? Colors.green.shade700.withValues(alpha: 0.25)
+                                            : Colors.red.shade700.withValues(alpha: 0.25),
+                                        borderRadius: BorderRadius.circular(8),
+                                        border: Border.all(
+                                          color: aktiv ? Colors.green.shade800 : Colors.red.shade800,
+                                          width: 0.5,
+                                        ),
+                                      ),
+                                      child: Text(
+                                        aktiv ? 'AKTIV' : 'INAKTIV',
+                                        style: TextStyle(
+                                          fontSize: 9,
+                                          fontWeight: FontWeight.w700,
+                                          color: aktiv ? Colors.green.shade900 : Colors.red.shade900,
+                                          letterSpacing: 1.0,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 18),
+                                // EMV Chip
+                                Container(
+                                  width: 45,
+                                  height: 34,
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(6),
+                                    gradient: const LinearGradient(
+                                      colors: [Color(0xFFD4A843), Color(0xFFF0D070), Color(0xFFD4A843)],
+                                      begin: Alignment.topCenter,
+                                      end: Alignment.bottomCenter,
+                                    ),
+                                    border: Border.all(color: const Color(0xFFB8922A), width: 1),
+                                  ),
+                                  child: CustomPaint(painter: _ChipPainter()),
+                                ),
+                                const Spacer(),
+                                // Card number
+                                Text(
+                                  formattedNumber,
+                                  style: const TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w600,
+                                    color: Color(0xFF3A2500),
+                                    letterSpacing: 2.0,
+                                    fontFamily: 'Courier',
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                // Bottom row: Bezeichnung + Limit
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        bezeichnung.toUpperCase(),
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w600,
+                                          color: Color(0xFF5A3E00),
+                                          letterSpacing: 1.0,
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                    Text(
+                                      'Limit: ${limitCtrl.text} EUR',
+                                      style: const TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w500,
+                                        color: Color(0xFF6B4D00),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    // ===== DETAILS BELOW CARD =====
+                    Padding(
+                      padding: const EdgeInsets.all(20),
+                      child: Column(
+                        children: [
+                          // PIN row with eye toggle
+                          _cardDetailRow(
+                            'PIN',
+                            obscurePin ? (pin.isNotEmpty ? '****' : '-') : (pin.isNotEmpty ? pin : '-'),
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                if (pin.isNotEmpty)
+                                  IconButton(
+                                    icon: Icon(obscurePin ? Icons.visibility_off : Icons.visibility, size: 18, color: Colors.grey.shade600),
+                                    onPressed: () => setDialogState(() => obscurePin = !obscurePin),
+                                    tooltip: obscurePin ? 'PIN anzeigen' : 'PIN verbergen',
+                                    constraints: const BoxConstraints(),
+                                    padding: const EdgeInsets.all(4),
+                                  ),
+                                const SizedBox(width: 4),
+                                if (pin.isNotEmpty)
+                                  IconButton(
+                                    icon: Icon(Icons.copy, size: 16, color: Colors.grey.shade500),
+                                    onPressed: () {
+                                      Clipboard.setData(ClipboardData(text: pin));
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(content: Text('PIN kopiert'), duration: Duration(seconds: 1)),
+                                      );
+                                    },
+                                    tooltip: 'PIN kopieren',
+                                    constraints: const BoxConstraints(),
+                                    padding: const EdgeInsets.all(4),
+                                  ),
+                              ],
+                            ),
+                          ),
+                          const Divider(height: 16),
+                          // Kartennummer copyable
+                          _cardDetailRow(
+                            'Kartennummer',
+                            nummerCtrl.text,
+                            trailing: IconButton(
+                              icon: Icon(Icons.copy, size: 16, color: Colors.grey.shade500),
+                              onPressed: () {
+                                Clipboard.setData(ClipboardData(text: nummerCtrl.text));
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('Kartennummer kopiert'), duration: Duration(seconds: 1)),
+                                );
+                              },
+                              tooltip: 'Kopieren',
+                              constraints: const BoxConstraints(),
+                              padding: const EdgeInsets.all(4),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx, 'delete'),
+                  style: TextButton.styleFrom(foregroundColor: Colors.red),
+                  child: const Text('Löschen'),
+                ),
+                const Spacer(),
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('Schließen'),
+                ),
+                ElevatedButton.icon(
+                  icon: const Icon(Icons.edit, size: 16),
+                  label: const Text('Bearbeiten', style: TextStyle(color: Colors.white)),
+                  style: ElevatedButton.styleFrom(backgroundColor: color),
+                  onPressed: () => setDialogState(() => isEditing = true),
+                ),
+              ],
+            );
+          }
+
+          // EDIT MODE
+          return AlertDialog(
+            title: Row(
+              children: [
+                Icon(Icons.edit, color: color),
+                const SizedBox(width: 8),
+                const Text('Karte bearbeiten', style: TextStyle(fontSize: 16)),
+              ],
+            ),
+            content: SizedBox(
+              width: 400,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: bezCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Bezeichnung',
+                      border: OutlineInputBorder(),
+                      isDense: true,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: nummerCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Kartennummer',
+                      border: OutlineInputBorder(),
+                      isDense: true,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: pinCtrl,
+                    obscureText: obscurePin,
+                    decoration: InputDecoration(
+                      labelText: 'PIN',
+                      border: const OutlineInputBorder(),
+                      isDense: true,
+                      suffixIcon: IconButton(
+                        icon: Icon(obscurePin ? Icons.visibility_off : Icons.visibility),
+                        onPressed: () => setDialogState(() => obscurePin = !obscurePin),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: limitCtrl,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(
+                      labelText: 'Tageslimit (EUR)',
+                      border: OutlineInputBorder(),
+                      isDense: true,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => setDialogState(() => isEditing = false),
+                child: const Text('Zurück'),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(ctx, 'save'),
+                style: ElevatedButton.styleFrom(backgroundColor: color),
+                child: const Text('Speichern', style: TextStyle(color: Colors.white)),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+
+    if (!mounted || action == null) {
+      nummerCtrl.dispose();
+      pinCtrl.dispose();
+      bezCtrl.dispose();
+      limitCtrl.dispose();
+      return;
+    }
+
+    final messenger = ScaffoldMessenger.of(context);
+    if (action == 'save') {
+      await widget.apiService.updatePostcardKarte(
+        id: card['id'] as int,
+        kartennummer: nummerCtrl.text.trim(),
+        pin: pinCtrl.text.trim(),
+        bezeichnung: bezCtrl.text.trim(),
+        tageslimit: double.tryParse(limitCtrl.text.trim()) ?? 10.0,
+      );
+      if (mounted) _loadPostcards();
+    } else if (action == 'delete') {
+      final res = await widget.apiService.deletePostcardKarte(card['id'] as int);
+      if (mounted) {
+        if (res['success'] == true) {
+          _loadPostcards();
+        } else {
+          messenger.showSnackBar(
+            SnackBar(content: Text(res['message'] ?? 'Fehler'), backgroundColor: Colors.red),
+          );
+        }
+      }
+    }
+
+    nummerCtrl.dispose();
+    pinCtrl.dispose();
+    bezCtrl.dispose();
+    limitCtrl.dispose();
+  }
+
+  Widget _cardDetailRow(String label, String value, {Widget? trailing}) {
+    return Row(
+      children: [
+        SizedBox(
+          width: 110,
+          child: Text(label, style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+        ),
+        Expanded(
+          child: Text(value, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
+        ),
+        if (trailing != null) trailing,
+      ],
+    );
+  }
+
+  Future<void> _showPostcardAccountDialog() async {
+    final websiteCtrl = TextEditingController();
+    final usernameCtrl = TextEditingController();
+    final passwordCtrl = TextEditingController();
+    bool obscurePassword = true;
+    bool isLoading = true;
+
+    await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) {
+          // Load account data on first build
+          if (isLoading) {
+            widget.apiService.getPostcardAccount().then((res) {
+              if (ctx.mounted) {
+                final account = res['account'];
+                if (account != null) {
+                  websiteCtrl.text = account['website'] ?? '';
+                  usernameCtrl.text = account['username'] ?? '';
+                  passwordCtrl.text = account['password'] ?? '';
+                }
+                setDialogState(() => isLoading = false);
+              }
+            });
+          }
+
+          return AlertDialog(
+            title: Row(
+              children: [
+                Icon(Icons.settings, color: Colors.deepPurple.shade700),
+                const SizedBox(width: 8),
+                const Text('Deutsche Post Konto', style: TextStyle(fontSize: 16)),
+              ],
+            ),
+            content: SizedBox(
+              width: 420,
+              child: isLoading
+                  ? const SizedBox(
+                      height: 100,
+                      child: Center(child: CircularProgressIndicator()),
+                    )
+                  : Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Zugangsdaten für das Deutsche Post Geschäftskundenportal',
+                          style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                        ),
+                        const SizedBox(height: 16),
+                        TextField(
+                          controller: websiteCtrl,
+                          decoration: const InputDecoration(
+                            labelText: 'Website / Login-URL',
+                            hintText: 'z.B. https://geschaeftskunden.deutschepost.de',
+                            prefixIcon: Icon(Icons.language),
+                            border: OutlineInputBorder(),
+                            isDense: true,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        TextField(
+                          controller: usernameCtrl,
+                          decoration: const InputDecoration(
+                            labelText: 'Benutzername / E-Mail',
+                            hintText: 'Ihr Login-Name',
+                            prefixIcon: Icon(Icons.person),
+                            border: OutlineInputBorder(),
+                            isDense: true,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        TextField(
+                          controller: passwordCtrl,
+                          obscureText: obscurePassword,
+                          decoration: InputDecoration(
+                            labelText: 'Passwort',
+                            prefixIcon: const Icon(Icons.lock),
+                            border: const OutlineInputBorder(),
+                            isDense: true,
+                            suffixIcon: IconButton(
+                              icon: Icon(obscurePassword ? Icons.visibility_off : Icons.visibility),
+                              onPressed: () => setDialogState(() => obscurePassword = !obscurePassword),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.blue.shade50,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(Icons.shield, size: 16, color: Colors.blue.shade700),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  'Alle Daten werden mit AES-256 verschlüsselt gespeichert.',
+                                  style: TextStyle(fontSize: 11, color: Colors.blue.shade700),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+            ),
+            actions: isLoading
+                ? null
+                : [
+                    TextButton(
+                      onPressed: () => Navigator.pop(ctx),
+                      child: const Text('Abbrechen'),
+                    ),
+                    if (websiteCtrl.text.isNotEmpty || usernameCtrl.text.isNotEmpty)
+                      TextButton.icon(
+                        icon: const Icon(Icons.language, size: 14),
+                        label: const Text('Zum Login'),
+                        onPressed: () {
+                          final url = websiteCtrl.text.trim();
+                          if (url.isNotEmpty) {
+                            final user = usernameCtrl.text.trim();
+                            final pass = passwordCtrl.text.trim();
+                            Navigator.pop(ctx);
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => WebViewScreen(
+                                  title: 'Deutsche Post Login',
+                                  url: url.startsWith('http') ? url : 'https://$url',
+                                  autoFillUsername: user.isNotEmpty ? user : null,
+                                  autoFillPassword: pass.isNotEmpty ? pass : null,
+                                ),
+                              ),
+                            );
+                          }
+                        },
+                      ),
+                    ElevatedButton.icon(
+                      icon: const Icon(Icons.save, size: 16),
+                      label: const Text('Speichern', style: TextStyle(color: Colors.white)),
+                      style: ElevatedButton.styleFrom(backgroundColor: Colors.deepPurple.shade700),
+                      onPressed: () async {
+                        final messenger = ScaffoldMessenger.of(context);
+                        final res = await widget.apiService.savePostcardAccount(
+                          website: websiteCtrl.text.trim(),
+                          username: usernameCtrl.text.trim(),
+                          password: passwordCtrl.text.trim(),
+                        );
+                        if (ctx.mounted) Navigator.pop(ctx, res['success'] == true);
+                        if (res['success'] == true) {
+                          messenger.showSnackBar(
+                            const SnackBar(content: Text('Kontodaten gespeichert'), backgroundColor: Colors.green),
+                          );
+                        } else {
+                          messenger.showSnackBar(
+                            SnackBar(content: Text(res['message'] ?? 'Fehler'), backgroundColor: Colors.red),
+                          );
+                        }
+                      },
+                    ),
+                  ],
+          );
+        },
+      ),
+    );
+
+    websiteCtrl.dispose();
+    usernameCtrl.dispose();
+    passwordCtrl.dispose();
+  }
+
+}
+
+/// Subtle diagonal line pattern for the card background
+class _CardPatternPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = const Color(0x0A000000)
+      ..strokeWidth = 0.5
+      ..style = PaintingStyle.stroke;
+
+    const spacing = 20.0;
+    for (double i = -size.height; i < size.width + size.height; i += spacing) {
+      canvas.drawLine(Offset(i, 0), Offset(i + size.height, size.height), paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+/// EMV chip lines painter
+class _ChipPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = const Color(0x30000000)
+      ..strokeWidth = 0.8
+      ..style = PaintingStyle.stroke;
+
+    // Horizontal lines
+    canvas.drawLine(Offset(0, size.height * 0.35), Offset(size.width, size.height * 0.35), paint);
+    canvas.drawLine(Offset(0, size.height * 0.65), Offset(size.width, size.height * 0.65), paint);
+
+    // Vertical center line
+    canvas.drawLine(Offset(size.width * 0.5, 0), Offset(size.width * 0.5, size.height), paint);
+
+    // Small rectangles in chip pattern
+    final rectPaint = Paint()
+      ..color = const Color(0x15000000)
+      ..style = PaintingStyle.fill;
+
+    canvas.drawRect(Rect.fromLTWH(size.width * 0.1, size.height * 0.1, size.width * 0.3, size.height * 0.2), rectPaint);
+    canvas.drawRect(Rect.fromLTWH(size.width * 0.6, size.height * 0.7, size.width * 0.3, size.height * 0.2), rectPaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}

@@ -1,0 +1,690 @@
+import 'dart:convert';
+import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import '../l10n/app_localizations.dart';
+import '../services/api_service.dart';
+import '../services/diagnostic_service.dart';
+import '../services/logger_service.dart';
+import '../services/startup_service.dart';
+import '../widgets/diagnostic_consent_dialog.dart';
+import '../widgets/login_tab.dart';
+import '../widgets/responsive_layout.dart';
+import 'dashboard_screen.dart';
+
+final _log = LoggerService();
+
+class LoginScreen extends StatefulWidget {
+  const LoginScreen({super.key});
+
+  @override
+  State<LoginScreen> createState() => _LoginScreenState();
+}
+
+class _LoginScreenState extends State<LoginScreen> {
+  final _apiService = ApiService();
+  final _secureStorage = const FlutterSecureStorage();
+
+  // Login form controllers (shared with LoginTab)
+  final _mitgliedernummerController = TextEditingController();
+  final _loginPasswordController = TextEditingController();
+
+  // State
+  bool _rememberMe = false;
+  bool _autoLogin = false;
+  bool _startWithWindows = false;
+  bool _isLoading = false;
+  bool _isInitializing = true;
+  String? _loginErrorMessage;
+
+  // ✅ SECURITY FIX (2026-02-10): Rate limiting to prevent brute-force attacks
+  int _failedLoginAttempts = 0;
+  DateTime? _lastFailedAttempt;
+  static const int _maxFailedAttempts = 5;
+  static const Duration _cooldownDuration = Duration(minutes: 5);
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSavedCredentials();
+  }
+
+  Future<void> _loadSavedCredentials() async {
+    final prefs = await SharedPreferences.getInstance();
+    final savedMitgliedernummer = await _secureStorage.read(key: 'mitgliedernummer');
+    final savedPassword = await _secureStorage.read(key: 'password');
+    final rememberMe = prefs.getBool('remember_me') ?? true;
+    final autoLogin = prefs.getBool('auto_login') ?? true;
+
+    // Load startup with Windows state - default to enabled on first run
+    bool startWithWindows = StartupService().isEnabled;
+    if (!prefs.containsKey('startup_configured')) {
+      await prefs.setBool('startup_configured', true);
+      final success = await StartupService().setEnabled(true);
+      if (success) {
+        startWithWindows = true;
+      }
+    }
+
+    setState(() {
+      _rememberMe = rememberMe;
+      _autoLogin = autoLogin;
+      _startWithWindows = startWithWindows;
+      if (rememberMe && savedMitgliedernummer != null) {
+        _mitgliedernummerController.text = savedMitgliedernummer;
+        if (savedPassword != null) {
+          _loginPasswordController.text = savedPassword;
+        }
+      }
+      _isInitializing = false;
+    });
+
+    // Always show startup dialogs (update check, diagnostic consent)
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _showStartupDialogs(autoLoginAfter: autoLogin && savedMitgliedernummer != null && savedPassword != null);
+    });
+  }
+
+  Future<void> _showStartupDialogs({bool autoLoginAfter = false}) async {
+    if (!mounted) return;
+
+    // Small delay to ensure UI is stable
+    await Future.delayed(const Duration(milliseconds: 300));
+
+    if (!mounted) return;
+
+    // 1. Check for diagnostic consent
+    await checkAndShowDiagnosticConsent(context);
+
+    // Set diagnostic screen
+    DiagnosticService().setScreen('login');
+
+    // 2. Auto-login if enabled (after consent dialog)
+    if (autoLoginAfter && mounted) {
+      _login();
+    }
+  }
+
+  Future<void> _saveCredentials() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (_rememberMe) {
+      await _secureStorage.write(key: 'mitgliedernummer', value: _mitgliedernummerController.text.trim());
+      await _secureStorage.write(key: 'password', value: _loginPasswordController.text);
+      await prefs.setBool('remember_me', true);
+      await prefs.setBool('auto_login', _autoLogin);
+    } else {
+      await _secureStorage.delete(key: 'mitgliedernummer');
+      await _secureStorage.delete(key: 'password');
+      await prefs.setBool('remember_me', false);
+      await prefs.setBool('auto_login', false);
+    }
+  }
+
+  @override
+  void dispose() {
+    _mitgliedernummerController.dispose();
+    _loginPasswordController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _login() async {
+    _log.info('Login: Attempting login for ${_mitgliedernummerController.text.trim()}', tag: 'AUTH');
+
+    // ✅ SECURITY FIX: Check rate limiting
+    if (_failedLoginAttempts >= _maxFailedAttempts && _lastFailedAttempt != null) {
+      final timeSinceLastFailed = DateTime.now().difference(_lastFailedAttempt!);
+      if (timeSinceLastFailed < _cooldownDuration) {
+        final remainingMinutes = (_cooldownDuration.inSeconds - timeSinceLastFailed.inSeconds) ~/ 60;
+        final remainingSeconds = (_cooldownDuration.inSeconds - timeSinceLastFailed.inSeconds) % 60;
+        final remaining = '$remainingMinutes:${remainingSeconds.toString().padLeft(2, '0')}';
+        if (mounted) {
+          final l = AppLocalizations.of(context);
+          setState(() {
+            _loginErrorMessage = l.tooManyAttempts(remaining);
+          });
+        }
+        return;
+      } else {
+        // Reset after cooldown
+        _failedLoginAttempts = 0;
+        _lastFailedAttempt = null;
+      }
+    }
+
+    setState(() {
+      _isLoading = true;
+      _loginErrorMessage = null;
+    });
+
+    // Progressive delay based on failed attempts (exponential backoff)
+    if (_failedLoginAttempts > 0) {
+      final delaySeconds = (1 << _failedLoginAttempts).clamp(1, 8); // 2^n, max 8 seconds
+      await Future.delayed(Duration(seconds: delaySeconds));
+    }
+
+    try {
+      final result = await _apiService.login(
+        _mitgliedernummerController.text.trim(),
+        _loginPasswordController.text,
+      );
+      _log.debug('Login: API response success=${result['success']}', tag: 'AUTH');
+
+      if (result['success'] == true) {
+        // ✅ Reset failed attempts on successful login
+        _failedLoginAttempts = 0;
+        _lastFailedAttempt = null;
+        final user = result['user'];
+        final role = user['role'] ?? 'vorsitzer';
+        _log.info('Login: Success! Role=$role, Mitgliedernummer=${user['mitgliedernummer']}', tag: 'AUTH');
+
+        await _saveCredentials();
+
+        if (mounted) {
+          // All users go to admin dashboard (Vorsitzer app)
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => DashboardScreen(
+                userName: user['name'],
+                currentMitgliedernummer: user['mitgliedernummer'],
+                currentEmail: user['email'] ?? '',
+                currentRole: role,
+              ),
+            ),
+          );
+        }
+      } else {
+        _log.warning('Login: Failed - ${result['message']}', tag: 'AUTH');
+
+        // ✅ SECURITY FIX: Increment failed attempts counter
+        _failedLoginAttempts++;
+        _lastFailedAttempt = DateTime.now();
+
+        // Check for "Maximum devices" error with active sessions list
+        final errorCode = result['error_code'];
+        if (errorCode == 'MAX_DEVICES' && result['active_sessions'] != null) {
+          // Don't count MAX_DEVICES as failed login attempt
+          _failedLoginAttempts--;
+          // Show device selection dialog
+          if (mounted) {
+            _showDeviceSelectionDialog(
+              result['active_sessions'] as List,
+              _mitgliedernummerController.text.trim(),
+              _loginPasswordController.text,
+            );
+          }
+        } else {
+          if (mounted) {
+            final l = AppLocalizations.of(context);
+            setState(() {
+              _loginErrorMessage = result['message'] ?? l.loginFailed;
+              if (_failedLoginAttempts >= _maxFailedAttempts) {
+                _loginErrorMessage = '${result['message'] ?? l.loginFailed}\n\n⚠️ ${l.accountTempLocked}';
+              }
+            });
+          }
+        }
+      }
+    } catch (e) {
+      _log.error('Login: Exception - $e', tag: 'AUTH');
+      if (mounted) {
+        final l = AppLocalizations.of(context);
+        setState(() {
+          _loginErrorMessage = '${l.connectionError}: $e';
+        });
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _showDeviceSelectionDialog(List activeSessions, String mitgliedernummer, String password) async {
+    final l = AppLocalizations.of(context);
+    final selectedSession = await showDialog<Map<String, dynamic>>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        title: Row(
+          children: [
+            const Icon(Icons.devices, color: Colors.orange),
+            const SizedBox(width: 8),
+            Text(l.tooManyDevices),
+          ],
+        ),
+        content: SizedBox(
+          width: 500,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                l.alreadyLoggedOn3Devices,
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 16),
+              ...activeSessions.map((session) {
+                final deviceInfo = session['device_info'] != null
+                    ? jsonDecode(session['device_info'])
+                    : null;
+                final deviceName = deviceInfo?['device_name'] ?? l.unknownDevice;
+                final platform = deviceInfo?['platform'] ?? l.unknown;
+                final ipAddress = session['ip_address'] ?? l.unknown;
+
+                return Card(
+                  margin: const EdgeInsets.only(bottom: 8),
+                  child: ListTile(
+                    leading: const Icon(Icons.computer, color: Colors.blue),
+                    title: Text(deviceName),
+                    subtitle: Text('$platform • IP: $ipAddress'),
+                    trailing: const Icon(Icons.arrow_forward),
+                    onTap: () => Navigator.pop(ctx, session),
+                  ),
+                );
+              }),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(l.cancel),
+          ),
+        ],
+      ),
+    );
+
+    if (selectedSession != null) {
+      // User selected a device to logout
+      setState(() {
+        _isLoading = true;
+        _loginErrorMessage = null;
+      });
+
+      try {
+        final logoutResult = await _apiService.logoutDevice(
+          mitgliedernummer,
+          password,
+          selectedSession['id'],
+        );
+
+        if (logoutResult['success'] == true) {
+          // Device logged out, retry login automatically
+          _log.info('Device logged out successfully, retrying login...', tag: 'AUTH');
+          await _login(); // Retry login
+        } else {
+          if (mounted) {
+            final l = AppLocalizations.of(context);
+            setState(() {
+              _loginErrorMessage = logoutResult['message'] ?? l.logoutError;
+              _isLoading = false;
+            });
+          }
+        }
+      } catch (e) {
+        if (mounted) {
+          final l = AppLocalizations.of(context);
+          setState(() {
+            _loginErrorMessage = '${l.error}: $e';
+            _isLoading = false;
+          });
+        }
+      }
+    }
+  }
+
+
+  @override
+  Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
+
+    if (_isInitializing || (_autoLogin && _isLoading)) {
+      return Scaffold(
+        backgroundColor: const Color(0xFF1a1a2e),
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(
+                Icons.groups,
+                size: 64,
+                color: Color(0xFF4a90d9),
+              ),
+              const SizedBox(height: 24),
+              const Text(
+                'ICD360S e.V',
+                style: TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                l.autoLogin,
+                style: const TextStyle(
+                  fontSize: 16,
+                  color: Colors.white70,
+                ),
+              ),
+              const SizedBox(height: 24),
+              const CircularProgressIndicator(
+                color: Color(0xFF4a90d9),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    final isMobile = ResponsiveLayout.isMobile(context);
+
+    return Scaffold(
+      body: isMobile
+          ? _buildMobileLoginLayout(l)
+          : Row(
+              children: [
+                // Left side - Branding (desktop only)
+                Expanded(
+                  flex: 5,
+                  child: _buildBrandingPanel(l),
+                ),
+                // Right side - Login Form
+                Expanded(
+                  flex: 4,
+                  child: _buildLoginFormPanel(l, isMobile),
+                ),
+              ],
+            ),
+    );
+  }
+
+  /// Mobile login layout - clean, form-first design
+  Widget _buildMobileLoginLayout(AppLocalizations l) {
+    return Scaffold(
+      backgroundColor: const Color(0xFF1a1a2e),
+      body: SafeArea(
+        child: Column(
+          children: [
+            // Logo + name centered
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 24, 16, 16),
+              child: Column(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.groups, size: 36, color: Color(0xFF4a90d9)),
+                  ),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'ICD360S e.V',
+                    style: TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                      letterSpacing: 1,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    l.portalName,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: Colors.white60,
+                      letterSpacing: 2,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            // Login form direct - no card wrapper
+            Expanded(
+              child: Container(
+                width: double.infinity,
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+                ),
+                child: Column(
+                  children: [
+                    Expanded(
+                      child: LoginTab(
+                        apiService: _apiService,
+                        mitgliedernummerController: _mitgliedernummerController,
+                        passwordController: _loginPasswordController,
+                        rememberMe: _rememberMe,
+                        autoLogin: _autoLogin,
+                        startWithWindows: _startWithWindows,
+                        isLoading: _isLoading,
+                        errorMessage: _loginErrorMessage,
+                        onRememberMeChanged: (value) {
+                          setState(() {
+                            _rememberMe = value;
+                            if (!_rememberMe) _autoLogin = false;
+                          });
+                        },
+                        onAutoLoginChanged: (value) {
+                          setState(() => _autoLogin = value);
+                        },
+                        onStartWithWindowsChanged: (value) {
+                          setState(() => _startWithWindows = value);
+                        },
+                        onLogin: _login,
+                        onMaxDevices: _showDeviceSelectionDialog,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Desktop login form panel (right side)
+  Widget _buildLoginFormPanel(AppLocalizations l, bool isMobile) {
+    return Container(
+      color: Colors.grey.shade100,
+      child: Column(
+        children: [
+          Expanded(
+            child: Center(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(48),
+                child: Container(
+                  constraints: const BoxConstraints(maxWidth: 480),
+                  child: Card(
+                    elevation: 8,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        _buildLoginHeader(l),
+                        _buildLoginTabWidget(),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLoginHeader(AppLocalizations l) {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+        border: Border(
+          bottom: BorderSide(color: Colors.grey.shade300),
+        ),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.login, color: Color(0xFF4a90d9), size: 28),
+          const SizedBox(width: 12),
+          Text(
+            l.login,
+            style: const TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF4a90d9),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLoginTabWidget() {
+    return SizedBox(
+      height: 490,
+      child: LoginTab(
+        apiService: _apiService,
+        mitgliedernummerController: _mitgliedernummerController,
+        passwordController: _loginPasswordController,
+        rememberMe: _rememberMe,
+        autoLogin: _autoLogin,
+        startWithWindows: _startWithWindows,
+        isLoading: _isLoading,
+        errorMessage: _loginErrorMessage,
+        onRememberMeChanged: (value) {
+          setState(() {
+            _rememberMe = value;
+            if (!_rememberMe) {
+              _autoLogin = false;
+            }
+          });
+        },
+        onAutoLoginChanged: (value) {
+          setState(() => _autoLogin = value);
+        },
+        onStartWithWindowsChanged: (value) {
+          setState(() => _startWithWindows = value);
+        },
+        onLogin: _login,
+        onMaxDevices: _showDeviceSelectionDialog,
+      ),
+    );
+  }
+
+  Widget _buildBrandingPanel(AppLocalizations l) {
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Color(0xFF1a1a2e),
+            Color(0xFF16213e),
+            Color(0xFF0f3460),
+          ],
+        ),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          // Logo
+          Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.1),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.groups,
+              size: 80,
+              color: Color(0xFF4a90d9),
+            ),
+          ),
+          const SizedBox(height: 32),
+          const Text(
+            'ICD360S e.V',
+            style: TextStyle(
+              fontSize: 42,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+              letterSpacing: 2,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            l.portalName,
+            style: const TextStyle(
+              fontSize: 18,
+              color: Colors.white70,
+              letterSpacing: 4,
+            ),
+          ),
+          const SizedBox(height: 48),
+          // Features
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 48),
+            child: Column(
+              children: [
+                _buildFeatureItem(Icons.people_outline, l.memberManagement),
+                const SizedBox(height: 16),
+                _buildFeatureItem(Icons.calendar_today, l.appointmentManagement),
+                const SizedBox(height: 16),
+                _buildFeatureItem(Icons.confirmation_number_outlined, l.ticketManagement),
+                const SizedBox(height: 16),
+                _buildFeatureItem(Icons.business_outlined, l.organizationManagement),
+              ],
+            ),
+          ),
+          const Spacer(),
+          // Footer
+          Padding(
+            padding: const EdgeInsets.all(24),
+            child: Text(
+              l.copyrightText(DateTime.now().year),
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.5),
+                fontSize: 12,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFeatureItem(IconData icon, String text) {
+    return Row(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: const Color(0xFF4a90d9).withValues(alpha: 0.2),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(icon, color: const Color(0xFF4a90d9), size: 20),
+        ),
+        const SizedBox(width: 16),
+        Text(
+          text,
+          style: const TextStyle(
+            color: Colors.white70,
+            fontSize: 14,
+          ),
+        ),
+      ],
+    );
+  }
+}

@@ -1,0 +1,873 @@
+import 'dart:async';
+import 'dart:convert';
+import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'package:intl/intl.dart';
+
+/// Reiseplanung — Journey Planner for Germany
+/// Uses v6.db.transport.rest API (DB HAFAS, free, no auth)
+/// Supports: ICE, IC, RE, RB, S-Bahn, Bus, Tram, U-Bahn
+class ReiseplanungScreen extends StatefulWidget {
+  final VoidCallback onBack;
+
+  const ReiseplanungScreen({super.key, required this.onBack});
+
+  @override
+  State<ReiseplanungScreen> createState() => _ReiseplanungScreenState();
+}
+
+class _ReiseplanungScreenState extends State<ReiseplanungScreen> {
+  static const _baseUrl = 'https://v6.db.transport.rest';
+  final _client = http.Client();
+
+  // Search controllers
+  final _fromController = TextEditingController();
+  final _toController = TextEditingController();
+
+  // Selected stations
+  _Station? _fromStation;
+  _Station? _toStation;
+
+  // Autocomplete results
+  List<_Station> _fromSuggestions = [];
+  List<_Station> _toSuggestions = [];
+  bool _showFromSuggestions = false;
+  bool _showToSuggestions = false;
+  Timer? _searchDebounce;
+
+  // Date/Time
+  DateTime _departureTime = DateTime.now();
+  bool _isDeparture = true; // true = Abfahrt, false = Ankunft
+
+  // Results
+  List<_Journey> _journeys = [];
+  bool _isSearching = false;
+  String? _error;
+
+  // Pagination
+  String? _laterRef;
+  String? _earlierRef;
+
+  final _fromFocus = FocusNode();
+  final _toFocus = FocusNode();
+
+  @override
+  void initState() {
+    super.initState();
+    _fromFocus.addListener(() {
+      if (!_fromFocus.hasFocus) {
+        Future.delayed(const Duration(milliseconds: 200), () {
+          if (mounted) setState(() => _showFromSuggestions = false);
+        });
+      }
+    });
+    _toFocus.addListener(() {
+      if (!_toFocus.hasFocus) {
+        Future.delayed(const Duration(milliseconds: 200), () {
+          if (mounted) setState(() => _showToSuggestions = false);
+        });
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _fromController.dispose();
+    _toController.dispose();
+    _fromFocus.dispose();
+    _toFocus.dispose();
+    _searchDebounce?.cancel();
+    super.dispose();
+  }
+
+  // ── Station Search ───────────────────────────────────────────
+
+  Future<List<_Station>> _searchStations(String query) async {
+    if (query.length < 2) return [];
+    try {
+      final uri = Uri.parse(
+        '$_baseUrl/locations?query=${Uri.encodeComponent(query)}&results=6&stops=true&addresses=false&poi=false&language=de',
+      );
+      final response = await _client.get(uri);
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body) as List;
+        return data
+            .where((s) => s['type'] == 'stop' || s['type'] == 'station')
+            .map((s) => _Station(
+                  id: s['id']?.toString() ?? '',
+                  name: s['name']?.toString() ?? '',
+                  products: s['products'] as Map<String, dynamic>? ?? {},
+                ))
+            .toList();
+      }
+    } catch (_) {}
+    return [];
+  }
+
+  void _onFromChanged(String value) {
+    _fromStation = null;
+    _searchDebounce?.cancel();
+    _searchDebounce = Timer(const Duration(milliseconds: 300), () async {
+      final results = await _searchStations(value);
+      if (mounted) {
+        setState(() {
+          _fromSuggestions = results;
+          _showFromSuggestions = results.isNotEmpty;
+        });
+      }
+    });
+  }
+
+  void _onToChanged(String value) {
+    _toStation = null;
+    _searchDebounce?.cancel();
+    _searchDebounce = Timer(const Duration(milliseconds: 300), () async {
+      final results = await _searchStations(value);
+      if (mounted) {
+        setState(() {
+          _toSuggestions = results;
+          _showToSuggestions = results.isNotEmpty;
+        });
+      }
+    });
+  }
+
+  void _selectFromStation(_Station station) {
+    setState(() {
+      _fromStation = station;
+      _fromController.text = station.name;
+      _showFromSuggestions = false;
+    });
+  }
+
+  void _selectToStation(_Station station) {
+    setState(() {
+      _toStation = station;
+      _toController.text = station.name;
+      _showToSuggestions = false;
+    });
+  }
+
+  void _swapStations() {
+    final tmpStation = _fromStation;
+    final tmpText = _fromController.text;
+    setState(() {
+      _fromStation = _toStation;
+      _fromController.text = _toController.text;
+      _toStation = tmpStation;
+      _toController.text = tmpText;
+    });
+  }
+
+  // ── Journey Search ───────────────────────────────────────────
+
+  Future<void> _searchJourneys({String? laterThan, String? earlierThan}) async {
+    if (_fromStation == null || _toStation == null) {
+      setState(() => _error = 'Bitte Start und Ziel auswählen');
+      return;
+    }
+
+    setState(() {
+      _isSearching = true;
+      _error = null;
+      if (laterThan == null && earlierThan == null) _journeys = [];
+    });
+
+    try {
+      final params = <String, String>{
+        'from': _fromStation!.id,
+        'to': _toStation!.id,
+        'results': '5',
+        'language': 'de',
+        'remarks': 'true',
+        'stopovers': 'false',
+      };
+
+      if (laterThan != null) {
+        params['laterThan'] = laterThan;
+      } else if (earlierThan != null) {
+        params['earlierThan'] = earlierThan;
+      } else {
+        final timeKey = _isDeparture ? 'departure' : 'arrival';
+        params[timeKey] = _departureTime.toIso8601String();
+      }
+
+      final uri = Uri.parse('$_baseUrl/journeys').replace(queryParameters: params);
+      final response = await _client.get(uri);
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final journeysList = data['journeys'] as List? ?? [];
+        final parsed = journeysList.map((j) => _Journey.fromJson(j)).toList();
+
+        if (mounted) {
+          setState(() {
+            if (laterThan != null) {
+              _journeys.addAll(parsed);
+            } else if (earlierThan != null) {
+              _journeys.insertAll(0, parsed);
+            } else {
+              _journeys = parsed;
+            }
+            _laterRef = data['laterRef']?.toString();
+            _earlierRef = data['earlierRef']?.toString();
+            _isSearching = false;
+          });
+        }
+      } else {
+        if (mounted) {
+          setState(() {
+            _error = 'API-Fehler: ${response.statusCode}';
+            _isSearching = false;
+          });
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _error = 'Verbindungsfehler: $e';
+          _isSearching = false;
+        });
+      }
+    }
+  }
+
+  // ── Date/Time Picker ─────────────────────────────────────────
+
+  Future<void> _pickDateTime() async {
+    final date = await showDatePicker(
+      context: context,
+      initialDate: _departureTime,
+      firstDate: DateTime.now().subtract(const Duration(days: 1)),
+      lastDate: DateTime.now().add(const Duration(days: 90)),
+      locale: const Locale('de'),
+    );
+    if (date == null || !mounted) return;
+
+    final time = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(_departureTime),
+    );
+    if (time == null || !mounted) return;
+
+    setState(() {
+      _departureTime = DateTime(date.year, date.month, date.day, time.hour, time.minute);
+    });
+  }
+
+  // ── Build UI ─────────────────────────────────────────────────
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        // Header
+        Padding(
+          padding: const EdgeInsets.fromLTRB(8, 8, 8, 0),
+          child: Row(
+            children: [
+              IconButton(
+                icon: const Icon(Icons.arrow_back),
+                onPressed: widget.onBack,
+                tooltip: 'Zurück',
+              ),
+              const SizedBox(width: 4),
+              Icon(Icons.route, color: Colors.indigo.shade700, size: 24),
+              const SizedBox(width: 8),
+              const Text(
+                'Reiseplanung',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              ),
+              const Spacer(),
+              Text(
+                'DB HAFAS • ganz Deutschland',
+                style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+              ),
+              const SizedBox(width: 8),
+            ],
+          ),
+        ),
+        const Divider(height: 1),
+        // Search form
+        Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // From/To inputs
+              Expanded(
+                child: Column(
+                  children: [
+                    _buildStationInput(
+                      controller: _fromController,
+                      focusNode: _fromFocus,
+                      label: 'Von',
+                      icon: Icons.trip_origin,
+                      color: Colors.green,
+                      suggestions: _fromSuggestions,
+                      showSuggestions: _showFromSuggestions,
+                      onChanged: _onFromChanged,
+                      onSelect: _selectFromStation,
+                      selectedStation: _fromStation,
+                    ),
+                    const SizedBox(height: 8),
+                    _buildStationInput(
+                      controller: _toController,
+                      focusNode: _toFocus,
+                      label: 'Nach',
+                      icon: Icons.location_on,
+                      color: Colors.red,
+                      suggestions: _toSuggestions,
+                      showSuggestions: _showToSuggestions,
+                      onChanged: _onToChanged,
+                      onSelect: _selectToStation,
+                      selectedStation: _toStation,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              // Swap button
+              Padding(
+                padding: const EdgeInsets.only(top: 12),
+                child: IconButton(
+                  icon: const Icon(Icons.swap_vert, size: 28),
+                  tooltip: 'Tauschen',
+                  onPressed: _swapStations,
+                  color: Colors.indigo,
+                ),
+              ),
+              const SizedBox(width: 8),
+              // Date/Time + Search
+              Column(
+                children: [
+                  // Departure/Arrival toggle
+                  SizedBox(
+                    width: 180,
+                    child: SegmentedButton<bool>(
+                      segments: const [
+                        ButtonSegment(value: true, label: Text('Abfahrt', style: TextStyle(fontSize: 12))),
+                        ButtonSegment(value: false, label: Text('Ankunft', style: TextStyle(fontSize: 12))),
+                      ],
+                      selected: {_isDeparture},
+                      onSelectionChanged: (v) => setState(() => _isDeparture = v.first),
+                      style: ButtonStyle(
+                        visualDensity: VisualDensity.compact,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  // Date/Time picker
+                  SizedBox(
+                    width: 180,
+                    child: OutlinedButton.icon(
+                      icon: const Icon(Icons.access_time, size: 16),
+                      label: Text(
+                        DateFormat('dd.MM. HH:mm').format(_departureTime),
+                        style: const TextStyle(fontSize: 13),
+                      ),
+                      onPressed: _pickDateTime,
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  // Search button
+                  SizedBox(
+                    width: 180,
+                    child: FilledButton.icon(
+                      icon: _isSearching
+                          ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                          : const Icon(Icons.search, size: 18),
+                      label: const Text('Suchen'),
+                      onPressed: _isSearching ? null : () => _searchJourneys(),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: Colors.indigo,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        // Error
+        if (_error != null)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Colors.red.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.red.shade200),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.error_outline, color: Colors.red.shade700, size: 18),
+                  const SizedBox(width: 8),
+                  Expanded(child: Text(_error!, style: TextStyle(fontSize: 12, color: Colors.red.shade700))),
+                ],
+              ),
+            ),
+          ),
+        // Results
+        Expanded(
+          child: _journeys.isEmpty && !_isSearching
+              ? Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.train, size: 64, color: Colors.grey.shade300),
+                      const SizedBox(height: 12),
+                      Text(
+                        'Start und Ziel eingeben',
+                        style: TextStyle(fontSize: 15, color: Colors.grey.shade500),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'ICE, IC, RE, RB, S-Bahn, Bus, Tram, U-Bahn',
+                        style: TextStyle(fontSize: 12, color: Colors.grey.shade400),
+                      ),
+                    ],
+                  ),
+                )
+              : _buildJourneyList(),
+        ),
+      ],
+    );
+  }
+
+  // ── Station Input Widget ─────────────────────────────────────
+
+  Widget _buildStationInput({
+    required TextEditingController controller,
+    required FocusNode focusNode,
+    required String label,
+    required IconData icon,
+    required Color color,
+    required List<_Station> suggestions,
+    required bool showSuggestions,
+    required Function(String) onChanged,
+    required Function(_Station) onSelect,
+    required _Station? selectedStation,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        TextField(
+          controller: controller,
+          focusNode: focusNode,
+          onChanged: onChanged,
+          decoration: InputDecoration(
+            labelText: label,
+            prefixIcon: Icon(icon, color: color, size: 20),
+            suffixIcon: selectedStation != null
+                ? Icon(Icons.check_circle, color: Colors.green.shade400, size: 18)
+                : null,
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            isDense: true,
+          ),
+          style: const TextStyle(fontSize: 14),
+        ),
+        if (showSuggestions && suggestions.isNotEmpty)
+          Container(
+            constraints: const BoxConstraints(maxHeight: 200),
+            margin: const EdgeInsets.only(top: 2),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.grey.shade300),
+              boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 8)],
+            ),
+            child: ListView.builder(
+              shrinkWrap: true,
+              padding: EdgeInsets.zero,
+              itemCount: suggestions.length,
+              itemBuilder: (_, i) {
+                final s = suggestions[i];
+                return ListTile(
+                  dense: true,
+                  visualDensity: VisualDensity.compact,
+                  leading: Icon(_stationIcon(s.products), size: 18, color: Colors.grey.shade600),
+                  title: Text(s.name, style: const TextStyle(fontSize: 13)),
+                  subtitle: Text(s.productLabels, style: TextStyle(fontSize: 10, color: Colors.grey.shade500)),
+                  onTap: () => onSelect(s),
+                );
+              },
+            ),
+          ),
+      ],
+    );
+  }
+
+  IconData _stationIcon(Map<String, dynamic> products) {
+    if (products['nationalExpress'] == true || products['national'] == true) return Icons.train;
+    if (products['suburban'] == true) return Icons.directions_railway;
+    if (products['subway'] == true) return Icons.subway;
+    if (products['tram'] == true) return Icons.tram;
+    if (products['bus'] == true) return Icons.directions_bus;
+    return Icons.place;
+  }
+
+  // ── Journey Results List ─────────────────────────────────────
+
+  Widget _buildJourneyList() {
+    return Column(
+      children: [
+        // Earlier button
+        if (_earlierRef != null)
+          TextButton.icon(
+            icon: const Icon(Icons.keyboard_arrow_up, size: 18),
+            label: const Text('Frühere Verbindungen', style: TextStyle(fontSize: 12)),
+            onPressed: _isSearching ? null : () => _searchJourneys(earlierThan: _earlierRef),
+          ),
+        Expanded(
+          child: ListView.builder(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            itemCount: _journeys.length,
+            itemBuilder: (_, i) => _buildJourneyCard(_journeys[i]),
+          ),
+        ),
+        // Later button
+        if (_laterRef != null)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: TextButton.icon(
+              icon: const Icon(Icons.keyboard_arrow_down, size: 18),
+              label: const Text('Spätere Verbindungen', style: TextStyle(fontSize: 12)),
+              onPressed: _isSearching ? null : () => _searchJourneys(laterThan: _laterRef),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildJourneyCard(_Journey journey) {
+    final df = DateFormat('HH:mm');
+    final duration = journey.arrival.difference(journey.departure);
+    final hours = duration.inHours;
+    final mins = duration.inMinutes % 60;
+    final durationStr = hours > 0 ? '${hours}h ${mins}min' : '${mins}min';
+    final transfers = journey.legs.length - 1;
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      elevation: 1,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      child: ExpansionTile(
+        tilePadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
+        childrenPadding: const EdgeInsets.fromLTRB(14, 0, 14, 12),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        // Header: times + duration + transfers
+        title: Row(
+          children: [
+            // Departure time
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(df.format(journey.departure), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                Text(journey.legs.first.originName, style: TextStyle(fontSize: 10, color: Colors.grey.shade600), overflow: TextOverflow.ellipsis),
+              ],
+            ),
+            const SizedBox(width: 12),
+            // Arrow + product icons
+            Expanded(
+              child: Column(
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      ...journey.legs.where((l) => l.lineName != null).take(4).map((l) => Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 2),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: _legColor(l.productType),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            l.lineName!,
+                            style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white),
+                          ),
+                        ),
+                      )),
+                    ],
+                  ),
+                  const SizedBox(height: 2),
+                  Row(
+                    children: [
+                      Expanded(child: Divider(color: Colors.grey.shade300)),
+                      Icon(Icons.arrow_forward, size: 14, color: Colors.grey.shade400),
+                      Expanded(child: Divider(color: Colors.grey.shade300)),
+                    ],
+                  ),
+                  Text(
+                    '$durationStr • ${transfers == 0 ? 'Direkt' : '$transfers Umstiege'}',
+                    style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 12),
+            // Arrival time
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(df.format(journey.arrival), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                Text(journey.legs.last.destinationName, style: TextStyle(fontSize: 10, color: Colors.grey.shade600), overflow: TextOverflow.ellipsis),
+              ],
+            ),
+          ],
+        ),
+        // Expanded: leg details
+        children: journey.legs.map((leg) => _buildLegRow(leg)).toList(),
+      ),
+    );
+  }
+
+  Widget _buildLegRow(_Leg leg) {
+    final df = DateFormat('HH:mm');
+
+    if (leg.isWalking) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: Row(
+          children: [
+            const SizedBox(width: 50),
+            Icon(Icons.directions_walk, size: 16, color: Colors.grey.shade500),
+            const SizedBox(width: 8),
+            Text(
+              'Fußweg${leg.walkingDistance != null ? ' (${leg.walkingDistance} m)' : ''}',
+              style: TextStyle(fontSize: 12, color: Colors.grey.shade600, fontStyle: FontStyle.italic),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Times
+          SizedBox(
+            width: 50,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(df.format(leg.departure), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                if (leg.departureDelay > 0)
+                  Text('+${leg.departureDelay}', style: TextStyle(fontSize: 10, color: Colors.red.shade700, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 8),
+                Text(df.format(leg.arrival), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                if (leg.arrivalDelay > 0)
+                  Text('+${leg.arrivalDelay}', style: TextStyle(fontSize: 10, color: Colors.red.shade700, fontWeight: FontWeight.bold)),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          // Line indicator
+          Column(
+            children: [
+              Container(
+                width: 10, height: 10,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(color: _legColor(leg.productType), width: 2),
+                ),
+              ),
+              Container(width: 2, height: 40, color: _legColor(leg.productType)),
+              Container(
+                width: 10, height: 10,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: _legColor(leg.productType),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(width: 8),
+          // Station names + line info
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(leg.originName, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
+                if (leg.originPlatform != null)
+                  Text('Gl. ${leg.originPlatform}', style: TextStyle(fontSize: 10, color: Colors.grey.shade500)),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: _legColor(leg.productType),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        leg.lineName ?? '?',
+                        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.white),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    if (leg.direction != null)
+                      Expanded(
+                        child: Text(
+                          '→ ${leg.direction}',
+                          style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Text(leg.destinationName, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
+                if (leg.destinationPlatform != null)
+                  Text('Gl. ${leg.destinationPlatform}', style: TextStyle(fontSize: 10, color: Colors.grey.shade500)),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Color _legColor(String? productType) {
+    switch (productType) {
+      case 'nationalExpress':
+      case 'national':
+        return Colors.red.shade700; // ICE, IC
+      case 'regionalExpress':
+      case 'regional':
+        return Colors.blue.shade700; // RE, RB
+      case 'suburban':
+        return Colors.green.shade700; // S-Bahn
+      case 'subway':
+        return Colors.blue.shade900; // U-Bahn
+      case 'tram':
+        return Colors.orange.shade700;
+      case 'bus':
+        return Colors.teal.shade700;
+      default:
+        return Colors.grey.shade700;
+    }
+  }
+}
+
+// ══════════════════════════════════════════════════════════════
+// Data Models
+// ══════════════════════════════════════════════════════════════
+
+class _Station {
+  final String id;
+  final String name;
+  final Map<String, dynamic> products;
+
+  _Station({required this.id, required this.name, required this.products});
+
+  String get productLabels {
+    final labels = <String>[];
+    if (products['nationalExpress'] == true) labels.add('ICE');
+    if (products['national'] == true) labels.add('IC');
+    if (products['regionalExpress'] == true) labels.add('RE');
+    if (products['regional'] == true) labels.add('RB');
+    if (products['suburban'] == true) labels.add('S');
+    if (products['subway'] == true) labels.add('U');
+    if (products['tram'] == true) labels.add('Tram');
+    if (products['bus'] == true) labels.add('Bus');
+    return labels.join(' • ');
+  }
+}
+
+class _Journey {
+  final DateTime departure;
+  final DateTime arrival;
+  final List<_Leg> legs;
+
+  _Journey({required this.departure, required this.arrival, required this.legs});
+
+  factory _Journey.fromJson(Map<String, dynamic> json) {
+    final legs = (json['legs'] as List? ?? []).map((l) => _Leg.fromJson(l)).toList();
+    return _Journey(
+      departure: legs.isNotEmpty ? legs.first.departure : DateTime.now(),
+      arrival: legs.isNotEmpty ? legs.last.arrival : DateTime.now(),
+      legs: legs,
+    );
+  }
+}
+
+class _Leg {
+  final String originName;
+  final String destinationName;
+  final DateTime departure;
+  final DateTime arrival;
+  final int departureDelay; // minutes
+  final int arrivalDelay;   // minutes
+  final String? originPlatform;
+  final String? destinationPlatform;
+  final String? lineName;
+  final String? direction;
+  final String? productType;
+  final bool isWalking;
+  final int? walkingDistance;
+
+  _Leg({
+    required this.originName,
+    required this.destinationName,
+    required this.departure,
+    required this.arrival,
+    this.departureDelay = 0,
+    this.arrivalDelay = 0,
+    this.originPlatform,
+    this.destinationPlatform,
+    this.lineName,
+    this.direction,
+    this.productType,
+    this.isWalking = false,
+    this.walkingDistance,
+  });
+
+  factory _Leg.fromJson(Map<String, dynamic> json) {
+    final origin = json['origin'] ?? {};
+    final destination = json['destination'] ?? {};
+    final line = json['line'] ?? {};
+    final isWalk = json['walking'] == true;
+
+    // Parse departure with planned + delay
+    final depPlanned = DateTime.tryParse(json['plannedDeparture']?.toString() ?? '') ?? DateTime.now();
+    final depActual = DateTime.tryParse(json['departure']?.toString() ?? '');
+    final depDelay = json['departureDelay'] as int? ?? 0;
+
+    final arrPlanned = DateTime.tryParse(json['plannedArrival']?.toString() ?? '') ?? DateTime.now();
+    final arrActual = DateTime.tryParse(json['arrival']?.toString() ?? '');
+    final arrDelay = json['arrivalDelay'] as int? ?? 0;
+
+    // Determine product type
+    String? productType;
+    if (line['product'] != null) {
+      productType = line['product'].toString();
+    }
+
+    return _Leg(
+      originName: origin['name']?.toString() ?? '',
+      destinationName: destination['name']?.toString() ?? '',
+      departure: depActual ?? depPlanned,
+      arrival: arrActual ?? arrPlanned,
+      departureDelay: (depDelay / 60).round(),
+      arrivalDelay: (arrDelay / 60).round(),
+      originPlatform: json['departurePlatform']?.toString(),
+      destinationPlatform: json['arrivalPlatform']?.toString(),
+      lineName: isWalk ? null : (line['name']?.toString() ?? line['fahrtNr']?.toString()),
+      direction: json['direction']?.toString(),
+      productType: productType,
+      isWalking: isWalk,
+      walkingDistance: isWalk ? json['distance'] as int? : null,
+    );
+  }
+}

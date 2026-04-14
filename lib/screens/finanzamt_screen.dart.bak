@@ -1,0 +1,356 @@
+import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
+import '../services/api_service.dart';
+
+class FinanzamtScreen extends StatefulWidget {
+  final ApiService apiService;
+  final VoidCallback onBack;
+
+  const FinanzamtScreen({
+    super.key,
+    required this.apiService,
+    required this.onBack,
+  });
+
+  @override
+  State<FinanzamtScreen> createState() => _FinanzamtScreenState();
+}
+
+class _FinanzamtScreenState extends State<FinanzamtScreen> {
+  Map<String, dynamic>? _data;
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadData();
+  }
+
+  Future<void> _loadData() async {
+    setState(() => _isLoading = true);
+    try {
+      final result = await widget.apiService.getVereinverwaltung(kategorie: 'finanzamt');
+      if (mounted && result['success'] == true) {
+        final data = result['data'] as List?;
+        if (data != null && data.isNotEmpty) {
+          setState(() {
+            _data = data[0];
+            _isLoading = false;
+          });
+          return;
+        }
+      }
+    } catch (_) {}
+    if (mounted) setState(() => _isLoading = false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header
+          Row(
+            children: [
+              IconButton(
+                icon: const Icon(Icons.arrow_back),
+                onPressed: widget.onBack,
+                tooltip: 'Zurück',
+              ),
+              const SizedBox(width: 8),
+              Icon(Icons.receipt_long, size: 32, color: Colors.teal.shade700),
+              const SizedBox(width: 12),
+              const Text(
+                'Finanzamt',
+                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
+          // Content
+          Expanded(
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : _data == null
+                    ? Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.receipt_long, size: 48, color: Colors.grey.shade300),
+                            const SizedBox(height: 12),
+                            Text(
+                              'Keine Finanzamt-Daten vorhanden',
+                              style: TextStyle(color: Colors.grey.shade500, fontSize: 16),
+                            ),
+                          ],
+                        ),
+                      )
+                    : _buildContent(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildContent() {
+    final d = _data!;
+    final notizen = (d['notizen'] ?? '') as String;
+
+    // Parse notizen for structured data
+    String? steuernummer;
+    String? gemeinnuetzigkeit;
+    String? oeffnungszeiten;
+    String? serviceCenter;
+    for (final line in notizen.split('\n')) {
+      if (line.startsWith('Steuernummer:')) steuernummer = line.substring('Steuernummer:'.length).trim();
+      if (line.startsWith('Gemeinnützigkeit:')) gemeinnuetzigkeit = line.substring('Gemeinnützigkeit:'.length).trim();
+      if (line.startsWith('Öffnungszeiten:')) oeffnungszeiten = line.substring('Öffnungszeiten:'.length).trim();
+      if (line.startsWith('Service-Center:')) serviceCenter = line.substring('Service-Center:'.length).trim();
+    }
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Left: Finanzamt Info
+        Expanded(
+          flex: 2,
+          child: Card(
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Card header
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: Colors.teal.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(Icons.account_balance, color: Colors.teal, size: 24),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              d['name'] ?? '',
+                              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                            ),
+                            if (d['name2'] != null)
+                              Text(
+                                d['name2'],
+                                style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const Divider(height: 28),
+                  // Address & Contact
+                  _buildInfoRow(Icons.location_on, 'Adresse', '${d['strasse']} ${d['hausnummer']}, ${d['plz']} ${d['ort']}'),
+                  const SizedBox(height: 12),
+                  _buildInfoRow(Icons.phone, 'Telefon', d['telefon'] ?? '-'),
+                  const SizedBox(height: 12),
+                  _buildInfoRow(Icons.fax, 'Fax', d['fax'] ?? '-'),
+                  const SizedBox(height: 12),
+                  _buildInfoRow(Icons.email, 'E-Mail', d['email'] ?? '-'),
+                  if (oeffnungszeiten != null) ...[
+                    const SizedBox(height: 12),
+                    _buildInfoRow(Icons.access_time, 'Öffnungszeiten', oeffnungszeiten),
+                  ],
+                  if (serviceCenter != null) ...[
+                    const SizedBox(height: 12),
+                    _buildInfoRow(Icons.support_agent, 'Service-Center', serviceCenter),
+                  ],
+                  const Spacer(),
+                  // Action buttons
+                  Row(
+                    children: [
+                      if (d['website'] != null)
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            icon: const Icon(Icons.open_in_new, size: 16),
+                            label: const Text('Website öffnen'),
+                            onPressed: () => _openUrl(d['website']),
+                          ),
+                        ),
+                      const SizedBox(width: 8),
+                      if (d['email'] != null)
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            icon: const Icon(Icons.email, size: 16),
+                            label: const Text('E-Mail senden'),
+                            onPressed: () => _openUrl('mailto:${d['email']}'),
+                          ),
+                        ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 16),
+        // Right: Steuernummer & Gemeinnützigkeit
+        Expanded(
+          flex: 1,
+          child: Card(
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: Colors.teal.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(Icons.verified, color: Colors.teal, size: 24),
+                      ),
+                      const SizedBox(width: 12),
+                      const Expanded(
+                        child: Text(
+                          'ICD360S e.V.',
+                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const Divider(height: 24),
+                  // Steuernummer
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.teal.shade50,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: Colors.teal.shade100),
+                    ),
+                    child: Column(
+                      children: [
+                        Icon(Icons.tag, color: Colors.teal.shade700, size: 28),
+                        const SizedBox(height: 8),
+                        const Text(
+                          'Steuernummer',
+                          style: TextStyle(fontSize: 13, color: Colors.grey),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          steuernummer ?? '(wird ergänzt)',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.teal.shade700,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  // Gemeinnützigkeit
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: gemeinnuetzigkeit == 'anerkannt' ? Colors.green.shade50 : Colors.orange.shade50,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: gemeinnuetzigkeit == 'anerkannt' ? Colors.green.shade200 : Colors.orange.shade200,
+                      ),
+                    ),
+                    child: Column(
+                      children: [
+                        Icon(
+                          gemeinnuetzigkeit == 'anerkannt' ? Icons.check_circle : Icons.pending,
+                          color: gemeinnuetzigkeit == 'anerkannt' ? Colors.green.shade700 : Colors.orange.shade700,
+                          size: 28,
+                        ),
+                        const SizedBox(height: 8),
+                        const Text(
+                          'Gemeinnützigkeit',
+                          style: TextStyle(fontSize: 13, color: Colors.grey),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          gemeinnuetzigkeit ?? '(wird ergänzt)',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: gemeinnuetzigkeit == 'anerkannt' ? Colors.green.shade700 : Colors.orange.shade700,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Spacer(),
+                  // Info text
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.grey.shade200),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(Icons.info_outline, size: 16, color: Colors.grey.shade500),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Zuständiges Finanzamt für ICD360S e.V. im Landkreis Neu-Ulm, Bayern.',
+                            style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildInfoRow(IconData icon, String label, String value) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 18, color: Colors.grey.shade600),
+        const SizedBox(width: 10),
+        SizedBox(
+          width: 110,
+          child: Text(
+            label,
+            style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+          ),
+        ),
+        Expanded(
+          child: Text(
+            value,
+            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _openUrl(String url) async {
+    final uri = Uri.parse(url);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri);
+    }
+  }
+}
