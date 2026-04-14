@@ -1,0 +1,118 @@
+class User {
+  final int id;
+  final String mitgliedernummer;
+  final String email;
+  final String name;
+  final String? vorname;
+  final String? vorname2;
+  final String? nachname;
+  final String? geburtsdatum;
+  final String? geburtsort;
+  final String? staatsangehoerigkeit;
+  final String? muttersprache;
+  final String? strasse;
+  final String? hausnummer;
+  final String? plz;
+  final String? ort;
+  final String? bundesland;
+  final String? land;
+  final String? telefonMobil;
+  final String? telefonFix;
+  final String status;
+  final String role;
+  final DateTime? createdAt;
+  final DateTime? lastLogin;
+  final DateTime? mitgliedschaftDatum;
+  final String? mitgliedsart;
+  final String? zahlungsmethode;
+  final int? zahlungstag;
+  final DateTime? deactivatedAt;
+  final String? deactivationReason;
+
+  User({
+    required this.id,
+    required this.mitgliedernummer,
+    required this.email,
+    required this.name,
+    this.vorname,
+    this.vorname2,
+    this.nachname,
+    this.geburtsdatum,
+    this.geburtsort,
+    this.staatsangehoerigkeit,
+    this.muttersprache,
+    this.strasse,
+    this.hausnummer,
+    this.plz,
+    this.ort,
+    this.bundesland,
+    this.land,
+    this.telefonMobil,
+    this.telefonFix,
+    required this.status,
+    required this.role,
+    this.createdAt,
+    this.lastLogin,
+    this.mitgliedschaftDatum,
+    this.mitgliedsart,
+    this.zahlungsmethode,
+    this.zahlungstag,
+    this.deactivatedAt,
+    this.deactivationReason,
+  });
+
+  factory User.fromJson(Map<String, dynamic> json) {
+    return User(
+      id: json['id'] is int ? json['id'] : int.parse(json['id'].toString()),
+      mitgliedernummer: json['mitgliedernummer'] ?? '',
+      email: json['email'] ?? '',
+      name: json['name'] ?? '',
+      vorname: json['vorname'],
+      vorname2: json['vorname2'],
+      nachname: json['nachname'],
+      geburtsdatum: json['geburtsdatum'],
+      geburtsort: json['geburtsort'],
+      staatsangehoerigkeit: json['staatsangehoerigkeit'],
+      muttersprache: json['muttersprache'],
+      strasse: json['strasse'],
+      hausnummer: json['hausnummer'],
+      plz: json['plz'],
+      ort: json['ort'],
+      bundesland: json['bundesland'],
+      land: json['land'],
+      telefonMobil: json['telefon_mobil'],
+      telefonFix: json['telefon_fix'],
+      status: json['status'] ?? 'active',
+      role: json['role'] ?? 'vorsitzer',
+      createdAt: json['created_at'] != null
+          ? DateTime.tryParse(json['created_at'])
+          : null,
+      lastLogin: json['last_login'] != null
+          ? DateTime.tryParse(json['last_login'])
+          : null,
+      mitgliedschaftDatum: json['mitgliedschaft_datum'] != null
+          ? DateTime.tryParse(json['mitgliedschaft_datum'])
+          : null,
+      mitgliedsart: json['mitgliedsart'],
+      zahlungsmethode: json['zahlungsmethode'],
+      zahlungstag: json['zahlungstag'] != null ? int.tryParse(json['zahlungstag'].toString()) : null,
+      deactivatedAt: json['deactivated_at'] != null
+          ? DateTime.tryParse(json['deactivated_at'])
+          : null,
+      deactivationReason: json['deactivation_reason'],
+    );
+  }
+
+  bool get isNichtVerifiziert => status == 'nicht_verifiziert';
+  bool get isActive => status == 'active';
+  bool get isNeu => status == 'neu';
+  bool get isPassiv => status == 'passiv';
+  bool get isRuhend => status == 'ruhend';
+  bool get isGesperrt => status == 'gesperrt' || status == 'suspended';
+  bool get isSuspended => status == 'suspended' || status == 'gesperrt';
+  bool get isDeleted => status == 'deleted';
+  bool get isGekuendigt => status == 'gekuendigt' || status == 'gekuendigt_selbst' || status == 'gekuendigt_verein';
+  bool get isAusgeschlossen => status == 'ausgeschlossen';
+  bool get isVerstorben => status == 'verstorben';
+  bool get isVorsitzer => role == 'vorsitzer';
+}
