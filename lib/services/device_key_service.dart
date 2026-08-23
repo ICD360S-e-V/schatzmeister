@@ -50,6 +50,53 @@ class DeviceKeyService {
   /// Verifică dacă device-ul este înregistrat
   bool get isRegistered => _deviceKey != null;
 
+  // ═══════════════════════════════════════════════════════════════════
+  //  Aktivierungscode-Flow (Schatzmeister)
+  //
+  //  initialize() ist für den Flow ungeeignet: es ruft bei jedem Fehlschlag
+  //  _clearDeviceKey() auf und würde eine gültige Aktivierung wegwerfen.
+  //  Die folgenden Methoden lesen/schreiben gezielt, ohne Seiteneffekte.
+  // ═══════════════════════════════════════════════════════════════════
+
+  /// Liest den gespeicherten device_key, ohne ihn beim Server zu validieren
+  /// und ohne ihn bei einem Fehler zu löschen.
+  Future<String?> loadStoredDeviceKey() async {
+    _deviceKey ??= await _readFromStorage(_deviceKeyStorageKey);
+    return _deviceKey;
+  }
+
+  /// Liest die gespeicherte device_id (kein Seiteneffekt).
+  Future<String?> loadStoredDeviceId() async {
+    _deviceId ??= await _readFromStorage(_deviceIdStorageKey);
+    return _deviceId;
+  }
+
+  /// Liefert die device_id — aus dem Speicher, sonst frisch aus dem
+  /// Hardware-Fingerprint erzeugt und persistiert. Wird für die
+  /// Geräte-Wiederherstellung nach einer Neuinstallation gebraucht.
+  Future<String> getOrGenerateDeviceId() async {
+    final stored = await loadStoredDeviceId();
+    if (stored != null && stored.isNotEmpty) return stored;
+
+    final generated = await _generateDeviceId();
+    _deviceId = generated;
+    await _writeToStorage(_deviceIdStorageKey, generated);
+    return generated;
+  }
+
+  /// Persistiert die Zugangsdaten nach erfolgreicher Aktivierung.
+  Future<void> setActivatedCredentials(String deviceKey, String deviceId) async {
+    _deviceKey = deviceKey;
+    _deviceId = deviceId;
+    await _writeToStorage(_deviceKeyStorageKey, deviceKey);
+    await _writeToStorage(_deviceIdStorageKey, deviceId);
+    _logger.info('Aktivierung gespeichert', tag: 'DEVICE');
+  }
+
+  /// Öffentlicher Zugriff auf die Geräteinfos für den Aktivierungs-Payload
+  /// (Name, Plattform, Typ) — landet in device_keys auf dem Server.
+  Future<Map<String, String>> collectDeviceInfo() => _getDeviceInfo();
+
   /// Read from storage with SharedPreferences fallback for macOS
   Future<String?> _readFromStorage(String key) async {
     if (_useSharedPrefsFallback) {

@@ -448,7 +448,7 @@ class TerminService {
 
   /// Get my termine (member) with optional date range for weekly calendar
   Future<Map<String, dynamic>> getMyTermine({String filter = 'upcoming', DateTime? from, DateTime? to}) async {
-    String url = '$baseUrl/termine/my_termine.php?filter=$filter';
+    String url = '$baseUrl/schatzmeister/termine/my_termine.php?filter=$filter';
 
     if (from != null && to != null) {
       final fromStr = from.toIso8601String().substring(0, 10);

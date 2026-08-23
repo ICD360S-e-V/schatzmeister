@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:http/io_client.dart';
@@ -180,6 +181,76 @@ class ApiService {
       'message': data['message'] ?? 'Login request failed',
       if (data['data'] != null) ...data['data'],
     };
+  }
+
+  // ═══════════════════════════════════════════════════════════════════
+  //  GERÄTEAKTIVIERUNG PER 16-STELLIGEM CODE
+  //
+  //  Eigenes Namespace: /api/schatzmeister/auth/. Der Vorsitzer-Endpunkt
+  //  /api/auth/activate_code.php lehnt diese Rolle ausdrücklich ab, und
+  //  /api/auth/recover_device_key.php liefert Klarnamen zurück — beides
+  //  Gründe, hier nicht mitzubenutzen.
+  // ═══════════════════════════════════════════════════════════════════
+
+  /// Öffentlicher Bootstrap-Aufruf (kein Device-Key nötig): löst den vom
+  /// Vorsitzenden ausgestellten Code ein und meldet dieses Gerät an.
+  /// Liefert token + refresh_token + device_key zum lokalen Speichern.
+  Future<Map<String, dynamic>> activateSchatzmeisterCode({
+    required String mitgliedernummer,
+    required String code,
+    required String deviceId,
+    Map<String, dynamic>? deviceInfo,
+  }) async {
+    try {
+      final response = await _client.post(
+        Uri.parse('$baseUrl/schatzmeister/auth/activate_code.php'),
+        headers: const {
+          'Content-Type': 'application/json',
+          'User-Agent': 'ICD360S-Schatzmeister/1.0',
+        },
+        body: jsonEncode({
+          'mitgliedernummer': mitgliedernummer,
+          'code': code,
+          'device_id': deviceId,
+          'device_info': deviceInfo ?? {},
+        }),
+      ).timeout(const Duration(seconds: 20));
+
+      final data = jsonDecode(response.body);
+      if (response.statusCode == 200 && data['success'] == true && data['data'] != null) {
+        final d = data['data'];
+        await saveTokens(d['token'], d['refresh_token']);
+        return {'success': true, ...d};
+      }
+      return {
+        'success': false,
+        'message': data['message'] ?? 'Aktivierung fehlgeschlagen',
+      };
+    } on FormatException {
+      return {'success': false, 'message': 'Ungültige Serverantwort'};
+    } catch (e) {
+      return {'success': false, 'message': 'Aktivierung fehlgeschlagen: $e'};
+    }
+  }
+
+  /// Versucht, einen bestehenden device_key über den Hardware-Fingerprint
+  /// zurückzuholen. Greift nach einer Neuinstallation, bei der der lokale
+  /// Speicher gelöscht wurde, die device_id aber gleich geblieben ist —
+  /// erspart dem Schatzmeister einen neuen Aktivierungscode.
+  Future<Map<String, dynamic>> recoverSchatzmeisterDeviceKey(String deviceId) async {
+    try {
+      final response = await _client.post(
+        Uri.parse('$baseUrl/schatzmeister/auth/recover_device_key.php'),
+        headers: _headers,
+        body: jsonEncode({'device_id': deviceId}),
+      ).timeout(const Duration(seconds: 10));
+
+      return jsonDecode(response.body);
+    } on FormatException {
+      return {'success': false, 'message': 'Ungültige Serverantwort'};
+    } catch (e) {
+      return {'success': false, 'message': 'Wiederherstellung fehlgeschlagen: $e'};
+    }
   }
 
   /// Poll approval status for pending login request
@@ -1096,13 +1167,115 @@ class ApiService {
     }
   }
 
+  /// Reaktion auf eine Chat-Nachricht setzen oder entfernen (leerer String
+  /// = entfernen). Der Server erzwingt die Eigentumsregel: auf eigene
+  /// Nachrichten darf nicht reagiert werden.
+  ///
+  /// Die erlaubten Schlüssel stehen in `MessageEmotion` (lib/utils/
+  /// message_emotion.dart) und müssen mit der Whitelist `$allowed` in
+  /// api/chat/react.php übereinstimmen — sonst antwortet der Server 400.
+  Future<Map<String, dynamic>> reactToMessage({
+    required int conversationId,
+    required int messageId,
+    required String mitgliedernummer,
+    required String reaction,
+  }) async {
+    try {
+      final response = await _client.post(
+        Uri.parse('$baseUrl/chat/react.php'),
+        headers: _headers,
+        body: jsonEncode({
+          'conversation_id': conversationId,
+          'message_id': messageId,
+          'mitgliedernummer': mitgliedernummer,
+          'reaction': reaction,
+        }),
+      ).timeout(const Duration(seconds: 15));
+
+      return jsonDecode(response.body);
+    } on FormatException {
+      return {'success': false, 'message': 'Ungültige Serverantwort'};
+    } catch (e) {
+      return {'success': false, 'message': 'Reaktion fehlgeschlagen: $e'};
+    }
+  }
+
+  // ==================== EIGENE UNTERSCHRIFTEN ====================
+  //
+  // Ruft den MITGLIEDER-Endpunkt, nicht den der Vorstandsansicht. Das ist kein
+  // Versehen: `vorstand/signatur_manage.php` verwaltet die Unterschriften
+  // ANDERER und ist auf `vorsitzer` beschränkt; hier geht es um die eigenen.
+  //
+  // Serverseitig war nichts zu tun: `member/signatur_manage.php` hängt über
+  // requireAuth() an der IDENTITÄT, nicht an einer Rolle, und jede Abfrage
+  // dort trägt `user_id = ?` mit. Der Schatzmeister ist dort ein Nutzer wie
+  // jeder andere — mit eigener Handynummer, an die der Code geht.
+  //
+  // _headers trägt Bearer-Token UND Geräteschlüssel, der Aufruf authentifiziert
+  // also den Menschen, der gerade angemeldet ist.
+
+  /// Aktionen: `list`, `tan_anfordern`, `signieren`, `ablehnen`.
+  Future<Map<String, dynamic>> eigeneSignatur(
+    String action, [
+    Map<String, dynamic> felder = const {},
+  ]) async {
+    try {
+      final response = await _client
+          .post(
+            Uri.parse('$baseUrl/member/signatur_manage.php'),
+            headers: _headers,
+            body: jsonEncode({'action': action, ...felder}),
+          )
+          .timeout(const Duration(seconds: 30));
+
+      final data = jsonDecode(response.body);
+      if (data is! Map) {
+        return {'success': false, 'message': 'Unerwartete Antwort vom Server'};
+      }
+      return Map<String, dynamic>.from(data);
+    } on FormatException {
+      return {'success': false, 'message': 'Ungültige Antwort vom Server'};
+    } catch (e) {
+      // Der Aufrufer soll einen Satz zum Anzeigen bekommen, keine Ausnahme:
+      // dieser Bildschirm läuft auch mal ohne Netz.
+      return {'success': false, 'message': 'Netzwerkfehler: $e'};
+    }
+  }
+
+  /// Das PDF einer EIGENEN Unterschrift.
+  ///
+  /// `welche`: 'original' vor dem Unterschreiben, 'signiert' danach.
+  /// Kommt JSON statt PDF zurück, gibt es die Fassung noch nicht — bei
+  /// 'signiert' also der Normalfall, solange das Siegel aussteht oder noch auf
+  /// den zweiten Unterzeichner gewartet wird.
+  Future<Uint8List?> eigeneSignaturPdf(int signaturId,
+      {String welche = 'original'}) async {
+    try {
+      final r = await _client
+          .get(
+            Uri.parse('$baseUrl/member/signatur_pdf.php'
+                '?id=$signaturId&which=$welche'),
+            headers: _headers,
+          )
+          .timeout(const Duration(seconds: 60));
+
+      if (r.statusCode != 200 ||
+          (r.headers['content-type'] ?? '').contains('json')) {
+        return null;
+      }
+      return r.bodyBytes;
+    } catch (e) {
+      return null;
+    }
+  }
+
   // ============= VEREINEINSTELLUNGEN API =============
 
   // Get Vereineinstellungen (single row with all association settings)
   Future<Map<String, dynamic>> getVereineinstellungen() async {
     try {
       final response = await _client.get(
-        Uri.parse('$baseUrl/admin/vereineinstellungen.php'),
+        Uri.parse('$baseUrl/schatzmeister/finanzen/einstellungen.php'),
         headers: _headers,
       );
       return jsonDecode(response.body);
@@ -1111,18 +1284,18 @@ class ApiService {
     }
   }
 
-  // Update Vereineinstellungen
+  // Vereinsstammdaten sind für den Schatzmeister schreibgeschützt.
+  //
+  // Das Schatzmeister-Namespace bietet für einstellungen.php bewusst nur GET
+  // an (der Server antwortet auf POST mit 405). Ändern darf diese Daten nur
+  // der Vorsitzende. Wir schicken die Anfrage gar nicht erst los, damit die
+  // UI sofort eine verständliche Meldung bekommt statt eines rohen 405.
   Future<Map<String, dynamic>> updateVereineinstellungen(Map<String, dynamic> data) async {
-    try {
-      final response = await _client.post(
-        Uri.parse('$baseUrl/admin/vereineinstellungen.php'),
-        headers: _headers,
-        body: jsonEncode(data),
-      );
-      return jsonDecode(response.body);
-    } catch (e) {
-      return {'success': false, 'message': 'Failed to update Vereineinstellungen: $e'};
-    }
+    return {
+      'success': false,
+      'read_only': true,
+      'message': 'Vereinsstammdaten können nur vom Vorsitzenden geändert werden.',
+    };
   }
 
   // ============= FINANZAMT DOKUMENTE API =============
@@ -1876,7 +2049,7 @@ class ApiService {
     if (typ != null) params['typ'] = typ;
     final query = params.isNotEmpty ? '?${params.entries.map((e) => '${e.key}=${e.value}').join('&')}' : '';
     final response = await _client.get(
-      Uri.parse('$baseUrl/admin/finanzverwaltung/transaktionen.php$query'),
+      Uri.parse('$baseUrl/schatzmeister/finanzen/transaktionen.php$query'),
       headers: _headers,
     );
     return jsonDecode(response.body);
@@ -1893,7 +2066,7 @@ class ApiService {
     String? referenz,
   }) async {
     final response = await _client.post(
-      Uri.parse('$baseUrl/admin/finanzverwaltung/transaktionen.php'),
+      Uri.parse('$baseUrl/schatzmeister/finanzen/transaktionen.php'),
       headers: _headers,
       body: jsonEncode({
         'datum': datum,
@@ -1910,7 +2083,7 @@ class ApiService {
 
   // Bank-Transaktion löschen
   Future<Map<String, dynamic>> deleteBankTransaktion(int id) async {
-    final request = http.Request('DELETE', Uri.parse('$baseUrl/admin/finanzverwaltung/transaktionen.php'));
+    final request = http.Request('DELETE', Uri.parse('$baseUrl/schatzmeister/finanzen/transaktionen.php'));
     request.headers.addAll(_headers);
     request.body = jsonEncode({'id': id});
     final streamed = await _client.send(request);
@@ -1925,7 +2098,7 @@ class ApiService {
     if (jahr != null) params['jahr'] = jahr.toString();
     final query = params.isNotEmpty ? '?${params.entries.map((e) => '${e.key}=${e.value}').join('&')}' : '';
     final response = await _client.get(
-      Uri.parse('$baseUrl/admin/finanzverwaltung/beitragszahlungen.php$query'),
+      Uri.parse('$baseUrl/schatzmeister/finanzen/beitragszahlungen.php$query'),
       headers: _headers,
     );
     return jsonDecode(response.body);
@@ -1943,7 +2116,7 @@ class ApiService {
     String? notiz,
   }) async {
     final response = await _client.post(
-      Uri.parse('$baseUrl/admin/finanzverwaltung/beitragszahlungen.php'),
+      Uri.parse('$baseUrl/schatzmeister/finanzen/beitragszahlungen.php'),
       headers: _headers,
       body: jsonEncode({
         'mitgliedernummer': mitgliedernummer,
@@ -1965,7 +2138,7 @@ class ApiService {
     if (jahr != null) params['jahr'] = jahr.toString();
     final query = params.isNotEmpty ? '?${params.entries.map((e) => '${e.key}=${e.value}').join('&')}' : '';
     final response = await _client.get(
-      Uri.parse('$baseUrl/admin/finanzverwaltung/spenden.php$query'),
+      Uri.parse('$baseUrl/schatzmeister/finanzen/spenden.php$query'),
       headers: _headers,
     );
     return jsonDecode(response.body);
@@ -1983,7 +2156,7 @@ class ApiService {
     String? notiz,
   }) async {
     final response = await _client.post(
-      Uri.parse('$baseUrl/admin/finanzverwaltung/spenden.php'),
+      Uri.parse('$baseUrl/schatzmeister/finanzen/spenden.php'),
       headers: _headers,
       body: jsonEncode({
         'datum': datum,
@@ -2001,7 +2174,7 @@ class ApiService {
 
   // Spende löschen
   Future<Map<String, dynamic>> deleteSpende(int id) async {
-    final request = http.Request('DELETE', Uri.parse('$baseUrl/admin/finanzverwaltung/spenden.php'));
+    final request = http.Request('DELETE', Uri.parse('$baseUrl/schatzmeister/finanzen/spenden.php'));
     request.headers.addAll(_headers);
     request.body = jsonEncode({'id': id});
     final streamed = await _client.send(request);

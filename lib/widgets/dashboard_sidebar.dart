@@ -177,6 +177,38 @@ class DashboardSidebar extends StatelessWidget {
             title: l.organizationManagement,
             onTap: () => onMenuSelected(4),
           ),
+          // Ab hier Module, die es im Code laengst gab, aber an keinem Menue
+          // hingen — 41 % der Dateien waren aus main.dart nicht erreichbar.
+          // Aufgenommen wurde nur, was zur Rolle passt UND serverseitig
+          // durchlaeuft; der Rest steht mit Begruendung in CLAUDE.md.
+          SidebarMenuItem(
+            index: 5,
+            selectedIndex: selectedMenuIndex,
+            icon: Icons.inventory_2,
+            title: 'Archiv',
+            onTap: () => onMenuSelected(5),
+          ),
+          SidebarMenuItem(
+            index: 6,
+            selectedIndex: selectedMenuIndex,
+            icon: Icons.checklist,
+            title: 'Routineaufgaben',
+            onTap: () => onMenuSelected(6),
+          ),
+          SidebarMenuItem(
+            index: 7,
+            selectedIndex: selectedMenuIndex,
+            icon: Icons.bar_chart,
+            title: 'Statistik',
+            onTap: () => onMenuSelected(7),
+          ),
+          SidebarMenuItem(
+            index: 8,
+            selectedIndex: selectedMenuIndex,
+            icon: Icons.miscellaneous_services,
+            title: 'Dienste',
+            onTap: () => onMenuSelected(8),
+          ),
         ],
       ),
     );
