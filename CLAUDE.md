@@ -13,9 +13,406 @@
 
 **Development Environment:**
 - **macOS**: `/Users/ionut-claudiuduinea/Documents/icd360sev_schatzmeister`
-- **Server**: `ssh -i "vps_icd360sev_icd360s.de" -p 36000 root@icd360sev.icd360s.de`
-- **Database**: MySQL - `icd360sev_user:SecureDB2026@localhost/icd360sev_db`
+- **Server**: `ssh -i "$SEV_KEY" -p 36000 icd360sev@icd360sev.icd360s.de` (⚠️ vezi **[Acces server](#acces-server)** — `root` + cheia veche NU mai merg)
+- **Database**: MySQL — `icd360sev_user@localhost/icd360sev_db`. Parola stă în `/var/www/icd360sev.icd360s.de/api/config.php` pe server.
+  ⚠️ Până pe 2026-08-23 parola era scrisă aici în clar, iar acest fișier e **urmărit într-un repo public**. Scoaterea ei de acum nu o retrage din istoric — e în continuare compromisă. În proiectul `vorsitzer` același `CLAUDE.md` e gitignored; aici nu, ceea ce ar trebui aliniat.
 - **F-Droid Repo**: `https://icd360sev.icd360s.de/fdroid/repo`
+
+---
+
+## API dedicat Schatzmeister (2026-08-23)
+
+Namespace propriu sub `/api/schatzmeister/`. **Nu depinde de `/api/admin/`** —
+nici endpoint-uri, nici `requireAdminRole()` (acela verifică `vorsitzer` și
+excludea tocmai rolul pentru care e făcută aplicația).
+
+Sursa versionată local: [_server_schatzmeister/](_server_schatzmeister/).
+
+### Regula de confidențialitate
+
+Schatzmeister lucrează **pseudonimizat**. Din datele MEMBRILOR nu ies din API
+nici numele, nici adresa, nici data nașterii — identificarea se face exclusiv
+prin Mitgliedernummer. Lista completă de câmpuri blocate e `SM_PII_FIELDS` în
+`lib/sm_auth.php`; `smRedact()` o aplică pe fiecare rând, ca plasă de siguranță
+peste un eventual `SELECT *` viitor.
+
+Datele **asociației** (nume, adresă, Steuernummer, Finanzamt) nu intră sub
+regula asta — sunt necesare pentru declarația fiscală și pentru
+Zuwendungsbescheinigungen, deci se livrează integral.
+
+| Ce vede | Ce NU vede |
+|---|---|
+| Mitgliedernummer, rol, status | Nume, prenume |
+| Sume, date, status plată | Stradă, PLZ, oraș |
+| Categorie, referință, descriere | Data și locul nașterii |
+| Datele asociației (complete) | Nume donator / contraparte bancară |
+
+### Endpoint-uri
+
+| Metodă | Cale | Rol |
+|---|---|---|
+| POST | `auth/activate_code.php` | public (bootstrap) |
+| POST | `auth/generate_activation_code.php` | **vorsitzer** — el emite codul |
+| POST | `auth/recover_device_key.php` | public + device key |
+| GET/POST/DELETE | `finanzen/beitragszahlungen.php` | schatzmeister |
+| GET/POST/PUT/DELETE | `finanzen/spenden.php` | schatzmeister |
+| GET/POST/DELETE | `finanzen/transaktionen.php` | schatzmeister |
+| GET | `finanzen/einstellungen.php` | schatzmeister (**doar citire**, POST → 405) |
+| GET | `termine/my_termine.php` | schatzmeister |
+| POST | `tickets/list.php` | schatzmeister |
+
+Tabele noi: `schatzmeister_activation_codes`, `schatzmeister_code_attempts`
+(separate de cele ale vorsitzer-ului, ca un brute-force pe un portal să nu
+blocheze celălalt). Schema: `_server_schatzmeister/schema.sql`.
+
+### Fluxul de activare
+
+Ca la vorsitzer, dar cu namespace propriu:
+
+1. Vorsitzer apelează `auth/generate_activation_code.php` cu `target_user_id` →
+   primește codul în clar **o singură dată** (în DB stă doar hash-ul).
+2. Schatzmeister introduce Nummer + cod în
+   [login_with_code_screen.dart](lib/screens/login_with_code_screen.dart)
+   (4 câmpuri × 4 caractere, acceptă și lipire directă).
+3. `auth/activate_code.php` validează, consumă codul atomic, emite
+   `device_key` + JWT.
+4. La pornirile următoare: auto-login din stocarea locală; dacă aceasta a fost
+   ștearsă (reinstalare), `auth/recover_device_key.php` regăsește device-ul
+   după amprenta hardware — fără cod nou.
+
+Alfabetul codului e `ABCDEFGHJKLMNPQRSTUVWXYZ23456789` (fără 0/O și 1/I/l),
+80 de biți entropie. Rate limit: 5 eșecuri / 15 minute per IP sau Nummer.
+Un singur cod valid odată — emiterea unuia nou îl revocă pe precedentul.
+
+⚠️ În JWT nu se pune nume sau e-mail: `generateAccessToken()` primește
+Mitgliedernummer pe ambele poziții, ca payload-ul să nu conțină date personale
+în clar (JWT-ul e doar semnat, nu criptat).
+
+### Termine și Tickete (adăugate 2026-08-23)
+
+Înainte foloseau endpoint-urile comune `/api/termine/my_termine.php` și
+`/api/tickets/list.php`. Ambele livrau nume:
+
+| Câmp comun | Înlocuit cu |
+|---|---|
+| `created_by_name` (Termine) | `created_by_mitgliedernummer` |
+| `participant_vorname` / `_nachname` / `_name` | `participant_mitgliedernummer` |
+| `admin_name` (Tickete) | `admin_mitgliedernummer` |
+
+Două schimbări de fond față de originale:
+
+- `SELECT t.*` a fost înlocuit cu listă explicită de coloane. Altfel orice
+  coloană adăugată în viitor tabelei `termine` ar ajunge automat în răspuns,
+  inclusiv una personală.
+- La tickete, Mitgliedernummer **nu mai vine din corpul cererii**, ci din token.
+  În endpoint-ul comun corpul decide ale cui tickete se livrează — aici nimeni
+  nu-și mai poate cere ticketele altcuiva punând altă numerotare în body.
+
+Modelul `Ticket.fromJson` citește `admin_mitgliedernummer ?? admin_name`, deci
+funcționează și cu răspunsuri de la endpoint-ul comun.
+
+### Live chat — funcții adăugate (2026-08-23)
+
+**Reacții la mesaje.** Serverul le suporta deja (`/api/chat/react.php`, din
+2026-07-19), doar clientul lipsea. Portat din vorsitzer:
+[message_emotion.dart](lib/utils/message_emotion.dart) (12 reacții, identic
+caracter cu caracter cu versiunea din vorsitzer — fișierul e gândit să fie
+copiat, nu divergent), `ApiService.reactToMessage()`, plus interfața în
+[live_chat_dialog.dart](lib/widgets/live_chat_dialog.dart) și în
+[chat_message_bubble.dart](lib/widgets/chat_message_bubble.dart).
+
+⚠️ Cine adaugă o reacție nouă trebuie s-o adauge în **trei** locuri, altfel
+dispare tăcut: fișierul din celălalt repo, whitelist-ul `$allowed` din
+`api/chat/react.php` (altfel HTTP 400), și un release al **ambelor** aplicații.
+
+Salvarea e optimistă: bula arată reacția imediat și o retrage dacă serverul o
+refuză. Fără asta, un eșec ar arăta ca un succes.
+
+**Video-Anruf.** Adăugat pe serviciul existent, fără pachetele de sunet din
+vorsitzer (`flutter_ringtone_player`, `just_audio`) — ar fi însemnat dependențe
+native noi și DLL-uri în plus în installerul Windows.
+
+Ce s-a adăugat în [voice_call_service.dart](lib/services/voice_call_service.dart):
+`startCall(..., video: true)`, `offerSendsVideo(sdp)`, constrângeri 1080p cu
+`ideal`, și getterii `isVideoCall` / `localStream` / `remoteStream`.
+
+⚠️ `sdp.contains('m=video')` ar fi fost prea larg: și un apel pur vocal poate
+purta o linie video `recvonly`. Camera proprie se aprinde doar dacă linia
+`m=video` nu e respinsă (port ≠ 0) **și** direcția permite trimiterea.
+
+În [incoming_call_dialog.dart](lib/widgets/incoming_call_dialog.dart), aceeași
+`RTCVideoView` care era `Offstage` (necesară pentru redarea sunetului pe
+Windows) devine vizibilă la un apel video. ⚠️ La apel vocal trebuie să rămână
+în arbore și de 1×1 dp — cu suprafață zero, `flutter_webrtc` nu mai redă sunetul
+pe Windows. `Stack` a devenit `Column`, altfel banda verde de comenzi acoperea
+exact zona în care se vede fața interlocutorului.
+
+Permisiunile de cameră existau deja pe Android, iOS și macOS — neschimbate.
+
+### Unterschrift — semnarea documentelor (2026-08-23)
+
+Vorsitzer trimite un document, Schatzmeister îl semnează în aplicație.
+
+**Pe server nu a fost nimic de construit** — ambele capete sunt agnostice de rol:
+
+| Endpoint | Ce verifică |
+|---|---|
+| `vorstand/signatur_manage.php` → `anfordern` | doar că destinatarul **există**: `SELECT 1 FROM users WHERE id = ?`. Fără verificare de rol. |
+| `admin/users.php` | listează toate rolurile → Schatzmeister apare deja în selecția Vorsitzer-ului |
+| `member/signatur_manage.php` | identitatea din token (`requireAuth()`), fără rol. Fiecare query poartă `user_id = ?`. |
+
+Confirmat și în date: din semnăturile deja depuse, **10 poartă rolul `vorsitzer`**
+și 2 `mitgliedergrunder` — fluxul e folosit de mult de mai mult decât `mitglied`.
+
+⚠️ Nu confunda cu `vorstand/signatur_manage.php` pentru *citire*: acela e
+`vorsitzer`-only și administrează semnăturile **altora**. Partea de semnat e
+`member/`, iar acolo Schatzmeister e un utilizator ca oricare altul.
+
+**Client:** [eigene_unterschriften_screen.dart](lib/screens/eigene_unterschriften_screen.dart),
+preluat din vorsitzer `origin/main`. Plus `ApiService.eigeneSignatur()` și
+`eigeneSignaturPdf()` → `member/signatur_manage.php` și `member/signatur_pdf.php`.
+
+Fluxul: listă → deschide PDF-ul → cere TAN (SMS la numărul din Verificare
+etapa 1) → desenează semnătura → trimite SVG + TAN. Sau respinge cu motiv.
+Schatzmeister-ul S42759 **are număr de mobil înregistrat**, deci TAN-ul ajunge.
+
+**O diferență intenționată față de vorsitzer:** acolo intrarea din bară e fără
+contor, cu argumentul explicit din cod că Vorsitzer-ul a cerut el însuși
+semnătura și știe că e în așteptare. Pentru Schatzmeister e invers — el o
+primește — deci aici intrarea numără, la fel ca insigna de chat. Numărătoarea
+se face la încărcarea dashboard-ului, fără un ciclu propriu de interogare.
+
+Culorile `F.h(...)` din original au fost înlocuite cu nuanțele Material
+directe: acelea comută pe mod întunecat, pe care aplicația asta nu-l are, iar
+aducerea lui `app_farben.dart` ar fi însemnat un sistem întreg de culori pentru
+două apeluri.
+
+⚠️ **Checkout-urile locale sunt în urma producției.** `vorsitzer` local e pe
+ramura `refactor/inwx-konto-tab` la 6.96.1, iar `origin/main` e la **v6.141.0** —
+`eigene_unterschriften_screen.dart` nici nu există în copia locală. `mitglieder`
+local e cu **44 de commituri** în urmă (local 1.81.4, remote v1.86.1). Pentru
+orice comparație cu aceste două aplicații, folosește `git show origin/main:...`,
+nu fișierele din working tree.
+
+### Cod inaccesibil — curățat 2026-08-23
+
+O analiză de accesibilitate tranzitivă din `main.dart` arăta **40 din 97 de
+fișiere (41%) inaccesibile**. Pentru comparație, mitglieder are 13 din 158
+(8%) — deci nu era o normă a proiectului, ci o problemă locală.
+
+Acum: **19 din 89 (21%)**, iar fiecare fișier rămas are un motiv scris mai jos.
+Scriptul de verificare e în [tools/erreichbarkeit.py](tools/erreichbarkeit.py) —
+rulează-l după orice restructurare de meniu.
+
+#### Legate în meniu (funcționau, dar nu atârnau nicăieri)
+
+| Intrare | Ecran | Endpoint | De ce merge |
+|---|---|---|---|
+| 5 Archiv | `archiv_screen` | `schatzmeister/archiv_*` | gated pe `schatzmeister` |
+| 6 Routineaufgaben | `routinenaufgaben_screen` | `schatzmeister/routine_*` | reparat 2026-08-23 (folosea `requireAdminRole`) |
+| 7 Statistik | `statistik_screen` | `schatzmeister/finanzen/*` + `tickets/time/weekly.php` | primul e al nostru, al doilea cere doar autentificare |
+| 8 Dienste | `dienste_screen` | — | hub local: PDF-Manager, JPG→PDF, Reiseplanung, DB-Mobilität |
+
+Intrarea 8 reînvie singură 5 fișiere (~3750 linii) — toate lucrează local sau
+cu API-uri externe, fără rol.
+
+#### `LegalFooter` legat în `bottomNavigationBar`
+
+Stătea pe `null`. Consecințele erau două, ambele tăcute:
+
+1. **Impressum și Datenschutz nu apăreau nicăieri.** Cheile de traducere
+   existau (`imprint`, `privacy`), widget-ul care le afișează era orfan. În
+   Germania asta e obligație legală, nu confort.
+2. **`UpdateService.checkForUpdate()` nu era apelat nici măcar o dată** în tot
+   programul viu. Singurul apelant era `LegalFooter`. Aplicația nu avea deci
+   nicio verificare automată de actualizări — ceea ce explică de ce nimeni nu
+   observase că `version_schatzmeister.json` arată spre un APK inexistent.
+
+Aceeași plasare ca în mitglieder (`mitglied_dashboard.dart:931`).
+
+#### Șterse (înlocuite de ceva viu)
+
+`login_screen`, `login_tab`, `forgot_password_dialog`, `register_tab` —
+fluxul cu parolă, înlocuit de activarea prin cod. `register_tab` chema
+`auth/register.php`, dezactivat pe server încă dinainte.
+
+`personal_data_dialog` (`getProfile`/`updateProfile` — submulțime a lui
+`profile_dialog`, care e viu și face în plus schimbare de e-mail și parolă,
+sesiuni, verificare), `dashboard_stats`, `confirm_dialogs`, `user_data_table` —
+zero utilizatori, fără echivalent lipsă.
+
+⚠️ La ștergerea lui `login_screen` s-a pierdut o funcție: **consimțământul
+pentru diagnostic** rula doar de acolo (`checkAndShowDiagnosticConsent` +
+`DiagnosticService().setScreen`), exact cum spune comentariul din `main.dart`.
+Regresia fusese introdusă mai devreme, la mutarea pornirii pe ecranul de
+activare. Mutat acum în `initState` din
+[login_with_code_screen.dart](lib/screens/login_with_code_screen.dart).
+
+#### Rămase parcate, cu motiv
+
+| Fișier(e) | De ce nu se leagă |
+|---|---|
+| `terminverwaltung_screen`, `termin_dialogs` | folosesc `admin/termine_*` → `requireAdminRole` = `vorsitzer`. Ar da 403. Gestiunea programărilor nu e atribuția trezorierului; el are „Meine Termine" (5). |
+| `ticketverwaltung_screen`, `ticket_dialogs`, `ticket_details_dialog`, `user_details_dialog`, `mitglieder_device` | `tickets/admin_list.php` e `vorsitzer`-only. Idem: „Meine Tickets" acoperă rolul. |
+| `netzwerk_screen` | director de autorități, spitale, farmacii — sprijin pentru membri, nu finanțe. |
+| `notar_screen`, `notar_cards`, `notar_dialogs` | notariat: domeniul președintelui. Are și componentă financiară (Rechnungen, Zahlungen) — de discutat dacă se separă. |
+| `arbeitsagentur_screen` | agenția de muncă — sprijin pentru membri. |
+| `admin_chat_dialog`, `chat_message_bubble`, `chat_header`, `chat_input_area`, `chat_attachment_item`, `conversation_list_item` | generația veche de chat. `live_chat_dialog` (viu) are propriile bule inline. **Aceleași fișiere sunt moarte și în mitglieder** — moștenire comună, nu o particularitate a acestei aplicații. |
+| `news_service` | feed Tagesschau RSS, 311 linii, fără niciun apelant. Păstrat fiindcă e funcțional și s-ar lega ușor de dashboard — dar acum e o decizie, nu o scăpare. |
+
+⚠️ Reacțiile la mesaje pe care le-am adăugat în `chat_message_bubble` sunt
+**inerte**: fișierul e parcat. Funcția merge prin `live_chat_dialog`, unde a
+fost adăugată separat.
+
+### Modificări în aplicație
+
+- `main.dart` pornește pe `LoginWithCodeScreen` (înainte: `LoginScreen` cu parolă)
+- `ApiService`: metodele financiare arată spre `schatzmeister/finanzen/*`
+- `ApiService.updateVereineinstellungen()` nu mai face request — returnează
+  direct `read_only: true`, fiindcă serverul răspunde 405
+- `DeviceKeyService`: adăugate `loadStoredDeviceKey()`, `loadStoredDeviceId()`,
+  `getOrGenerateDeviceId()`, `setActivatedCredentials()`, `collectDeviceInfo()`.
+  ⚠️ Fluxul de activare **nu** folosește `initialize()`: acela validează la
+  server și șterge cheia la orice eșec, deci ar pierde o activare validă la
+  o simplă pană de rețea.
+
+### Backup-uri pe server
+
+Cele 8 fișiere `notizen_*` / `routine_*` foloseau `requireAdminRole()` și
+dădeau 403 chiar pentru schatzmeister. Corectate; originalele sunt la
+`<fisier>.bak_sm_role_20260823` în `/var/www/.../api/schatzmeister/`.
+
+## Acces server
+
+**ACTUALIZAT 2026-08-23** — serverul a fost migrat si intarit pe 2026-07-25. Tot ce era
+documentat inainte (`root@`, cheia `vps_icd360sev_icd360s.de`) **nu mai functioneaza**:
+`ssh` cu ele raspunde `Permission denied (publickey)`. Verificat live pe 2026-08-23.
+
+### Ce s-a schimbat
+
+| | Vechi (documentat) | Nou (activ) |
+|---|---|---|
+| Host | `icd360sev.icd360s.de` → OVH 57.129.101.240 | `icd360sev.icd360s.de` → **135.125.189.10** |
+| Utilizator | `root` | **`icd360sev`** (uid 5001, grup `wheel`) |
+| Port | 36000 | 36000 (neschimbat; **22 e inchis**) |
+| Cheie | `vps_icd360sev_icd360s.de` (in repo) | `new_icd360sev.icd360s.de` (**in afara repo-ului**) |
+| Parola | — | `PasswordAuthentication no` |
+| Root login | permis | `PermitRootLogin no` |
+
+Config-ul de hardening: `/etc/ssh/sshd_config.d/00-hardening.conf`
+(`AllowUsers icd360sev`, `MaxAuthTries 3`, `LoginGraceTime 30`).
+Host key nou: `SHA256:9JBu7ndiQe9QnqrC6oBDytGy497nRE2ANPu+gCTHKOQ` (ed25519) — la prima
+conectare de pe o masina veche e nevoie de `ssh-keygen -R icd360sev.icd360s.de`.
+
+### Cheia SSH
+
+Cheia activa este `new_icd360sev.icd360s.de` (ed25519,
+`SHA256:l5M8NYUqsrnzl1759ebURkJK/cXWBYUA9pMTggCKEjk`), instalata in
+`/home/icd360sev/.ssh/authorized_keys`. Aceeasi cheie e folosita si de proiectele
+`vorsitzer` si `mitglieder`.
+
+⚠️ **Cheia NU se mai tine in folderul proiectului.** Repo-ul asta e **public** pe GitHub,
+iar cheia veche a fost commituita in el (`vps_icd360sev_icd360s.de`) — de aceea a si fost
+revocata. Tine cheia in `~/.ssh/` si refera-o printr-o variabila:
+
+```bash
+export SEV_KEY="$HOME/.ssh/new_icd360sev.icd360s.de"   # chmod 600
+```
+
+Pe masina de dezvoltare curenta cheia se afla la
+`/home/anonymous_a/Documents/vorsitzer/new_icd360sev.icd360s.de` (acolo e gitignored).
+
+### Comanda de baza
+
+```bash
+ssh -i "$SEV_KEY" -p 36000 icd360sev@icd360sev.icd360s.de "COMANDA"
+```
+
+Contul `icd360sev` **nu poate** citi/scrie direct in `/var/www`, `/etc` sau `/var/log`.
+Pentru orice atinge zonele astea, prefixeaza cu **`sudo -n`** (NOPASSWD e configurat in
+`/etc/sudoers.d/90-icd360sev`, deci nu cere parola):
+
+```bash
+ssh -i "$SEV_KEY" -p 36000 icd360sev@icd360sev.icd360s.de \
+  "sudo -n cat /var/www/icd360sev.icd360s.de/api/data/version_schatzmeister.json"
+```
+
+⚠️ Glob-urile pe cai root (`/root/*`, `/var/www/.../*.apk`) **nu se expandeaza** —
+foloseste `sudo -n sh -c "..."` cand ai nevoie de wildcard.
+
+### Wrapper recomandat
+
+```bash
+cat > /tmp/ssh_sev.sh << 'EOF'
+#!/bin/bash
+ssh -i "$HOME/.ssh/new_icd360sev.icd360s.de" \
+    -o ConnectTimeout=10 -o LogLevel=ERROR \
+    -p 36000 icd360sev@icd360sev.icd360s.de "$@"
+EOF
+chmod +x /tmp/ssh_sev.sh
+
+/tmp/ssh_sev.sh "sudo -n mysql -N icd360sev_db -e 'SHOW TABLES;' | head"
+```
+
+### Upload de fisiere (scp)
+
+`icd360sev` nu poate scrie in `/var/www` — se incarca in `/tmp`, apoi se muta cu `sudo`:
+
+```bash
+scp -i "$SEV_KEY" -P 36000 FISIER_LOCAL icd360sev@icd360sev.icd360s.de:/tmp/
+/tmp/ssh_sev.sh "sudo -n mv /tmp/FISIER /var/www/icd360sev.icd360s.de/CALE/ && \
+                 sudo -n chown nginx:nginx /var/www/icd360sev.icd360s.de/CALE/FISIER"
+```
+
+### Banner
+
+Serverul afiseaza un banner "AUTHORIZED ACCESS ONLY" inaintea fiecarei comenzi.
+Filtreaza-l cand parsezi output:
+
+```bash
+| grep -v -E "AUTHORIZED|prohibited|property|monitor|consent|Violators|activities|^\*"
+```
+
+### Dupa orice modificare de PHP
+
+OPcache pastreaza versiunea veche pana la reload:
+
+```bash
+/tmp/ssh_sev.sh "sudo -n systemctl reload php85-php-fpm"
+```
+
+⚠️ Serviciul se numeste **`php85-php-fpm`** (PHP 8.5.9 din Remi), nu `php-fpm`.
+CLI-ul e `/usr/local/bin/php` → `/opt/remi/php85/root/usr/bin/php`.
+
+### Servicii relevante pentru Schatzmeister
+
+| Serviciu | Unde | Comanda |
+|---|---|---|
+| nginx | vhost `/etc/nginx/conf.d/icd360sev.icd360s.de.conf`, root `/var/www/icd360sev.icd360s.de` | `sudo -n systemctl reload nginx` |
+| PHP-FPM | socket `/var/opt/remi/php85/run/php-fpm/www.sock` | `sudo -n systemctl reload php85-php-fpm` |
+| MariaDB 10.11 | DB `icd360sev_db`, user `icd360sev_user`@localhost | `sudo -n mysql icd360sev_db` |
+| WebSocket | supervisord, `/etc/supervisord.d/websocket-chat.ini`, port 8080 | `sudo -n supervisorctl restart icd360s-websocket` |
+| ntfy | port 2586, proxat la `/ntfy/` | `curl https://icd360sev.icd360s.de/ntfy/v1/health` |
+
+⚠️ `supervisorctl` **cere `sudo -n`** — fara el da `PermissionError` pe socket.
+
+### Stare de adaptat (verificat 2026-08-23)
+
+- ✅ **API**: 144 din 145 endpoint-uri apelate de aplicatie exista pe server.
+  Singurul lipsa e `/api/auth/register.php` — a fost dezactivat intentionat pe server
+  (redenumit `register.php.backup`); inregistrarea se face acum prin
+  `/api/schatzmeister/admin_register.php`. In aplicatie, `ApiService.register()` e apelat
+  doar din `lib/widgets/register_tab.dart`, care **nu e instantiat nicaieri** (cod mort),
+  deci nu se rupe nimic la runtime.
+- ⚠️ **F-Droid**: CLI-ul `fdroid` **nu e instalat** pe serverul nou, deci `fdroid update`
+  din procedura de release esueaza. Structura `/fdroid/` (config.yml, keystore.jks,
+  metadata, repo) a fost migrata, dar **nu exista niciun `.apk` in `/fdroid/repo/`**.
+- ⚠️ **Update-ul aplicatiei e rupt**: `version_schatzmeister.json` anunta 1.0.17+18 cu
+  `download_url` → `.../fdroid/repo/de.icd360sev.schatzmeister_18.apk`, fisier care **nu
+  exista**. Si `/downloads/schatzmeister/` e gol (doar un subfolder `windows/` gol).
+  Pana se reincarca APK-ul, orice client care accepta update-ul primeste 404.
+- ⚠️ `/fdroid/` a fost restrictionat la `repo/` + `archive/` in nginx (hardening
+  2026-07-25c), fiindca `keystore.jks` si `config.yml` erau accesibile public.
 
 ---
 
@@ -1113,16 +1510,16 @@ dependencies:
 **WebSocket Server Management:**
 ```bash
 # Verificare status
-ssh -i "vps_icd360sev_icd360s.de" -p 36000 root@icd360sev.icd360s.de \
-  "supervisorctl status icd360s-websocket"
+ssh -i "$SEV_KEY" -p 36000 icd360sev@icd360sev.icd360s.de \
+  "sudo -n supervisorctl status icd360s-websocket"
 
 # Restart server
-ssh -i "vps_icd360sev_icd360s.de" -p 36000 root@icd360sev.icd360s.de \
-  "supervisorctl restart icd360s-websocket"
+ssh -i "$SEV_KEY" -p 36000 icd360sev@icd360sev.icd360s.de \
+  "sudo -n supervisorctl restart icd360s-websocket"
 
 # View logs
-ssh -i "vps_icd360sev_icd360s.de" -p 36000 root@icd360sev.icd360s.de \
-  "tail -f /var/log/supervisor/icd360s-websocket.log"
+ssh -i "$SEV_KEY" -p 36000 icd360sev@icd360sev.icd360s.de \
+  "sudo -n tail -f /var/log/icd360s-websocket.out.log"
 ```
 
 ### API Server Structure
@@ -1307,20 +1704,24 @@ cp -r build/symbols/* ~/symbols/schatzmeister_vX.X.X/
 **Pas 3: Upload APK pe server (F-Droid):**
 ```bash
 # F-Droid naming: de.icd360sev.schatzmeister_{versionCode}.apk
-scp -i "vps_icd360sev_icd360s.de" -P 36000 \
+scp -i "$SEV_KEY" -P 36000 \
   "build/app/outputs/flutter-apk/app-arm64-v8a-release.apk" \
-  root@icd360sev.icd360s.de:/var/www/icd360sev.icd360s.de/fdroid/repo/de.icd360sev.schatzmeister_Y.apk
+  icd360sev@icd360sev.icd360s.de:/tmp/de.icd360sev.schatzmeister_Y.apk
+# contul `icd360sev` nu poate scrie direct in /var/www -> muta cu sudo:
+ssh -i "$SEV_KEY" -p 36000 icd360sev@icd360sev.icd360s.de \
+  "sudo -n mv /tmp/de.icd360sev.schatzmeister_Y.apk /var/www/icd360sev.icd360s.de/fdroid/repo/ && sudo -n chown nginx:nginx /var/www/icd360sev.icd360s.de/fdroid/repo/de.icd360sev.schatzmeister_Y.apk"
 
 # Apoi rulează fdroid update pe server
-ssh -i "vps_icd360sev_icd360s.de" -p 36000 root@icd360sev.icd360s.de \
-  "cd /var/www/icd360sev.icd360s.de/fdroid && fdroid update"
+ssh -i "$SEV_KEY" -p 36000 icd360sev@icd360sev.icd360s.de \
+  "sudo -n sh -c 'cd /var/www/icd360sev.icd360s.de/fdroid && fdroid update'"
+# ⚠️ CLI-ul `fdroid` NU e instalat pe serverul nou (verificat 2026-08-23) — pasul asta esueaza.
 ```
 
 **Pas 4: VERIFICĂ MAI ÎNTÂI changelog-ul curent pe server:**
 ```bash
 # CRITICAL: Citește changelog-ul ÎNAINTE de a adăuga versiune nouă!
-ssh -i "vps_icd360sev_icd360s.de" -p 36000 root@icd360sev.icd360s.de \
-  "cat /var/www/icd360sev.icd360s.de/api/data/changelog_schatzmeister.json | head -20"
+ssh -i "$SEV_KEY" -p 36000 icd360sev@icd360sev.icd360s.de \
+  "sudo -n cat /var/www/icd360sev.icd360s.de/api/data/changelog_schatzmeister.json | head -20"
 
 # Verifică:
 # 1. Care este ultima versiune (prima în listă cu "is_latest": true)
@@ -1331,8 +1732,8 @@ ssh -i "vps_icd360sev_icd360s.de" -p 36000 root@icd360sev.icd360s.de \
 **Pas 5: Actualizează CHANGELOG pe server (detaliat):**
 ```bash
 # Editează changelog_schatzmeister.json
-ssh -i "vps_icd360sev_icd360s.de" -p 36000 root@icd360sev.icd360s.de \
-  "nano /var/www/icd360sev.icd360s.de/api/data/changelog_schatzmeister.json"
+ssh -t -i "$SEV_KEY" -p 36000 icd360sev@icd360sev.icd360s.de \
+  "sudo -n nano /var/www/icd360sev.icd360s.de/api/data/changelog_schatzmeister.json"
 
 # Adaugă noua versiune la ÎNCEPUTUL array-ului "versions":
 # {
@@ -1354,8 +1755,8 @@ ssh -i "vps_icd360sev_icd360s.de" -p 36000 root@icd360sev.icd360s.de \
 **Pas 6: Actualizează VERSION INFO pe server (pentru trigger update):**
 ```bash
 # Editează version_schatzmeister.json
-ssh -i "vps_icd360sev_icd360s.de" -p 36000 root@icd360sev.icd360s.de \
-  "nano /var/www/icd360sev.icd360s.de/api/data/version_schatzmeister.json"
+ssh -t -i "$SEV_KEY" -p 36000 icd360sev@icd360sev.icd360s.de \
+  "sudo -n nano /var/www/icd360sev.icd360s.de/api/data/version_schatzmeister.json"
 
 # Actualizează TOATE câmpurile:
 # {
@@ -1375,12 +1776,12 @@ ssh -i "vps_icd360sev_icd360s.de" -p 36000 root@icd360sev.icd360s.de \
 **Pas 7: Verifică pe server:**
 ```bash
 # Verifică version info
-ssh -i "vps_icd360sev_icd360s.de" -p 36000 root@icd360sev.icd360s.de \
-  "cat /var/www/icd360sev.icd360s.de/api/data/version_schatzmeister.json"
+ssh -i "$SEV_KEY" -p 36000 icd360sev@icd360sev.icd360s.de \
+  "sudo -n cat /var/www/icd360sev.icd360s.de/api/data/version_schatzmeister.json"
 
 # Verifică changelog
-ssh -i "vps_icd360sev_icd360s.de" -p 36000 root@icd360sev.icd360s.de \
-  "cat /var/www/icd360sev.icd360s.de/api/data/changelog_schatzmeister.json | head -50"
+ssh -i "$SEV_KEY" -p 36000 icd360sev@icd360sev.icd360s.de \
+  "sudo -n cat /var/www/icd360sev.icd360s.de/api/data/changelog_schatzmeister.json | head -50"
 ```
 
 ### ⚠️ IMPORTANT: ORDINE & TIMING
@@ -1466,23 +1867,25 @@ mkdir -Force ~\symbols\schatzmeister_vX.X.X
 cp -Recurse build\symbols\* ~\symbols\schatzmeister_vX.X.X\
 
 # Upload APK to F-Droid repo (arm64-v8a, ~33MB)
-scp -o StrictHostKeyChecking=no -i "vps_icd360sev_icd360s.de" -P 36000 "build\app\outputs\flutter-apk\app-arm64-v8a-release.apk" root@icd360sev.icd360s.de:/var/www/icd360sev.icd360s.de/fdroid/repo/de.icd360sev.schatzmeister_Y.apk
+scp -i "$SEV_KEY" -P 36000 "build\app\outputs\flutter-apk\app-arm64-v8a-release.apk" icd360sev@icd360sev.icd360s.de:/tmp/de.icd360sev.schatzmeister_Y.apk
+# apoi, tot din PowerShell:
+ssh -i "$SEV_KEY" -p 36000 icd360sev@icd360sev.icd360s.de "sudo -n mv /tmp/de.icd360sev.schatzmeister_Y.apk /var/www/icd360sev.icd360s.de/fdroid/repo/"
 ```
 
 ### ⚠️ Backup Stable Version (ÎNAINTE de upload!)
 ```bash
 # IMPORTANT: Rulează înainte de a uploada o nouă versiune!
 # Salvează APK-ul curent ca fallback
-ssh -i "vps_icd360sev_icd360s.de" -p 36000 root@icd360sev.icd360s.de \
-  "cp /var/www/icd360sev.icd360s.de/fdroid/repo/icd360sev_schatzmeister.apk \
+ssh -i "$SEV_KEY" -p 36000 icd360sev@icd360sev.icd360s.de \
+  "sudo -n cp /var/www/icd360sev.icd360s.de/fdroid/repo/icd360sev_schatzmeister.apk \
       /var/www/icd360sev.icd360s.de/fdroid/repo/icd360sev_schatzmeister_stable.apk"
 ```
 
 ### Rollback rapid (dacă noua versiune are probleme)
 ```bash
 # Restaurează versiunea stabilă
-ssh -i "vps_icd360sev_icd360s.de" -p 36000 root@icd360sev.icd360s.de \
-  "cp /var/www/icd360sev.icd360s.de/fdroid/repo/icd360sev_schatzmeister_stable.apk \
+ssh -i "$SEV_KEY" -p 36000 icd360sev@icd360sev.icd360s.de \
+  "sudo -n cp /var/www/icd360sev.icd360s.de/fdroid/repo/icd360sev_schatzmeister_stable.apk \
       /var/www/icd360sev.icd360s.de/fdroid/repo/icd360sev_schatzmeister.apk"
 ```
 
@@ -1491,8 +1894,9 @@ ssh -i "vps_icd360sev_icd360s.de" -p 36000 root@icd360sev.icd360s.de \
 **Windows:**
 ```
 c:\Users\icd_U\Documents\icd360sev_schatzmeister\  (Project Root)
-├── vps_icd360sev_icd360s.de           # SSH Key (in project folder!)
-├── vps_icd360sev_icd360s.de.pub
+│                                      # ⚠️ cheia veche vps_icd360sev_icd360s.de a fost
+│                                      # STEARSA din repo (revocata + era publica pe GitHub).
+│                                      # Cheia activa se tine IN AFARA repo-ului, vezi $SEV_KEY.
 ├── lib/                                # Flutter source code
 ├── windows/                            # Windows native
 ├── android/                            # Android native
@@ -1507,8 +1911,9 @@ c:\Users\icd_U\Documents\icd360sev_schatzmeister\  (Project Root)
 **macOS:**
 ```
 /Users/ionut-claudiuduinea/Documents/icd360sev_schatzmeister/  (Project Root)
-├── vps_icd360sev_icd360s.de           # SSH Key (in project folder!)
-├── vps_icd360sev_icd360s.de.pub
+│                                      # ⚠️ cheia veche vps_icd360sev_icd360s.de a fost
+│                                      # STEARSA din repo (revocata + era publica pe GitHub).
+│                                      # Cheia activa se tine IN AFARA repo-ului, vezi $SEV_KEY.
 ├── lib/                                # Flutter source code
 ├── macos/                              # macOS native
 │   ├── Runner/
@@ -1596,8 +2001,8 @@ https://icd360sev.icd360s.de/api/version_schatzmeister.php (GET, requires Device
 
 1. **Editează fișierul pe server** (SSH):
 ```bash
-ssh -i "vps_icd360sev_icd360s.de" -p 36000 root@icd360sev.icd360s.de \
-  "nano /var/www/icd360sev.icd360s.de/api/data/version_schatzmeister.json"
+ssh -t -i "$SEV_KEY" -p 36000 icd360sev@icd360sev.icd360s.de \
+  "sudo -n nano /var/www/icd360sev.icd360s.de/api/data/version_schatzmeister.json"
 ```
 
 2. **Actualizează informațiile versiunii:**
@@ -1645,8 +2050,8 @@ https://icd360sev.icd360s.de/api/changelog_schatzmeister.php (GET, requires Devi
 
 1. **Editează fișierul pe server** (SSH):
 ```bash
-ssh -i "vps_icd360sev_icd360s.de" -p 36000 root@icd360sev.icd360s.de \
-  "nano /var/www/icd360sev.icd360s.de/api/data/changelog_schatzmeister.json"
+ssh -t -i "$SEV_KEY" -p 36000 icd360sev@icd360sev.icd360s.de \
+  "sudo -n nano /var/www/icd360sev.icd360s.de/api/data/changelog_schatzmeister.json"
 ```
 
 2. **Adaugă noua versiune la ÎNCEPUTUL array-ului `versions`**:

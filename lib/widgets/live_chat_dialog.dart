@@ -8,6 +8,7 @@ import 'package:open_filex/open_filex.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import '../services/api_service.dart';
+import '../utils/message_emotion.dart';
 import '../services/chat_service.dart';
 import '../services/voice_call_service.dart';
 import '../services/logger_service.dart';
@@ -43,6 +44,9 @@ class _LiveChatDialogState extends State<LiveChatDialog> {
 
   List<Map<String, dynamic>> _messages = [];
   int? _conversationId;
+  /// Bildschirmposition der letzten Berührung — das Auswahlband öffnet dort,
+  /// wo getippt wurde, nicht in der Bildschirmmitte.
+  Offset _reactTapPos = Offset.zero;
   bool _isLoading = true;
   bool _isConnected = false;
   bool _isSending = false;
@@ -470,8 +474,11 @@ class _LiveChatDialogState extends State<LiveChatDialog> {
   // ==================== Voice Call Methods ====================
 
   /// Start call to support - REFACTORED to use VoiceCallService
-  Future<void> _startCall() async {
-    _log.info('LiveChat: _startCall() initiated by member (using VoiceCallService)', tag: 'CALL');
+  /// Startet einen Anruf zum Support. Mit `video: true` wird zusätzlich die
+  /// Kamera geöffnet — die Gegenseite erkennt das am SDP-Angebot und schaltet
+  /// ihre eigene Kamera nur dann ein.
+  Future<void> _startCall({bool video = false}) async {
+    _log.info('LiveChat: _startCall(video: $video) initiated by member', tag: 'CALL');
     if (_conversationId == null || _voiceCallService.callState != CallState.idle) {
       _log.warning('LiveChat: _startCall() aborted - convId: $_conversationId, status: ${_voiceCallService.callState}', tag: 'CALL');
       return;
@@ -482,7 +489,8 @@ class _LiveChatDialogState extends State<LiveChatDialog> {
     try {
       // Use VoiceCallService to start the call
       // For member calling support, we use "support" as targetUserId
-      final success = await _voiceCallService.startCall(_conversationId!, 'support', 'Support');
+      final success = await _voiceCallService.startCall(
+          _conversationId!, 'support', 'Support', video: video);
 
       if (!success) {
         throw Exception('Failed to start call via VoiceCallService');
@@ -1163,8 +1171,16 @@ class _LiveChatDialogState extends State<LiveChatDialog> {
         if (_voiceCallService.callState == CallState.idle)
           IconButton(
             icon: const Icon(Icons.call, color: Colors.green),
-            onPressed: _isConnected ? _startCall : null,
+            onPressed: _isConnected ? () => _startCall() : null,
             tooltip: l.callSupport,
+          ),
+
+        // Videoanruf — derselbe Weg, nur mit Kamera.
+        if (_voiceCallService.callState == CallState.idle)
+          IconButton(
+            icon: const Icon(Icons.videocam, color: Colors.green),
+            onPressed: _isConnected ? () => _startCall(video: true) : null,
+            tooltip: 'Videoanruf',
           ),
 
         // Connection status
@@ -1231,6 +1247,8 @@ class _LiveChatDialogState extends State<LiveChatDialog> {
           onEndCall: _endCall,
           remoteStream: _remoteAudioStream,
           iceConnectionState: _iceConnectionState,
+          isVideoCall: _voiceCallService.isVideoCall,
+          localStream: _voiceCallService.localStream,
         ),
       );
     }
@@ -1286,13 +1304,26 @@ class _LiveChatDialogState extends State<LiveChatDialog> {
     final attachments = msg['attachments'] as List? ?? [];
     final messageText = msg['message'] ?? '';
 
+    // Eigentumsregel wie im Server erzwungen: reagiert wird auf Nachrichten
+    // der Gegenseite. Eine dort gesetzte Reaktion erscheint auch auf eigenen
+    // Blasen — nur nicht änderbar.
+    final reaction = emotionFromKey(msg['reaction']);
+    final reaktionDa = hatReaktion(msg['reaction']);
+    final canReact = !isOwn && _conversationId != null;
+
     return Align(
       alignment: isOwn ? Alignment.centerRight : Alignment.centerLeft,
-      child: Container(
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+      Container(
+        // Liegt eine Reaktion an, hält die Blase unten `kReaktionUeberhang`
+        // frei: die Plakette hängt *im* Stack, weil Flutter außerhalb der
+        // Elterngrenzen keine Treffer mehr auswertet.
         margin: EdgeInsets.only(
-          bottom: 8,
+          bottom: reaktionDa ? 8 + kReaktionUeberhang : 8,
           left: isOwn ? 50 : 0,
-          right: isOwn ? 0 : 50,
+          right: isOwn ? 0 : (reaktionDa ? 50 : 50 + kAusloeserRand),
         ),
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
@@ -1378,7 +1409,83 @@ class _LiveChatDialogState extends State<LiveChatDialog> {
           ],
         ),
       ),
+          // Gesetzte Reaktion: Plakette am unteren Rand, zur Mitte hin —
+          // weg von Uhrzeit und Lesehaken, die unten rechts in der Blase sitzen.
+          if (reaktionDa)
+            Positioned(
+              bottom: 0,
+              left: isOwn ? 60 : null,
+              right: isOwn ? null : 60,
+              child: canReact
+                  ? GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTapDown: (d) => _reactTapPos = d.globalPosition,
+                      onTap: () => _openReactionPicker(msg, reaction),
+                      child: ReaktionsPlakette(schluessel: msg['reaction']),
+                    )
+                  : ReaktionsPlakette(schluessel: msg['reaction']),
+            )
+          // Noch keine Reaktion: Auslöser senkrecht mittig im freien Rand
+          // rechts neben der fremden Blase, nicht über der ersten Textzeile.
+          else if (canReact)
+            Positioned(
+              top: 0,
+              bottom: 0,
+              right: 10,
+              child: Center(
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTapDown: (d) => _reactTapPos = d.globalPosition,
+                  onTap: () => _openReactionPicker(msg, null),
+                  child: const AddReactionButton(),
+                ),
+              ),
+            ),
+        ],
+      ),
     );
+  }
+
+  /// Öffnet das Auswahlband und speichert optimistisch: die Blase zeigt die
+  /// Reaktion sofort und nimmt sie zurück, wenn der Server sie ablehnt.
+  /// Ohne das sähe ein Fehlschlag wie ein Erfolg aus.
+  Future<void> _openReactionPicker(
+      Map<String, dynamic> msg, MessageEmotion? current) async {
+    final pick = await showEmotionPicker(context, _reactTapPos, current: current);
+    if (pick == null || !mounted) return;
+
+    final convId = _conversationId;
+    final rawId = msg['id'];
+    final messageId = rawId is int ? rawId : int.tryParse(rawId?.toString() ?? '');
+    if (convId == null || messageId == null) return;
+
+    final previous = msg['reaction'];
+    final newKey = pick.emotion?.storageKey; // null => entfernen
+
+    setState(() {
+      if (newKey == null) {
+        msg.remove('reaction');
+      } else {
+        msg['reaction'] = newKey;
+      }
+    });
+
+    final result = await _apiService.reactToMessage(
+      conversationId: convId,
+      messageId: messageId,
+      mitgliedernummer: widget.mitgliedernummer,
+      reaction: newKey ?? '',
+    );
+
+    if (result['success'] != true && mounted) {
+      setState(() {
+        if (previous == null) {
+          msg.remove('reaction');
+        } else {
+          msg['reaction'] = previous;
+        }
+      });
+    }
   }
 
   Widget _buildAttachmentItem(Map<String, dynamic> attachment, bool isOwn) {

@@ -22,7 +22,13 @@ import '../widgets/live_chat_dialog.dart';
 import '../widgets/update_dialog.dart';
 import '../widgets/incoming_call_dialog.dart';
 import '../widgets/responsive_layout.dart';
-import 'login_screen.dart';
+import '../widgets/legal_footer.dart';
+import 'archiv_screen.dart';
+import 'dienste_screen.dart';
+import 'eigene_unterschriften_screen.dart';
+import 'routinenaufgaben_screen.dart';
+import 'statistik_screen.dart';
+import 'login_with_code_screen.dart';
 import '../services/termin_service.dart';
 import '../widgets/profile_dialog.dart';
 import '../widgets/dashboard_sidebar.dart';
@@ -64,6 +70,7 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
 
   // Unread chat messages counter
   int _unreadChatCount = 0;
+  int _offeneUnterschriften = 0;
   StreamSubscription<ChatMessage>? _messageSubscription;
   StreamSubscription<CallOfferEvent>? _callOfferSubscription;
   StreamSubscription<TicketNotificationEvent>? _ticketNotificationSubscription;
@@ -113,6 +120,7 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
     _loadBoardMembers();
     _loadMyTickets();
     _loadMyTermine();
+    _loadOffeneUnterschriften();
     _connectWebSocket();
     _setupMessageListener();
     _setupTicketNotificationListener();
@@ -927,6 +935,29 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
     }
   }
 
+  /// Wie viele Dokumente auf die Unterschrift des Schatzmeisters warten.
+  ///
+  /// Die Vorsitzer-App zählt das bewusst NICHT — dort hat der Vorsitzende die
+  /// Unterschrift selbst angefordert und weiß, dass sie ansteht. Hier ist es
+  /// umgekehrt: die Anforderung kommt von außen, und ohne Zähler würde sie
+  /// schlicht übersehen. Gezählt wird beim Laden des Dashboards mit, kein
+  /// eigener Takt.
+  Future<void> _loadOffeneUnterschriften() async {
+    try {
+      final antwort = await _apiService.eigeneSignatur('list');
+      if (!mounted || antwort['success'] != true) return;
+
+      final liste = (antwort['signaturen'] as List?) ?? const [];
+      final offen = liste
+          .where((e) => e is Map && (e['status'] ?? 'offen') == 'offen')
+          .length;
+
+      setState(() => _offeneUnterschriften = offen);
+    } catch (_) {
+      // Ein fehlgeschlagener Zähler darf das Dashboard nicht aufhalten.
+    }
+  }
+
   Future<void> _loadMyTickets() async {
     setState(() => _isLoadingMyTickets = true);
     try {
@@ -977,7 +1008,7 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
     if (mounted) {
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (context) => const LoginScreen()),
+        MaterialPageRoute(builder: (context) => const LoginWithCodeScreen()),
       );
     }
   }
@@ -1080,6 +1111,51 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
                 ),
               ),
             ),
+          // Dokumente, die der Schatzmeister SELBST unterschreiben soll —
+          // vom Vorsitzenden eingestellt (Kassenbericht, Bankvollmacht).
+          Stack(
+            children: [
+              IconButton(
+                icon: const Icon(Icons.draw_outlined),
+                tooltip: 'Meine Unterschriften',
+                onPressed: () async {
+                  await Navigator.of(context).push(MaterialPageRoute(
+                    builder: (_) => EigeneUnterschriftenScreen(
+                      apiService: _apiService,
+                    ),
+                  ));
+                  // Nach der Rückkehr neu zählen: wer gerade unterschrieben
+                  // hat, soll das Abzeichen nicht weiter sehen.
+                  if (mounted) _loadOffeneUnterschriften();
+                },
+              ),
+              if (_offeneUnterschriften > 0)
+                Positioned(
+                  right: 6,
+                  top: 6,
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: const BoxDecoration(
+                      color: Colors.red,
+                      shape: BoxShape.circle,
+                    ),
+                    constraints: const BoxConstraints(
+                      minWidth: 18,
+                      minHeight: 18,
+                    ),
+                    child: Text(
+                      _offeneUnterschriften > 9 ? '9+' : '$_offeneUnterschriften',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ),
+            ],
+          ),
           // Live Chat (Admin can chat with members) with unread badge
           Stack(
             children: [
@@ -1224,7 +1300,12 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
                 ],
               ),
       ),
-      bottomNavigationBar: null,
+      // Impressum, Datenschutz, Changelog UND die automatische Update-Suche
+      // (alle 5 Minuten) haengen an dieser Leiste. Sie stand bisher auf
+      // `null`: damit fehlten die Pflichtangaben, und `checkForUpdate()`
+      // wurde im ganzen laufenden Programm kein einziges Mal aufgerufen.
+      // Dieselbe Platzierung wie in der Mitglieder-App.
+      bottomNavigationBar: const LegalFooter(),
     );
   }
 
@@ -1246,6 +1327,21 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
           getRoleColor: getRoleColor,
           getRoleText: getRoleText,
         );
+      case 5:
+        return ArchivScreen(apiService: _apiService, users: _users);
+      case 6:
+        return RoutinenaufgabenScreen(
+          users: _users,
+          currentMitgliedernummer: widget.currentMitgliedernummer,
+        );
+      case 7:
+        return StatistikScreen(
+          apiService: _apiService,
+          users: _users,
+          currentMitgliedernummer: widget.currentMitgliedernummer,
+        );
+      case 8:
+        return const DiensteScreen();
       default:
         return _buildDashboardOverview();
     }
