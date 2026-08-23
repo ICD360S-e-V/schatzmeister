@@ -38,6 +38,40 @@ android {
 
         // MultiDex support for large apps
         multiDexEnabled = true
+
+        // ⚠️ Ohne das hier reicht `--target-platform android-arm64` NICHT.
+        //
+        // Nachgemessen am 23.08.2026 an dieser App: mit dem Schalter allein
+        // kam ein APK von 74 MB heraus, in dem armeabi-v7a und x86_64
+        // weiterhin steckten. Der Schalter steuert nur, fuer welche
+        // Architekturen FLUTTER seinen Dart-Code uebersetzt (libapp.so) —
+        // die fertig mitgelieferten Bibliotheken der Plugins packt das
+        // Android Gradle Plugin unabhaengig davon fuer alles ein.
+        //
+        // Uebernommen aus der Vorsitzer-App, wo derselbe Befund schon am
+        // 19.08.2026 gemessen und geloest wurde.
+        ndk {
+            abiFilters += "arm64-v8a"
+        }
+    }
+
+    // ⚠️ ndk.abiFilters allein reicht AUCH nicht. In der Vorsitzer-App blieben
+    // damit 22,1 MB uebrig — vor allem libjingle_peerconnection (WebRTC) fuer
+    // x86_64 und armeabi-v7a. Solche Dateien kommen als fertige Bibliotheken
+    // aus AAR-Abhaengigkeiten (WebRTC, CameraX, DataStore); abiFilters greift
+    // dort nicht zuverlaessig, die Ausnahme beim Packen dagegen wirkt
+    // unabhaengig davon, woher eine Datei stammt.
+    //
+    // Beides steht bewusst nebeneinander: abiFilters fuer alles, was wir
+    // selbst bauen, die Ausnahme als letzte Instanz vor dem Zippen.
+    packaging {
+        jniLibs {
+            excludes += setOf(
+                "lib/x86/**",
+                "lib/x86_64/**",
+                "lib/armeabi-v7a/**",
+            )
+        }
     }
 
     signingConfigs {
