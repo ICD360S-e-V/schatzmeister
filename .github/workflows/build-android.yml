@@ -39,6 +39,11 @@ on:
         required: false
         default: '3.44.8'
 
+# ⚠️ Alle Aktionen per SHA gepinnt, nicht per Tag. Ein Tag laesst sich
+# umhaengen, ein SHA nicht — und die v4-Fassungen liefen auf Node 20, was
+# GitHub im ersten Lauf am 23.08.2026 bereits als veraltet meldete.
+# Dieselben Fassungen wie in der Vorsitzer-App.
+
 env:
   APP_NAME: schatzmeister
   FLUTTER_VERSION: '3.44.8'
@@ -57,9 +62,9 @@ jobs:
     name: "🔍 Analyse & Tests"
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
 
-      - uses: subosito/flutter-action@v2
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2  # v2
         with:
           flutter-version: ${{ github.event.inputs.flutter_version || env.FLUTTER_VERSION }}
           cache: true
@@ -87,15 +92,15 @@ jobs:
     needs: analyse
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
 
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654  # v5
         with:
           distribution: 'temurin'
           java-version: '21'
           cache: 'gradle'
 
-      - uses: subosito/flutter-action@v2
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2  # v2
         with:
           flutter-version: ${{ github.event.inputs.flutter_version || env.FLUTTER_VERSION }}
           cache: true
@@ -188,7 +193,7 @@ jobs:
         if: always()
         run: rm -f android/app/upload-keystore.jks android/key.properties
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7
         with:
           name: ${{ env.APP_NAME }}-apk-${{ steps.version.outputs.name }}
           path: dist/*.apk
