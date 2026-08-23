@@ -282,6 +282,51 @@ Cele 8 fișiere `notizen_*` / `routine_*` foloseau `requireAdminRole()` și
 dădeau 403 chiar pentru schatzmeister. Corectate; originalele sunt la
 `<fisier>.bak_sm_role_20260823` în `/var/www/.../api/schatzmeister/`.
 
+## Semnarea Android (2026-08-24)
+
+Cheia de semnare a fost **regenerată** — cea cu care s-a construit v1.0.17 în
+martie 2026 nu mai există nicăieri: nici local, nici pe server, nici ca secret
+GitHub. Keystore-ul F-Droid de pe server conține doar aliasul `repo`, care
+semnează indexul, nu aplicații.
+
+Cheia nouă și parola stau în `~/Documents/schatzmeister-signing/`, **în afara
+repo-ului** — acesta e public. Vezi `README.md` de acolo.
+
+    Alias      schatzmeister
+    Tip        PKCS12, RSA 4096, SHA384withRSA
+    Valabilă   până 2054-01-08
+    SHA-256    BC:55:52:C8:A0:A6:CB:F9:EE:AC:95:95:A7:FA:B1:6B:
+               0B:A0:FC:6E:96:EA:3E:8A:5E:8D:58:B7:86:2F:30:25
+
+⚠️ **PKCS12 nu acceptă parole diferite pentru store și cheie.** Prima încercare
+le-a avut diferite; `keytool` avertizează, iar Gradle cade apoi cu
+`Get Key failed: Given final block not properly padded`. `storePassword` și
+`keyPassword` trebuie să fie identice.
+
+### ⚠️ Un dispozitiv trebuie reinstalat
+
+În `device_keys` există exact o instalare Android activă:
+
+    Redmi 21091116UG · Android 13 · app 1.0.17 · creat 2026-03-15
+
+Android refuză actualizarea când semnătura se schimbă. Telefonul trebuie să
+**dezinstaleze și să reinstaleze** aplicația. Cu asta se pierde `device_key`-ul
+local, deci are nevoie după aceea de un cod de activare nou de la președinte
+(`/api/schatzmeister/auth/generate_activation_code.php`).
+
+Instalarea `linux / Testgeraet` din aceeași tabelă e de la o verificare din
+2026-08-23 și e deja revocată.
+
+### Secrete în GitHub
+
+Setate pe 2026-08-23 pentru `ICD360S-e-V/schatzmeister`: `KEYSTORE_BASE64`,
+`KEYSTORE_PASSWORD`, `KEY_PASSWORD`, `KEY_ALIAS`.
+
+Verificat: APK-ul construit de CI poartă amprenta de mai sus, identică cu cea
+a cheii locale — deci semnătura e de release, nu de debug.
+
+---
+
 ## Acces server
 
 **ACTUALIZAT 2026-08-23** — serverul a fost migrat si intarit pe 2026-07-25. Tot ce era
