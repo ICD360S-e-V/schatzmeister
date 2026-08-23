@@ -43,3 +43,22 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# SSH keys / secrete — NU commita niciodata (repo-ul e PUBLIC)
+vps_icd360sev_icd360s.de
+vps_icd360sev_icd360s.de.pub
+new_icd360sev*
+*.pem
+*.jks
+*.keystore
+id_ed25519*
+id_rsa*
+*.local.*
+
+# Arbeitskopien nach der REGULA DE AUR (siehe CLAUDE.md): vor jeder Änderung
+# eine .bak-Datei. Die gehören ins Arbeitsverzeichnis, nicht ins Repo —
+# 22 Stück lagen am 2026-08-23 zum Commit bereit.
+*.bak
+*.bak[0-9]
+*.bak_*
+*.bak.*

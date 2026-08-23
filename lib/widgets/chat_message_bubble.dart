@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../l10n/app_localizations.dart';
+import '../utils/message_emotion.dart';
 import 'chat_attachment_item.dart';
 
 /// A chat message bubble with optional attachments
@@ -11,11 +12,17 @@ class ChatMessageBubble extends StatefulWidget {
   final bool isOwn;
   final Function(Map<String, dynamic>) onDownloadAttachment;
 
+  /// Speichert eine Reaktion auf dem Server. [reactionKey] ist '' zum Löschen.
+  /// Gibt true bei Erfolg zurück; bei false nimmt die Blase ihre optimistische
+  /// Anzeige wieder zurück. Ist der Rückruf null, gibt es keine Reaktionen.
+  final Future<bool> Function(int messageId, String reactionKey)? onReact;
+
   const ChatMessageBubble({
     super.key,
     required this.message,
     required this.isOwn,
     required this.onDownloadAttachment,
+    this.onReact,
   });
 
   @override
@@ -26,8 +33,43 @@ class _ChatMessageBubbleState extends State<ChatMessageBubble> {
   static final _urlRegex = RegExp(r'https?://[^\s<>\"\)]+', caseSensitive: false);
   bool _showCopied = false;
   bool _isHidden = false;
+  Offset _reactTapPos = Offset.zero;
   int _tapCount = 0;
   DateTime? _lastTapTime;
+
+  /// Öffnet das Auswahlband und speichert die Wahl optimistisch: die Blase
+  /// zeigt die Reaktion sofort, nimmt sie aber zurück, wenn der Server sie
+  /// ablehnt. Ohne das wirkt ein Fehlschlag wie ein Erfolg.
+  Future<void> _openReactionPicker(MessageEmotion? current) async {
+    final pick = await showEmotionPicker(context, _reactTapPos, current: current);
+    if (pick == null || !mounted) return;
+
+    final previous = widget.message['reaction'];
+    final newKey = pick.emotion?.storageKey; // null => entfernen
+
+    setState(() {
+      if (newKey == null) {
+        widget.message.remove('reaction');
+      } else {
+        widget.message['reaction'] = newKey;
+      }
+    });
+
+    final rawId = widget.message['id'];
+    final messageId = rawId is int ? rawId : int.tryParse(rawId?.toString() ?? '');
+    if (messageId == null || widget.onReact == null) return;
+
+    final ok = await widget.onReact!(messageId, newKey ?? '');
+    if (!ok && mounted) {
+      setState(() {
+        if (previous == null) {
+          widget.message.remove('reaction');
+        } else {
+          widget.message['reaction'] = previous;
+        }
+      });
+    }
+  }
 
   void _copyMessage(String text) {
     Clipboard.setData(ClipboardData(text: text));
@@ -79,6 +121,16 @@ class _ChatMessageBubbleState extends State<ChatMessageBubble> {
     // Generate stars based on message length
     final hiddenText = _isHidden ? '★' * (messageText.toString().length.clamp(3, 20)) : messageText;
 
+    // Reaktion im WhatsApp-Stil. Eigentumsregel: man reagiert auf Nachrichten
+    // der GEGENSEITE, nie auf eigene. Eine von der Gegenseite gesetzte
+    // Reaktion wird auf eigenen Blasen trotzdem angezeigt — nur nicht änderbar.
+    final reaction = emotionFromKey(widget.message['reaction']);
+    // `reaction != null` genügt nicht: liegt ein Schlüssel an, den diese App
+    // nicht kennt (Gegenseite ist neuer), sähe die Blase leer aus — genau der
+    // Fall, der früher als „die Reaktion kommt nicht an" gemeldet wurde.
+    final reaktionDa = hatReaktion(widget.message['reaction']);
+    final canReact = !widget.isOwn && widget.onReact != null;
+
     return Align(
       alignment: widget.isOwn ? Alignment.centerRight : Alignment.centerLeft,
       child: GestureDetector(
@@ -87,10 +139,17 @@ class _ChatMessageBubbleState extends State<ChatMessageBubble> {
           clipBehavior: Clip.none,
           children: [
             Container(
+              // Liegt eine Reaktion an, hält die Blase unten genau
+              // `kReaktionUeberhang` frei: die Plakette hängt *im* Stack, weil
+              // Flutter außerhalb der Elterngrenzen keine Treffer auswertet.
+              // Ein negativer Offset wäre sichtbar, aber nicht antippbar.
               margin: EdgeInsets.only(
-                bottom: 8,
+                bottom: reaktionDa ? 8 + kReaktionUeberhang : 8,
                 left: widget.isOwn ? 50 : 0,
-                right: widget.isOwn ? 0 : 50,
+                // Platz für den Auslöser NEBEN der Blase statt über dem Text.
+                right: widget.isOwn
+                    ? 0
+                    : (reaktionDa ? 50 : 50 + kAusloeserRand),
               ),
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
@@ -235,6 +294,42 @@ class _ChatMessageBubbleState extends State<ChatMessageBubble> {
                         fontWeight: FontWeight.bold,
                       ),
                     ),
+                  ),
+                ),
+              ),
+            // Gesetzte Reaktion: Plakette am unteren Rand, überlappend — dort
+            // sucht das Auge sie, und sie steht nicht über dem Text. Auf der
+            // eigenen (rechtsbündigen) Blase links, auf der fremden rechts:
+            // jeweils zur Mitte hin, weg von Uhrzeit und Lesehaken.
+            if (reaktionDa)
+              Positioned(
+                bottom: 0,
+                left: widget.isOwn ? 60 : null,
+                right: widget.isOwn ? null : 60,
+                child: canReact
+                    ? GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTapDown: (d) => _reactTapPos = d.globalPosition,
+                        onTap: () => _openReactionPicker(reaction),
+                        child: ReaktionsPlakette(
+                            schluessel: widget.message['reaction']),
+                      )
+                    : ReaktionsPlakette(schluessel: widget.message['reaction']),
+              )
+            // Noch keine Reaktion: der Auslöser sitzt senkrecht mittig im
+            // freien Rand rechts neben der fremden Blase — nicht über der
+            // ersten Textzeile, wo er Inhalt verdecken würde.
+            else if (canReact)
+              Positioned(
+                top: 0,
+                bottom: 0,
+                right: 10,
+                child: Center(
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTapDown: (d) => _reactTapPos = d.globalPosition,
+                    onTap: () => _openReactionPicker(null),
+                    child: const AddReactionButton(),
                   ),
                 ),
               ),
