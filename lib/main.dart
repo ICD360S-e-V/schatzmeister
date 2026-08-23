@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show HardwareKeyboard;
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'l10n/app_localizations.dart';
-import 'screens/login_screen.dart';
+import 'screens/login_with_code_screen.dart';
 import 'services/api_service.dart';
 import 'services/notification_service.dart';
 import 'services/logger_service.dart';
@@ -154,7 +154,7 @@ class _SchatzmeisterAppState extends State<SchatzmeisterApp> {
         // Use system font on each platform
         fontFamily: Platform.isWindows ? 'Segoe UI' : null,
       ),
-      home: const LoginScreen(),
+      home: const LoginWithCodeScreen(),
     );
   }
 }

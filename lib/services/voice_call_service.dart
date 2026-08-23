@@ -30,6 +30,19 @@ class VoiceCallService {
   RTCPeerConnection? _peerConnection;
   MediaStream? _localStream;
   MediaStream? _remoteStream;
+
+  /// Läuft der aktuelle Anruf mit Bild? Bei einem reinen Sprachanruf bleibt
+  /// das false, und die Kamera wird nie geöffnet.
+  bool _isVideoCall = false;
+
+  /// 1080p mit `ideal`: die Kamera darf auf das zurückfallen, was sie kann
+  /// (720p-Webcams etwa), statt den Anruf scheitern zu lassen.
+  static const Map<String, dynamic> _videoConstraints = {
+    'facingMode': 'user',
+    'width': {'ideal': 1920},
+    'height': {'ideal': 1080},
+    'frameRate': {'ideal': 30},
+  };
   RTCVideoRenderer? _remoteAudioRenderer; // Windows audio playback fix
 
   // Call state
@@ -50,6 +63,15 @@ class VoiceCallService {
   // Public streams
   Stream<CallState> get callStateStream => _callStateController.stream;
   Stream<MediaStream?> get remoteStreamStream => _remoteStreamController.stream;
+
+  /// True, solange der laufende Anruf ein Videoanruf ist.
+  bool get isVideoCall => _isVideoCall;
+
+  /// Eigener Kamerastrom — für die Vorschau des lokalen Bildes.
+  MediaStream? get localStream => _localStream;
+
+  /// Strom der Gegenseite — für die große Videofläche.
+  MediaStream? get remoteStream => _remoteStream;
   Stream<IncomingCall> get incomingCallStream => _incomingCallController.stream;
   Stream<RTCIceConnectionState?> get iceConnectionStateStream => _iceConnectionStateController.stream;
 
@@ -68,7 +90,10 @@ class VoiceCallService {
   VoiceCallService._internal();
 
   /// Initialize a call (caller side)
-  Future<bool> startCall(int conversationId, String targetUserId, String targetUserName) async {
+  /// Startet einen Anruf. Mit `video: true` wird zusätzlich die Kamera
+  /// geöffnet; die Gegenseite erkennt das am SDP-Angebot.
+  Future<bool> startCall(int conversationId, String targetUserId, String targetUserName,
+      {bool video = false}) async {
     _log.info('VoiceCallService: ========================================', tag: 'CALL');
     _log.info('VoiceCallService: 📞 START CALL - conv: $conversationId, target: $targetUserName', tag: 'CALL');
     _log.info('VoiceCallService: Current state: $_callState', tag: 'CALL');
@@ -80,13 +105,14 @@ class VoiceCallService {
 
     try {
       _currentConversationId = conversationId;
+      _isVideoCall = video;
       _setCallState(CallState.calling);
       _log.info('VoiceCallService: ✓ State changed to: calling', tag: 'CALL');
 
-      // Get local audio stream
-      _log.info('VoiceCallService: [1/5] Getting local audio stream...', tag: 'CALL');
+      // Get local stream (mit Kamera, wenn es ein Videoanruf ist)
+      _log.info('VoiceCallService: [1/5] Getting local ${video ? 'audio+video' : 'audio'} stream...', tag: 'CALL');
       final streamStart = DateTime.now();
-      _localStream = await _getLocalStream();
+      _localStream = await _getLocalStream(video: video);
       final streamDuration = DateTime.now().difference(streamStart);
 
       if (_localStream == null) {
@@ -195,10 +221,16 @@ class VoiceCallService {
       _setCallState(CallState.connecting);
       _log.info('VoiceCallService: ✓ State changed to: connecting', tag: 'CALL');
 
-      // Get local audio stream
-      _log.info('VoiceCallService: [1/6] Getting local audio stream...', tag: 'CALL');
+      // Die eigene Kamera geht NUR an, wenn das Angebot der Gegenseite
+      // tatsächlich Bild sendet — eine mitgeführte recvonly-Videozeile
+      // reicht ausdrücklich nicht. Siehe offerSendsVideo().
+      _isVideoCall = offerSendsVideo(sdp);
+      _log.info('VoiceCallService: Angebot sendet Video: $_isVideoCall', tag: 'CALL');
+
+      // Get local stream
+      _log.info('VoiceCallService: [1/6] Getting local ${_isVideoCall ? 'audio+video' : 'audio'} stream...', tag: 'CALL');
       final streamStart = DateTime.now();
-      _localStream = await _getLocalStream();
+      _localStream = await _getLocalStream(video: _isVideoCall);
       final streamDuration = DateTime.now().difference(streamStart);
 
       if (_localStream == null) {
@@ -567,7 +599,48 @@ class VoiceCallService {
   }
 
   /// Get local audio stream with detailed logging
-  Future<MediaStream?> _getLocalStream() async {
+  /// Sendet das Angebot der Gegenseite tatsächlich Bild?
+  ///
+  /// `sdp.contains('m=video')` wäre zu grob: auch ein reiner Sprachanruf kann
+  /// eine `recvonly`/`inactive` Video-Zeile mitführen (etwa ein offen
+  /// gehaltener Transceiver für eine spätere Hochstufung). Das als Videoanruf
+  /// zu werten hieße, bei einem Sprachanruf die eigene Kamera einzuschalten.
+  /// Als Video zählt es nur, wenn die m=video-Zeile nicht abgelehnt ist
+  /// (Port ≠ 0) und ihre Richtung dem Anrufer das Senden erlaubt.
+  bool offerSendsVideo(String? sdp) {
+    if (sdp == null || sdp.isEmpty) return false;
+
+    final lines = sdp.split(RegExp(r'\r\n|\r|\n'));
+    var inVideo = false;
+    var videoActive = false;
+    String? direction;
+
+    for (final line in lines) {
+      if (line.startsWith('m=')) {
+        if (inVideo) break; // nächster m-Abschnitt → Video-Abschnitt zu Ende
+        if (line.startsWith('m=video')) {
+          inVideo = true;
+          // "m=video <port> ..." — Port 0 heißt abgelehnt/abgeschaltet.
+          final parts = line.split(' ');
+          videoActive = parts.length > 1 && parts[1] != '0';
+        }
+        continue;
+      }
+      if (inVideo &&
+          (line == 'a=sendrecv' ||
+              line == 'a=sendonly' ||
+              line == 'a=recvonly' ||
+              line == 'a=inactive')) {
+        direction = line.substring(2);
+      }
+    }
+
+    if (!inVideo || !videoActive) return false;
+    final dir = direction ?? 'sendrecv'; // SDP-Vorgabe, wenn nichts dasteht
+    return dir == 'sendrecv' || dir == 'sendonly';
+  }
+
+  Future<MediaStream?> _getLocalStream({bool video = false}) async {
     try {
       _log.info('VoiceCallService: 🎤 Enumerating audio devices...', tag: 'CALL');
 
@@ -607,7 +680,7 @@ class VoiceCallService {
           'noiseSuppression': true,
           'autoGainControl': true,
         },
-        'video': false,
+        'video': video ? _videoConstraints : false,
       };
 
       _log.debug('VoiceCallService: Requesting getUserMedia with explicit device selection...', tag: 'CALL');
@@ -639,6 +712,7 @@ class VoiceCallService {
   /// Cleanup resources
   void _cleanup() {
     _log.info('VoiceCallService: _cleanup() - releasing WebRTC resources', tag: 'CALL');
+    _isVideoCall = false;
     _localStream?.getTracks().forEach((track) => track.stop());
     _localStream?.dispose();
     _localStream = null;

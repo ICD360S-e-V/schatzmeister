@@ -434,7 +434,10 @@ class Ticket {
       priority: json['priority'],
       categoryId: json['category_id'],
       categoryName: json['category_name'],
-      adminName: json['admin_name'],
+      // Das Schatzmeister-API liefert statt des Klarnamens die
+      // Mitgliedernummer des Bearbeiters. `admin_name` bleibt als Rückfall
+      // für Antworten des gemeinsamen Endpunkts stehen.
+      adminName: json['admin_mitgliedernummer'] ?? json['admin_name'],
       memberName: json['member_name'],
       memberNummer: json['member_nummer'],
       createdAt: DateTime.parse(json['created_at']),
@@ -566,7 +569,7 @@ class TicketService {
   Future<List<Ticket>> getTickets(String mitgliedernummer) async {
     try {
       final response = await _client.post(
-        Uri.parse('$baseUrl/tickets/list.php'),
+        Uri.parse('$baseUrl/schatzmeister/tickets/list.php'),
         headers: _headers,
         body: jsonEncode({
           'mitgliedernummer': mitgliedernummer,

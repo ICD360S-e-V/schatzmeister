@@ -238,6 +238,15 @@ class InCallOverlay extends StatefulWidget {
   final MediaStream? remoteStream; // CRITICAL: Remote audio stream for playback
   final RTCIceConnectionState? iceConnectionState; // Network quality indicator
 
+  /// Videoanruf? Dann wird das Bild der Gegenseite groß gezeigt, mit der
+  /// eigenen Kamera als kleiner Vorschau in der Ecke. Bei false bleibt es
+  /// beim bisherigen Sprach-Balken.
+  final bool isVideoCall;
+
+  /// Eigener Kamerastrom für die Vorschau. Ohne ihn entfällt nur die
+  /// Vorschau — das Bild der Gegenseite kommt trotzdem an.
+  final MediaStream? localStream;
+
   const InCallOverlay({
     super.key,
     required this.remoteName,
@@ -249,6 +258,8 @@ class InCallOverlay extends StatefulWidget {
     required this.onEndCall,
     this.remoteStream,
     this.iceConnectionState,
+    this.isVideoCall = false,
+    this.localStream,
   });
 
   @override
@@ -267,6 +278,10 @@ class _InCallOverlayState extends State<InCallOverlay> with SingleTickerProvider
   final RTCVideoRenderer _remoteRenderer = RTCVideoRenderer();
   bool _rendererInitialized = false;
 
+  // Eigene Kamera für die Vorschau — nur bei einem Videoanruf angelegt.
+  final RTCVideoRenderer _localRenderer = RTCVideoRenderer();
+  bool _localRendererInitialized = false;
+
   @override
   void initState() {
     super.initState();
@@ -279,8 +294,28 @@ class _InCallOverlayState extends State<InCallOverlay> with SingleTickerProvider
     // Initialize remote audio renderer
     _initRemoteRenderer();
 
+    // Eigene Kamera nur bei einem Videoanruf — sonst würde die Kamera-Lampe
+    // bei jedem Sprachanruf angehen.
+    if (widget.isVideoCall) {
+      _initLocalRenderer();
+    }
+
     // Start real audio level monitoring
     _startAudioMonitoring();
+  }
+
+  Future<void> _initLocalRenderer() async {
+    try {
+      await _localRenderer.initialize();
+      _localRendererInitialized = true;
+      if (widget.localStream != null) {
+        _localRenderer.srcObject = widget.localStream;
+      }
+      if (mounted) setState(() {});
+      _log.info('InCallOverlay: ✓ Lokaler Video-Renderer bereit', tag: 'CALL-UI');
+    } catch (e) {
+      _log.error('InCallOverlay: lokaler Renderer fehlgeschlagen: $e', tag: 'CALL-UI');
+    }
   }
 
   Future<void> _initRemoteRenderer() async {
@@ -371,6 +406,15 @@ class _InCallOverlayState extends State<InCallOverlay> with SingleTickerProvider
         _log.info('InCallOverlay: ✓ Remote stream updated on renderer', tag: 'CALL-UI');
       }
     }
+
+    // Ein Anruf kann als Sprachanruf beginnen und erst später Bild führen —
+    // der lokale Renderer wird dann nachträglich angelegt.
+    if (widget.isVideoCall && !_localRendererInitialized) {
+      _initLocalRenderer();
+    } else if (widget.localStream != oldWidget.localStream &&
+        _localRendererInitialized) {
+      _localRenderer.srcObject = widget.localStream;
+    }
   }
 
   @override
@@ -379,6 +423,7 @@ class _InCallOverlayState extends State<InCallOverlay> with SingleTickerProvider
     _activityTimer?.cancel();
     _pulseController.dispose();
     _remoteRenderer.dispose(); // Cleanup remote renderer
+    _localRenderer.dispose();
     super.dispose();
   }
 
@@ -421,24 +466,76 @@ class _InCallOverlayState extends State<InCallOverlay> with SingleTickerProvider
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context);
-    return Stack(
+    // Column statt Stack: das Videobild gehört ÜBER den Bedienstreifen.
+    // Im Stack lag der grüne Streifen oben links auf dem Bild und verdeckte
+    // genau den Bereich, in dem das Gesicht der Gegenseite steht.
+    return Column(
+      mainAxisSize: MainAxisSize.min,
       children: [
-        // CRITICAL FIX: RTCVideoView for Windows audio playback
-        // Widget must have REAL SIZE and be in widget tree for audio to play!
-        // Using Offstage to hide it visually but keep it active
+        // Bei einem Videoanruf ist dieselbe RTCVideoView SICHTBAR: das Bild
+        // der Gegenseite groß, die eigene Kamera als Vorschau in der Ecke.
+        //
+        // Bei einem Sprachanruf bleibt sie versteckt, muss aber im Baum und
+        // 1×1 dp groß bleiben — unter Windows spielt flutter_webrtc den Ton
+        // nur ab, wenn die View tatsächlich eine Fläche hat. Offstage mit
+        // Nullgröße würde den Ton verstummen lassen.
         if (_rendererInitialized && widget.remoteStream != null)
-          Offstage(
-            offstage: true,
-            child: SizedBox(
-              width: 1,
-              height: 1,
-              child: RTCVideoView(
-                _remoteRenderer,
-                mirror: false,
-                objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitCover,
+          if (widget.isVideoCall)
+            ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: SizedBox(
+                height: 260,
+                width: double.infinity,
+                child: Stack(
+                  children: [
+                    Positioned.fill(
+                      child: RTCVideoView(
+                        _remoteRenderer,
+                        mirror: false,
+                        objectFit:
+                            RTCVideoViewObjectFit.RTCVideoViewObjectFitCover,
+                      ),
+                    ),
+                    // Eigene Kamera: gespiegelt, wie man sich im Spiegel
+                    // sieht — ungespiegelt wirkt das eigene Bild verkehrt.
+                    if (_localRendererInitialized && widget.localStream != null)
+                      Positioned(
+                        right: 10,
+                        bottom: 10,
+                        width: 96,
+                        height: 128,
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: RTCVideoView(
+                            _localRenderer,
+                            mirror: true,
+                            objectFit: RTCVideoViewObjectFit
+                                .RTCVideoViewObjectFitCover,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            )
+          else
+            Offstage(
+              offstage: true,
+              child: SizedBox(
+                width: 1,
+                height: 1,
+                child: RTCVideoView(
+                  _remoteRenderer,
+                  mirror: false,
+                  objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitCover,
+                ),
               ),
             ),
-          ),
+
+        if (widget.isVideoCall &&
+            _rendererInitialized &&
+            widget.remoteStream != null)
+          const SizedBox(height: 8),
 
         // Visible UI
         Container(
