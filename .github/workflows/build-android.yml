@@ -1,0 +1,212 @@
+name: Build Android
+
+# ───────────────────────────────────────────────────────────────
+# Android-APK für das Schatzmeister-Portal.
+#
+# Aufgesetzt am 2026-08-23, weil bis dahin gar kein Workflow existierte —
+# `.github/` gab es im Repo nicht.
+#
+# ⚠️ GitHub-Runner, bewusst. Das Repo ist ÖFFENTLICH, damit sind
+# `ubuntu-latest`-Läufe kostenlos und unbegrenzt. Der selbstgehostete
+# Runner aus der Vorsitzer-App ist hier absichtlich NICHT übernommen: er
+# behält den Signierschlüssel auf der Platte, was dort einen eigenen
+# Aufräumschritt nötig macht. Solange dieser Build zwei Minuten dauert,
+# lohnt der Aufwand nicht.
+#
+# ⚠️ arm64-only, wie in der Vorsitzer-App. Dort waren gemessen 98 % des
+# APK dreimal dieselbe Bibliothek für drei Architekturen. Der Nachweis-
+# Schritt unten prüft das bei JEDEM Lauf nach, statt es zu glauben.
+# ───────────────────────────────────────────────────────────────
+
+on:
+  push:
+    branches: [main]
+    # Ein Tag vX.Y.Z baut ebenfalls — dieselbe Datei, damit Release und
+    # Alltagsbau nicht auseinanderlaufen können.
+    tags: ['v*']
+    # Änderungen, die den Build nicht berühren, sollen ihn nicht auslösen.
+    # `tools/**` steht bewusst NICHT hier: dort liegt der Erreichbarkeitslauf,
+    # eine Änderung daran gehört geprüft.
+    paths-ignore:
+      - '**.md'
+      - '_server_schatzmeister/**'
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      flutter_version:
+        description: 'Flutter-Version'
+        required: false
+        default: '3.44.8'
+
+env:
+  APP_NAME: schatzmeister
+  FLUTTER_VERSION: '3.44.8'
+
+permissions:
+  contents: read
+
+# Ein neuer Push auf denselben Zweig bricht den älteren Lauf ab —
+# veröffentlicht wird ohnehin nur der neueste Stand.
+concurrency:
+  group: schatzmeister-android-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  analyse:
+    name: "🔍 Analyse & Tests"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ github.event.inputs.flutter_version || env.FLUTTER_VERSION }}
+          cache: true
+
+      - run: flutter pub get
+
+      - name: flutter analyze
+        # Zwei `deprecated_member_use`-Hinweise in jpg2pdf_screen.dart und
+        # pdf_manager_screen.dart sind bekannt und bestehen seit vor dieser
+        # Datei. `--no-fatal-infos` lässt sie durch, echte Fehler und
+        # Warnungen brechen weiterhin ab.
+        run: flutter analyze --no-fatal-infos
+
+      - run: flutter test
+
+      # Der Erreichbarkeitslauf. Ohne ihn wächst der tote Code stillschweigend
+      # zurück — am 2026-08-23 waren 41 % der Dateien von main.dart aus nicht
+      # erreichbar, darunter die Impressumsleiste und der einzige Aufrufer
+      # von checkForUpdate().
+      - name: Erreichbarkeit prüfen
+        run: python3 tools/erreichbarkeit.py
+
+  android:
+    name: "🤖 Android APK (arm64)"
+    needs: analyse
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+          cache: 'gradle'
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ github.event.inputs.flutter_version || env.FLUTTER_VERSION }}
+          cache: true
+
+      - run: flutter pub get
+
+      # ⚠️ Ohne Schlüssel bricht der Build NICHT ab — er signiert dann mit dem
+      # Debug-Schlüssel. Grund: als diese Datei entstand, hatte das Repo
+      # keinerlei Secrets (`gh secret list` war leer), und ein Workflow, der
+      # deswegen rot ist, hilft niemandem. Das APK ist dann aber NUR zum
+      # Ausprobieren — ein debug-signiertes APK lässt sich nicht als Update
+      # über ein release-signiertes installieren.
+      - name: Signierschlüssel entpacken
+        id: keystore
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+        run: |
+          set -euo pipefail
+          if [ -z "${KEYSTORE_BASE64:-}" ]; then
+            echo "signiert=debug" >> "$GITHUB_OUTPUT"
+            echo "::warning::KEYSTORE_BASE64 fehlt — das APK wird mit dem Debug-Schluessel signiert und ist NICHT verteilbar. Secrets setzen: KEYSTORE_BASE64, KEYSTORE_PASSWORD, KEY_ALIAS, KEY_PASSWORD."
+            exit 0
+          fi
+          echo "$KEYSTORE_BASE64" | base64 -d > android/app/upload-keystore.jks
+          # storeFile ist relativ zu android/app/, key.properties liegt in android/
+          # — so liest es android/app/build.gradle.kts (rootProject.file).
+          cat > android/key.properties <<EOF
+          storePassword=$KEYSTORE_PASSWORD
+          keyPassword=$KEY_PASSWORD
+          keyAlias=$KEY_ALIAS
+          storeFile=upload-keystore.jks
+          EOF
+          chmod 600 android/app/upload-keystore.jks android/key.properties
+          echo "signiert=release" >> "$GITHUB_OUTPUT"
+
+      - name: Version aus pubspec.yaml lesen
+        id: version
+        run: |
+          set -euo pipefail
+          ZEILE="$(grep -m1 '^version:' pubspec.yaml | sed 's/version:[[:space:]]*//')"
+          NAME="${ZEILE%%+*}"
+          NUMMER="${ZEILE##*+}"
+          # Ohne "+N" in pubspec.yaml wäre NUMMER gleich NAME — dann lieber
+          # die Lauf-Nummer als eine Build-Nummer, die wie "1.0.17" aussieht.
+          [ "$NUMMER" = "$NAME" ] && NUMMER="${GITHUB_RUN_NUMBER}"
+          echo "name=$NAME"     >> "$GITHUB_OUTPUT"
+          echo "nummer=$NUMMER" >> "$GITHUB_OUTPUT"
+          echo "Version $NAME+$NUMMER"
+
+      - name: APK bauen
+        run: |
+          set -euo pipefail
+          flutter build apk \
+            --release \
+            --target-platform android-arm64 \
+            --build-name="${{ steps.version.outputs.name }}" \
+            --build-number="${{ steps.version.outputs.nummer }}"
+
+      # Beide Fehlerrichtungen wären sonst unsichtbar: ein APK mit allen drei
+      # Architekturen (Ersparnis weg) und, schlimmer, eines ganz OHNE arm64 —
+      # das ließe sich auf keinem Gerät installieren, und auffallen würde es
+      # erst beim Schatzmeister.
+      - name: Nachweis — genau arm64-v8a im APK
+        run: |
+          set -euo pipefail
+          APK="build/app/outputs/flutter-apk/app-release.apk"
+          ABIS="$(unzip -Z1 "$APK" | grep -oE '^lib/[^/]+/' | sed 's|^lib/||;s|/$||' | sort -u)"
+          echo "Architekturen: ${ABIS:-(keine)} · Groesse: $(du -h "$APK" | cut -f1)"
+          if [ "$ABIS" != "arm64-v8a" ]; then
+            printf 'gefunden:\n%s\n' "$ABIS"
+            echo "::error::Erwartet genau arm64-v8a — pruefe --target-platform und ndk.abiFilters."
+            exit 1
+          fi
+
+      - name: APK benennen
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          cp build/app/outputs/flutter-apk/app-release.apk \
+             "dist/${APP_NAME}-${{ steps.version.outputs.name }}.apk"
+          cp build/app/outputs/flutter-apk/app-release.apk \
+             "dist/${APP_NAME}.apk"
+          ls -lh dist/
+
+      # ⚠️ `if: always()` — der Schlüssel muss auch nach einem Fehlschlag weg.
+      - name: Signierschlüssel aus dem Arbeitsverzeichnis entfernen
+        if: always()
+        run: rm -f android/app/upload-keystore.jks android/key.properties
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.APP_NAME }}-apk-${{ steps.version.outputs.name }}
+          path: dist/*.apk
+          retention-days: 14
+
+      - name: Zusammenfassung
+        run: |
+          {
+            echo "### Android-APK"
+            echo ""
+            echo "| | |"
+            echo "|---|---|"
+            echo "| Version | ${{ steps.version.outputs.name }}+${{ steps.version.outputs.nummer }} |"
+            echo "| Paket | de.icd360sev.schatzmeister |"
+            echo "| Architektur | arm64-v8a |"
+            echo "| Signatur | ${{ steps.keystore.outputs.signiert }} |"
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [ "${{ steps.keystore.outputs.signiert }}" = "debug" ]; then
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "> ⚠️ Debug-signiert — zum Ausprobieren, nicht zum Verteilen." >> "$GITHUB_STEP_SUMMARY"
+          fi
