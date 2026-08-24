@@ -15,9 +15,27 @@ final _log = LoggerService();
 /// Android (APK), iOS (not supported - use TestFlight)
 class UpdateService {
   // Protected API endpoint (requires Device Key)
-  static const String versionUrl = 'https://icd360sev.icd360s.de/api/version_schatzmeister.php';
-  static const String currentVersion = '1.0.17';
-  static const int currentBuildNumber = 18;
+  /// Versionsauskunft aus dem GitHub-Release, nicht mehr vom Vereinsserver.
+  ///
+  /// ⚠️ Vorher: `https://icd360sev.icd360s.de/api/version_schatzmeister.php`.
+  /// Das hatte drei Nachteile, die sich alle gezeigt haben:
+  ///   • die Datei dort wurde von Hand gepflegt und zeigte monatelang auf
+  ///     ein APK, das nach der Servermigration gar nicht mehr existierte;
+  ///   • der Endpunkt verlangt einen Device-Key — den ein frisch
+  ///     installiertes Gerät noch nicht hat;
+  ///   • der Server muss laufen, damit die App überhaupt erfährt, dass es
+  ///     eine neue Fassung gibt.
+  ///
+  /// Jetzt entsteht das Manifest im selben Arbeitsablauf, der das APK baut
+  /// (`.github/workflows/build-android.yml`). Version und Download-Adresse
+  /// können damit nicht mehr auseinanderlaufen.
+  ///
+  /// `releases/latest/download/…` leitet auf die neueste Fassung um; das
+  /// http-Paket folgt Weiterleitungen bei GET von sich aus.
+  static const String versionUrl =
+      'https://github.com/ICD360S-e-V/schatzmeister/releases/latest/download/version_schatzmeister.json';
+  static const String currentVersion = '1.0.18';
+  static const int currentBuildNumber = 19;
   // ✅ SECURITY FIX: Removed hardcoded API key (extractable via reverse engineering)
   // All requests now use dynamic Device Key only
 

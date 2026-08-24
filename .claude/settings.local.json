@@ -164,7 +164,20 @@
       "WebFetch(domain:api.flutter.dev)",
       "Bash(cp /Users/ionut-claudiuduinea/Documents/icd360sev_schatzmeister/lib/screens/login_screen.dart /Users/ionut-claudiuduinea/Documents/icd360sev_schatzmeister/lib/screens/login_screen.dart.bak)",
       "Bash(cp /Users/ionut-claudiuduinea/Documents/icd360sev_schatzmeister/lib/screens/dashboard_screen.dart /Users/ionut-claudiuduinea/Documents/icd360sev_schatzmeister/lib/screens/dashboard_screen.dart.bak)",
-      "Bash(pod update:*)"
+      "Bash(pod update:*)",
+      "Bash(gh pr *)",
+      "Bash(gh api *)",
+      "Bash(git checkout *)",
+      "Bash(timeout 120 git pull)",
+      "Bash(gh run *)",
+      "Bash(find /home/anonymous_a/Documents -maxdepth 4 \\\\\\( -name \"*.jks\" -o -name \"*.keystore\" \\\\\\) 2>/dev/null | head -20; echo \"--- key.properties ---\"; find /home/anonymous_a/Documents -maxdepth 4 -name \"key.properties\" 2>/dev/null | head)",
+      "Read(//home/anonymous_a/Documents/**)",
+      "Read(//home/anonymous_a/**)",
+      "Bash(/tmp/ssh_sev.sh \"sudo -n find /var/www /home/data /root -maxdepth 5 \\\\\\( -name '*.jks' -o -name '*.keystore' \\\\\\) 2>/dev/null | head -10\")",
+      "Bash(/tmp/ssh_sev.sh \"sudo -n grep -E 'keystorepass|keypass|repo_keyalias|keydname' /var/www/icd360sev.icd360s.de/fdroid/config.yml 2>/dev/null | sed 's/:.*/: <ascuns>/'\")",
+      "Bash(/tmp/ssh_sev.sh 'KP=$\\(sudo -n grep '\\\\''^keystorepass:'\\\\'' /var/www/icd360sev.icd360s.de/fdroid/config.yml | sed '\\\\''s/^keystorepass:[[:space:]]*//'\\\\'' | tr -d '\\\\''\"'\\\\''\\); sudo -n keytool -list -keystore /var/www/icd360sev.icd360s.de/fdroid/keystore.jks -storepass \"$KP\" 2>&1 | grep -vE '\\\\''Warning|Warnung|^$'\\\\'' | head -12')",
+      "Bash(/tmp/ssh_sev.sh \"sudo -n mysql icd360sev_db -e \\\\\"SELECT dk.platform, dk.app_version, COUNT\\(*\\) n, MAX\\(dk.last_used_at\\) ultima FROM device_keys dk JOIN users u ON u.id=dk.user_id WHERE u.role='schatzmeister' GROUP BY dk.platform, dk.app_version ORDER BY ultima DESC;\\\\\" 2>&1\")",
+      "Bash(/tmp/ssh_sev.sh \"sudo -n mysql icd360sev_db -e \\\\\"SELECT dk.device_name, dk.platform, dk.app_version, dk.is_active, dk.created_at, dk.last_used_at, dk.revoked_at FROM device_keys dk JOIN users u ON u.id=dk.user_id WHERE u.role='schatzmeister'\\\\G\\\\\" 2>&1 | head -25\")"
     ]
   }
 }
