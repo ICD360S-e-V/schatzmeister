@@ -29,7 +29,6 @@ on:
     # eine Änderung daran gehört geprüft.
     paths-ignore:
       - '**.md'
-      - '_server_schatzmeister/**'
   pull_request:
     branches: [main]
   workflow_dispatch:
