@@ -38,7 +38,7 @@ Widget _rahmen(Widget kind, {Size groesse = const Size(300, 700)}) {
 }
 
 void main() {
-  testWidgets('Seitenleiste zeigt alle neun Einträge', (tester) async {
+  testWidgets('Seitenleiste zeigt genau die vier Einträge der Rolle', (tester) async {
     tester.view.physicalSize = const Size(400, 900);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
@@ -53,16 +53,25 @@ void main() {
     ));
     await tester.pump();
 
-    // Die vier Einträge, die vorher an keinem Menü hingen.
-    expect(find.text('Archiv'), findsOneWidget);
-    expect(find.text('Routineaufgaben'), findsOneWidget);
-    expect(find.text('Statistik'), findsOneWidget);
-    expect(find.text('Dienste'), findsOneWidget);
-
-    // Und die fünf, die es schon gab — damit ein Umbau nicht unbemerkt
-    // welche verdrängt.
+    // Was der Schatzmeister hat.
     expect(find.text('Dashboard'), findsOneWidget);
     expect(find.text('Finanzverwaltung'), findsOneWidget);
+    expect(find.text('Meine Tickets'), findsOneWidget);
+    expect(find.text('Meine Termine'), findsOneWidget);
+
+    // Und was er NICHT hat: das gehört in die Vorsitzer-App (Entscheidung
+    // des Users, 2026-08-24). Der Test hält das fest, weil die Bildschirme
+    // im Repo bleiben — ein versehentliches Wiederverdrahten fiele sonst
+    // niemandem auf.
+    for (final fremd in [
+      'Vereinverwaltung',
+      'Archiv',
+      'Routineaufgaben',
+      'Statistik',
+      'Dienste',
+    ]) {
+      expect(find.text(fremd), findsNothing, reason: '$fremd gehört zum Vorsitzer');
+    }
   });
 
   testWidgets('Auswahl meldet den richtigen Index', (tester) async {
@@ -81,9 +90,14 @@ void main() {
     ));
     await tester.pump();
 
-    // Index 5..8 sind die neuen. Ein Tippfehler in der Verdrahtung würde
-    // hier auffallen, im Analyse-Lauf dagegen nicht.
-    for (final eintrag in {'Archiv': 5, 'Routineaufgaben': 6, 'Statistik': 7, 'Dienste': 8}.entries) {
+    // Ein Tippfehler in der Verdrahtung würde hier auffallen, im
+    // Analyse-Lauf dagegen nicht.
+    for (final eintrag in {
+      'Dashboard': 0,
+      'Finanzverwaltung': 1,
+      'Meine Tickets': 2,
+      'Meine Termine': 3,
+    }.entries) {
       await tester.tap(find.text(eintrag.key));
       await tester.pump();
       expect(gewaehlt.last, eintrag.value, reason: eintrag.key);
@@ -102,7 +116,7 @@ void main() {
       DashboardSidebar(
         userName: 'S42759',
         mitgliedernummer: 'S42759',
-        selectedMenuIndex: 5,
+        selectedMenuIndex: 1,
         onMenuSelected: (_) {},
       ),
     ));

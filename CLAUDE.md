@@ -204,17 +204,31 @@ Acum: **19 din 89 (21%)**, iar fiecare fișier rămas are un motiv scris mai jos
 Scriptul de verificare e în [tools/erreichbarkeit.py](tools/erreichbarkeit.py) —
 rulează-l după orice restructurare de meniu.
 
-#### Legate în meniu (funcționau, dar nu atârnau nicăieri)
+#### Meniul din stânga — zis pe scurt
 
-| Intrare | Ecran | Endpoint | De ce merge |
-|---|---|---|---|
-| 5 Archiv | `archiv_screen` | `schatzmeister/archiv_*` | gated pe `schatzmeister` |
-| 6 Routineaufgaben | `routinenaufgaben_screen` | `schatzmeister/routine_*` | reparat 2026-08-23 (folosea `requireAdminRole`) |
-| 7 Statistik | `statistik_screen` | `schatzmeister/finanzen/*` + `tickets/time/weekly.php` | primul e al nostru, al doilea cere doar autentificare |
-| 8 Dienste | `dienste_screen` | — | hub local: PDF-Manager, JPG→PDF, Reiseplanung, DB-Mobilität |
+**Actualizat 2026-08-24.** Cele patru module legate pe 23.08 (Archiv,
+Routineaufgaben, Statistik, Dienste) plus Vereinverwaltung au fost **scoase
+din nou**. Decizia utilizatorului: aparțin aplicației de președinte, nu
+trezorierului.
 
-Intrarea 8 reînvie singură 5 fișiere (~3750 linii) — toate lucrează local sau
-cu API-uri externe, fără rol.
+Meniul are acum exact patru intrări:
+
+| # | Intrare |
+|---|---|
+| 0 | Dashboard |
+| 1 | Finanzverwaltung |
+| 2 | Meine Tickets |
+| 3 | Meine Termine |
+
+Plus butonul de semnături din bara de sus, care nu e în meniul lateral.
+
+Fișierele au rămas în repo, doar nu mai sunt legate — de aceea numărul de
+fișiere parcate a sărit de la 19 la 44 (49%). Saltul e intenționat și e
+notat în `tools/erreichbarkeit.py`. Ștergerea lor rămâne deschisă până se
+decide dacă sunt necesare în aplicația de președinte.
+
+`test/menue_und_leiste_test.dart` verifică **și absența** celor cinci:
+fișierele fiind încă în repo, o relegare din greșeală n-ar sări altfel în ochi.
 
 #### `LegalFooter` legat în `bottomNavigationBar`
 

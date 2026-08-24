@@ -23,18 +23,12 @@ import '../widgets/update_dialog.dart';
 import '../widgets/incoming_call_dialog.dart';
 import '../widgets/responsive_layout.dart';
 import '../widgets/legal_footer.dart';
-import 'archiv_screen.dart';
-import 'dienste_screen.dart';
 import 'eigene_unterschriften_screen.dart';
-import 'routinenaufgaben_screen.dart';
-import 'statistik_screen.dart';
 import 'login_with_code_screen.dart';
 import '../services/termin_service.dart';
 import '../widgets/profile_dialog.dart';
 import '../widgets/dashboard_sidebar.dart';
 import '../widgets/eastern.dart';
-import '../utils/role_helpers.dart';
-import 'vereinverwaltung_screen.dart';
 import 'finanzverwaltung_screen.dart';
 
 final _log = LoggerService();
@@ -1320,28 +1314,10 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
         return _buildMyTicketsReadOnly();
       case 3:
         return _buildMyTermineReadOnly();
-      case 4:
-        return VereinverwaltungScreen(
-          apiService: _apiService,
-          users: _users,
-          getRoleColor: getRoleColor,
-          getRoleText: getRoleText,
-        );
-      case 5:
-        return ArchivScreen(apiService: _apiService, users: _users);
-      case 6:
-        return RoutinenaufgabenScreen(
-          users: _users,
-          currentMitgliedernummer: widget.currentMitgliedernummer,
-        );
-      case 7:
-        return StatistikScreen(
-          apiService: _apiService,
-          users: _users,
-          currentMitgliedernummer: widget.currentMitgliedernummer,
-        );
-      case 8:
-        return const DiensteScreen();
+      // Vereinverwaltung, Archiv, Routineaufgaben, Statistik und Dienste
+      // sassen hier als 4..8. Entscheidung des Users (2026-08-24): sie
+      // gehoeren in die Vorsitzer-App. Der Schatzmeister behaelt Finanzen
+      // sowie seine eigenen Tickets und Termine.
       default:
         return _buildDashboardOverview();
     }
