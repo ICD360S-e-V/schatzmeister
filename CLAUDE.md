@@ -26,7 +26,10 @@ Namespace propriu sub `/api/schatzmeister/`. **Nu depinde de `/api/admin/`** —
 nici endpoint-uri, nici `requireAdminRole()` (acela verifică `vorsitzer` și
 excludea tocmai rolul pentru care e făcută aplicația).
 
-Sursa versionată local: [_server_schatzmeister/](_server_schatzmeister/).
+⚠️ **Sursa PHP nu mai e în acest repo** (scoasă 2026-08-24 — aici stă
+aplicația Flutter). Se află în `~/Documents/schatzmeister-server-api/`,
+singura copie în afara serverului. Vezi `README.md` de acolo, inclusiv
+procedura de comparare cu serverul și de deploy.
 
 ### Regula de confidențialitate
 
@@ -63,7 +66,7 @@ Zuwendungsbescheinigungen, deci se livrează integral.
 
 Tabele noi: `schatzmeister_activation_codes`, `schatzmeister_code_attempts`
 (separate de cele ale vorsitzer-ului, ca un brute-force pe un portal să nu
-blocheze celălalt). Schema: `_server_schatzmeister/schema.sql`.
+blocheze celălalt). Schema: `schatzmeister-server-api/schema.sql`.
 
 ### Fluxul de activare
 
