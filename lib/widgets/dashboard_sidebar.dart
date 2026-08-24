@@ -170,45 +170,13 @@ class DashboardSidebar extends StatelessWidget {
             title: l.myAppointments,
             onTap: () => onMenuSelected(3),
           ),
-          SidebarMenuItem(
-            index: 4,
-            selectedIndex: selectedMenuIndex,
-            icon: Icons.business,
-            title: l.organizationManagement,
-            onTap: () => onMenuSelected(4),
-          ),
-          // Ab hier Module, die es im Code laengst gab, aber an keinem Menue
-          // hingen — 41 % der Dateien waren aus main.dart nicht erreichbar.
-          // Aufgenommen wurde nur, was zur Rolle passt UND serverseitig
-          // durchlaeuft; der Rest steht mit Begruendung in CLAUDE.md.
-          SidebarMenuItem(
-            index: 5,
-            selectedIndex: selectedMenuIndex,
-            icon: Icons.inventory_2,
-            title: 'Archiv',
-            onTap: () => onMenuSelected(5),
-          ),
-          SidebarMenuItem(
-            index: 6,
-            selectedIndex: selectedMenuIndex,
-            icon: Icons.checklist,
-            title: 'Routineaufgaben',
-            onTap: () => onMenuSelected(6),
-          ),
-          SidebarMenuItem(
-            index: 7,
-            selectedIndex: selectedMenuIndex,
-            icon: Icons.bar_chart,
-            title: 'Statistik',
-            onTap: () => onMenuSelected(7),
-          ),
-          SidebarMenuItem(
-            index: 8,
-            selectedIndex: selectedMenuIndex,
-            icon: Icons.miscellaneous_services,
-            title: 'Dienste',
-            onTap: () => onMenuSelected(8),
-          ),
+          // Vereinverwaltung, Archiv, Routineaufgaben, Statistik und Dienste
+          // standen hier bis 2026-08-24. Entscheidung des Users: sie gehoeren
+          // in die Vorsitzer-App, nicht hierher. Der Schatzmeister hat die
+          // Finanzen, seine eigenen Tickets und Termine — mehr nicht.
+          //
+          // Die Dateien bleiben im Repo, sie sind nur nicht mehr verdrahtet;
+          // die Begruendung je Datei steht in CLAUDE.md unter „Cod inaccesibil".
         ],
       ),
     );

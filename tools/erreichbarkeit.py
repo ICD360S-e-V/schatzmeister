@@ -14,9 +14,18 @@ import os
 import re
 import sys
 
-# Stand nach der Aufräumaktion. Wächst die Zahl, hängt etwas Neues in der
-# Luft — dann entweder verdrahten, löschen oder in CLAUDE.md begründen.
-ERWARTET_GEPARKT = 19
+# Stand nach dem Zuschnitt auf die Rolle. Wächst die Zahl, hängt etwas Neues
+# in der Luft — dann entweder verdrahten, löschen oder in CLAUDE.md begründen.
+#
+# Verlauf, damit die Zahl nicht wie Nachlässigkeit aussieht:
+#   40  Ausgangslage 2026-08-23 — niemand wusste, was davon Absicht war
+#   19  nach dem Aufräumen: vier Module ans Menü, alter Login gelöscht
+#   44  nach dem Zuschnitt 2026-08-24 — Vereinverwaltung, Archiv,
+#       Routineaufgaben, Statistik und Dienste gehören in die Vorsitzer-App
+#       und wurden hier abgehängt. Der Sprung ist gewollt: die Dateien
+#       bleiben liegen, statt sie zu löschen, solange nicht entschieden ist,
+#       ob sie drüben gebraucht werden.
+ERWARTET_GEPARKT = 44
 
 
 def main() -> int:
