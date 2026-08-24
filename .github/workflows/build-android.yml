@@ -195,7 +195,9 @@ jobs:
 
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7
         with:
-          name: ${{ env.APP_NAME }}-apk-${{ steps.version.outputs.name }}
+          # Fester Name, damit `publish-release` ihn findet. Die Version
+          # steht im Dateinamen des APK, nicht im Namen des Artefakts.
+          name: android-apk
           path: dist/*.apk
           retention-days: 14
 
@@ -215,3 +217,140 @@ jobs:
             echo "" >> "$GITHUB_STEP_SUMMARY"
             echo "> ⚠️ Debug-signiert — zum Ausprobieren, nicht zum Verteilen." >> "$GITHUB_STEP_SUMMARY"
           fi
+
+  # ──────────────────────────────────────────────────────────────
+  # APK in ein GitHub-Release stellen
+  #
+  # ⚠️ WARUM DAS SEIN MUSS: ein Artefakt aus `upload-artifact` ist NICHT
+  # öffentlich. Es liegt hinter der GitHub-Anmeldung, kommt nur als ZIP und
+  # verfällt nach 14 Tagen. Die Schatzmeisterin kann damit nichts anfangen —
+  # sie öffnet einen Link auf dem Telefon und erwartet eine .apk.
+  #
+  # Ein Release-Asset dagegen ist öffentlich, unbefristet und direkt
+  # verlinkbar. Der stabile Name macht
+  #   releases/latest/download/schatzmeister.apk
+  # zu einer Adresse, die immer auf die neueste Fassung zeigt — genau das,
+  # was in `version_schatzmeister.json` als `download_url` stehen kann.
+  # ──────────────────────────────────────────────────────────────
+  publish-release:
+    name: "🚀 Ins GitHub-Release stellen"
+    needs: [analyse, android]
+    # Nur bei einem Tag vX.Y.Z. Ein Push auf main soll kein Release erzeugen —
+    # sonst hiesse „latest" irgendwann ein Zwischenstand.
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8
+        with:
+          name: android-apk
+          path: dist
+
+      - name: Release anlegen, falls es noch keins gibt
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REF_NAME: ${{ github.ref_name }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          if gh release view "$GH_REF_NAME" --repo "$GH_REPO" >/dev/null 2>&1; then
+            echo "Release $GH_REF_NAME besteht bereits."
+          else
+            gh release create "$GH_REF_NAME" \
+              --repo "$GH_REPO" \
+              --generate-notes \
+              --title "$GH_REF_NAME"
+            echo "Release $GH_REF_NAME angelegt."
+          fi
+
+      - name: APKs hochladen
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REF_NAME: ${{ github.ref_name }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          # --clobber: ein erneuter Lauf desselben Tags ersetzt die Dateien,
+          # statt mit "asset already exists" abzubrechen.
+          gh release upload "$GH_REF_NAME" dist/*.apk --clobber --repo "$GH_REPO"
+
+      # ──────────────────────────────────────────────────────────────
+      # version_schatzmeister.json ALS RELEASE-ASSET
+      #
+      # ⚠️ Bisher holte die App die Versionsauskunft von
+      #   https://icd360sev.icd360s.de/api/version_schatzmeister.php
+      # also vom Vereinsserver, hinter Device-Key-Prüfung. Das hatte drei
+      # Nachteile: der Server muss laufen, die Datei dort muss von Hand
+      # gepflegt werden (sie zeigte monatelang auf ein APK, das es nicht
+      # gab), und ein frisch installiertes Gerät hat noch gar keinen
+      # Device-Key.
+      #
+      # Jetzt entsteht die Datei im selben Lauf, der auch das APK baut —
+      # Version und Download-Adresse können damit nicht mehr auseinander
+      # laufen. Dieselbe Lösung wie in der Vorsitzer-App.
+      #
+      # Die Hülle {"success": true, …} bleibt, damit update_service.dart die
+      # Antwort genauso liest wie die alte PHP-Antwort. Am Client ändert sich
+      # nur `versionUrl`.
+      # ──────────────────────────────────────────────────────────────
+      - name: version_schatzmeister.json erzeugen und hochladen
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REF_NAME: ${{ github.ref_name }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          APK="dist/${APP_NAME}.apk"
+          [ -f "$APK" ] || { echo "::error::$APK fehlt"; exit 1; }
+
+          # Version aus dem Tag: v1.0.18 -> 1.0.18
+          VERSION="${GH_REF_NAME#v}"
+          # Build-Nummer aus pubspec.yaml des Tags — die App vergleicht
+          # zuerst danach, nicht nach der Zeichenkette.
+          BUILD="$(gh api "repos/${GH_REPO}/contents/pubspec.yaml?ref=${GH_REF_NAME}" \
+                    --jq '.content' | base64 -d \
+                    | grep -m1 '^version:' | sed 's/.*+//')"
+
+          export VERSION BUILD
+          export GH_URL="https://github.com/${GH_REPO}/releases/download/${GH_REF_NAME}/${APP_NAME}.apk"
+          export SHA256="$(sha256sum "$APK" | cut -d' ' -f1)"
+          export GROESSE="$(du -h "$APK" | cut -f1)"
+          export DATUM="$(date -u +%Y-%m-%d)"
+          # Release-Notizen als Changelog. `--jq` liefert sie roh; leer ist
+          # zulässig, update_service.dart faellt dann auf '' zurueck.
+          export CHANGELOG="$(gh release view "$GH_REF_NAME" --repo "$GH_REPO" --json body --jq '.body' 2>/dev/null || echo '')"
+
+          # In Python erzeugt, damit jeder Wert sauber JSON-kodiert wird —
+          # ein Anführungszeichen in den Release-Notizen würde eine
+          # zusammengebaute Zeichenkette zerreißen.
+          python3 - > version_schatzmeister.json <<'PY'
+          import json, os
+          print(json.dumps({
+              'success':      True,
+              'version':      os.environ['VERSION'],
+              'build_number': int(os.environ['BUILD']),
+              'download_url': os.environ['GH_URL'],
+              'sha256':       os.environ['SHA256'],
+              'changelog':    os.environ['CHANGELOG'],
+              'min_version':  None,
+              'force_update': False,
+              'release_date': os.environ['DATUM'],
+              'file_size':    os.environ['GROESSE'],
+          }, indent=2, ensure_ascii=False))
+          PY
+
+          cat version_schatzmeister.json
+          gh release upload "$GH_REF_NAME" version_schatzmeister.json --clobber --repo "$GH_REPO"
+
+          {
+            echo "### Release $GH_REF_NAME"
+            echo ""
+            echo "| | |"
+            echo "|---|---|"
+            echo "| APK | \`https://github.com/$GH_REPO/releases/latest/download/${APP_NAME}.apk\` |"
+            echo "| Manifest | \`https://github.com/$GH_REPO/releases/latest/download/version_schatzmeister.json\` |"
+            echo "| SHA-256 | \`$SHA256\` |"
+            echo ""
+            echo "Beide Adressen zeigen immer auf die neueste Fassung."
+          } >> "$GITHUB_STEP_SUMMARY"
