@@ -308,9 +308,16 @@ jobs:
           VERSION="${GH_REF_NAME#v}"
           # Build-Nummer aus pubspec.yaml des Tags — die App vergleicht
           # zuerst danach, nicht nach der Zeichenkette.
-          BUILD="$(gh api "repos/${GH_REPO}/contents/pubspec.yaml?ref=${GH_REF_NAME}" \
-                    --jq '.content' | base64 -d \
-                    | grep -m1 '^version:' | sed 's/.*+//')"
+          #
+          # ⚠️ Erst in eine Variable, dann filtern. Die erste Fassung hängte
+          # `| grep -m1 …` direkt an `base64 -d`; grep steigt beim ersten
+          # Treffer aus, base64 schreibt gegen ein geschlossenes Rohr und
+          # meldet "write error: Broken pipe" — mit `pipefail` bricht der
+          # ganze Schritt ab. Die Zuweisung liest dagegen bis zum Ende.
+          PUBSPEC="$(gh api "repos/${GH_REPO}/contents/pubspec.yaml?ref=${GH_REF_NAME}" \
+                      --jq '.content' | base64 -d)"
+          BUILD="$(printf '%s\n' "$PUBSPEC" | grep '^version:' | head -1 | sed 's/.*+//')"
+          [ -n "$BUILD" ] || { echo "::error::Keine Build-Nummer in pubspec.yaml gefunden"; exit 1; }
 
           export VERSION BUILD
           export GH_URL="https://github.com/${GH_REPO}/releases/download/${GH_REF_NAME}/${APP_NAME}.apk"
