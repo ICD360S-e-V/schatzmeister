@@ -62,3 +62,15 @@ id_rsa*
 *.bak[0-9]
 *.bak_*
 *.bak.*
+
+# ⚠️ Die Regeln oben kamen am 2026-08-23 — die 77 bereits eingecheckten
+# .bak-Dateien hat das nicht erreicht: .gitignore wirkt nicht auf Dateien,
+# die git schon kennt. Sie sind mit diesem Commit entfernt.
+
+# 🔴 CLAUDE.md traegt Servertopologie, die Form des SSH-Zugangs und im
+# Zweifel Zugangsdaten. In `vorsitzer` ist die Datei aus genau diesem Grund
+# seit jeher ignoriert; hier lag sie samt .bak-Kopie in einem OEFFENTLICHEN
+# Repo, und in der Kopie stand das alte Datenbankkennwort. Das war zum Fund
+# am 2026-08-26 bereits gewechselt — beim naechsten Mal vielleicht nicht.
+CLAUDE.md
+CLAUDE.md.*
