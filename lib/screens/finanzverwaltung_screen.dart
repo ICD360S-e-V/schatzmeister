@@ -187,7 +187,17 @@ class _FinanzverwaltungScreenState extends State<FinanzverwaltungScreen> with Si
             children: [
               Icon(Icons.account_balance_wallet, size: 28, color: Colors.green.shade700),
               const SizedBox(width: 12),
-              const Text('Finanzverwaltung', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+              // ⚠️ Expanded, sonst laeuft die Zeile ueber. Gemessen auf dem
+              // Telefon der Schatzmeisterin (393 dp): 24-pt-Schrift plus
+              // Symbol und 2x24 dp Rand ergaben 79 dp Ueberlauf — sichtbar
+              // als gelb-schwarzer Balken am rechten Rand.
+              const Expanded(
+                child: Text(
+                  'Finanzverwaltung',
+                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
             ],
           ),
         ),
@@ -252,15 +262,22 @@ class _FinanzverwaltungScreenState extends State<FinanzverwaltungScreen> with Si
       child: Column(
         children: [
           Row(
-            mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Icon(Icons.info_outline, size: 18, color: Colors.grey.shade600),
               const SizedBox(width: 8),
-              Text(
-                'Beitrag: ${_beitragProMonat.toStringAsFixed(0)} €/Monat • ab August 2025 • $_anzahlMonate Monate',
-                style: TextStyle(fontSize: 14, color: Colors.grey.shade700, fontWeight: FontWeight.w500),
+              // ⚠️ Der laengste Ueberlauf im ganzen Bildschirm: 371 dp.
+              // Der Satz ist rund 60 Zeichen lang und stand ohne Flex neben
+              // einem Spacer und dem Knopf — auf 393 dp konnte das nie
+              // aufgehen. Expanded laesst ihn umbrechen statt hinauslaufen.
+              //
+              // `mainAxisAlignment: center` ist damit hinfaellig: Expanded
+              // nimmt den freien Platz ohnehin ein.
+              Expanded(
+                child: Text(
+                  'Beitrag: ${_beitragProMonat.toStringAsFixed(0)} €/Monat • ab August 2025 • $_anzahlMonate Monate',
+                  style: TextStyle(fontSize: 14, color: Colors.grey.shade700, fontWeight: FontWeight.w500),
+                ),
               ),
-              const Spacer(),
               IconButton(
                 icon: const Icon(Icons.refresh),
                 tooltip: 'Aktualisieren',
@@ -286,7 +303,20 @@ class _FinanzverwaltungScreenState extends State<FinanzverwaltungScreen> with Si
   }
 
   Widget _statChip(String label, String value, Color color) {
+    // ⚠️ Der Chip sitzt in einem Wrap. Ein Wrap bricht zwar zwischen seinen
+    // Kindern um, aber ein einzelnes Kind kann er nicht schmaler machen —
+    // und `mainAxisSize.min` gibt der Zeile drinnen keinen Grund zu
+    // schrumpfen. Auf 320 dp lief "Offene Schulden 1234,00 €" deshalb um
+    // 43 dp hinaus.
+    //
+    // Zwei Griffe dagegen: eine Obergrenze fuer den ganzen Chip, und die
+    // Beschriftung als Flexible mit Auslassungspunkten. Der Betrag bleibt
+    // ungekuerzt — eine abgeschnittene Zahl waere schlimmer als ein
+    // abgeschnittenes Wort.
     return Container(
+      constraints: BoxConstraints(
+        maxWidth: MediaQuery.of(context).size.width - 48,
+      ),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.1),
@@ -298,7 +328,13 @@ class _FinanzverwaltungScreenState extends State<FinanzverwaltungScreen> with Si
         children: [
           Text(value, style: TextStyle(fontWeight: FontWeight.bold, color: color, fontSize: 16)),
           const SizedBox(width: 6),
-          Text(label, style: TextStyle(color: color, fontSize: 13)),
+          Flexible(
+            child: Text(
+              label,
+              style: TextStyle(color: color, fontSize: 13),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
         ],
       ),
     );
