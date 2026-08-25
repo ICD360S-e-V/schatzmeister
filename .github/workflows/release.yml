@@ -119,11 +119,30 @@ jobs:
 
           # MAJOR ist das Einzige, was Absicht verlangt: ein Bruch ist
           # semantisch und aus einem Datei-Diff nicht ablesbar.
-          if git log "$BEREICH" --format='%s %b' \
-             | grep -qiE '(BREAKING[- ]CHANGE|^[a-zA-Z]+(\([^)]+\))?!:)'; then
+          #
+          # ⚠️ ENG gefasst, und zwar aus Erfahrung. Die erste Fassung suchte
+          # die Wortfolge irgendwo in Betreff ODER Rumpf. Am 25.08.2026 hob
+          # sie deshalb 1.0.18 auf 2.0.0 — der ausloesende Text stand in der
+          # Commit-Nachricht, die diesen Ablauf selbst beschrieb, in
+          # Anfuehrungszeichen und eingerueckt. Der Melder hat seine eigene
+          # Dokumentation gelesen.
+          #
+          # Jetzt genau die zwei Formen aus der Konvention:
+          #   Betreffzeile   feat!: …   oder  fix(api)!: …
+          #   Fussnote       BREAKING CHANGE: …  am Zeilenanfang, mit Doppelpunkt
+          # Eine erwaehnte Wortfolge trifft damit nicht mehr zu.
+          if git log "$BEREICH" --format='%s' \
+             | grep -qE '^[a-zA-Z]+(\([^)]+\))?!:'; then
             echo "bump=major" >> "$GITHUB_OUTPUT"
             echo "leer=false"  >> "$GITHUB_OUTPUT"
-            echo "Erkannt: MAJOR"
+            echo "Erkannt: MAJOR (Ausrufezeichen in der Betreffzeile)"
+            exit 0
+          fi
+          if git log "$BEREICH" --format='%b' \
+             | grep -qE '^BREAKING[ -]CHANGE:'; then
+            echo "bump=major" >> "$GITHUB_OUTPUT"
+            echo "leer=false"  >> "$GITHUB_OUTPUT"
+            echo "Erkannt: MAJOR (Fussnote)"
             exit 0
           fi
 

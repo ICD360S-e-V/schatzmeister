@@ -79,6 +79,15 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
 
   // Payment reminder
   Timer? _paymentReminderTimer;
+
+  /// Wie oft im Betrieb nach einer neuen Fassung gesehen wird.
+  ///
+  /// 15 Minuten wie in der Vorsitzer-App. Der Abruf geht gegen ein
+  /// Release-Asset auf GitHub, kostet also weder den Vereinsserver noch
+  /// nennenswert Daten — die Antwort ist ein paar hundert Byte JSON.
+  static const Duration _kUpdateTakt = Duration(minutes: 15);
+  Timer? _updateTimer;
+  bool _updateLaeuft = false;
   bool _paymentReminderShownToday = false;
 
   // Weather
@@ -131,8 +140,9 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
     // Check for updates and push logs after widget is built
     // Start weather service (uses city from user profile)
     _startWeatherService();
+    _updateTimer = Timer.periodic(_kUpdateTakt, (_) => _updatePruefen());
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      await checkAndShowUpdateDialog(context);
+      await _updatePruefen();
       // Push logs to server after login
       _log.pushToServer(widget.currentMitgliedernummer);
       // Check payment reminder
@@ -146,17 +156,43 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
     _paymentReminderTimer = Timer.periodic(const Duration(hours: 1), (_) => _checkPaymentReminder());
   }
 
+  /// Im Hintergrund nach einer neuen Fassung sehen und sie anbieten.
+  ///
+  /// ⚠️ Bisher wurde GENAU EINMAL geprüft, beim Öffnen des Dashboards. Wer
+  /// die App tagelang offen liess — auf dem Vereinsrechner der Regelfall —
+  /// erfuhr von einer neuen Fassung nie. Der Takt hier schliesst das.
+  ///
+  /// `_updateLaeuft` verhindert, dass ein zweiter Durchlauf startet, während
+  /// der erste noch lädt: sonst liefen zwei Downloads derselben Datei.
+  Future<void> _updatePruefen() async {
+    if (_updateLaeuft || !mounted) return;
+    _updateLaeuft = true;
+    try {
+      await checkAndShowUpdateDialog(context);
+    } catch (e) {
+      _log.debug('Update-Pruefung fehlgeschlagen: $e', tag: 'UPDATE');
+    } finally {
+      _updateLaeuft = false;
+    }
+  }
+
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.paused) {
       _ticketRefreshTimer?.cancel();
       _paymentReminderTimer?.cancel();
+      _updateTimer?.cancel();
       _log.debug('App paused - UI timers stopped', tag: 'SYS');
     } else if (state == AppLifecycleState.resumed) {
       _startTicketAutoRefresh();
       _paymentReminderTimer = Timer.periodic(const Duration(hours: 1), (_) => _checkPaymentReminder());
       _loadMyTickets();
       _loadMyTermine();
+      // Sofort sehen, nicht erst in 15 Minuten: wer die App aufklappt,
+      // nachdem sie eine Nacht lag, soll die neue Fassung gleich angeboten
+      // bekommen.
+      _updatePruefen();
+      _updateTimer = Timer.periodic(_kUpdateTakt, (_) => _updatePruefen());
       _log.debug('App resumed - UI timers restarted', tag: 'SYS');
     }
   }
@@ -173,6 +209,7 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
     _heartbeatService.stop();
     _ticketNotificationService.stop();
     _paymentReminderTimer?.cancel();
+    _updateTimer?.cancel();
     _weatherService.stop();
     NtfyService().stop();
     super.dispose();
