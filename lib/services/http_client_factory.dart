@@ -1,6 +1,50 @@
 import 'dart:io';
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
+/// Factory for creating HttpClient instances with certificate pinning.
+///
+/// ZWEI ANKER, NICHT EINER. Der Produktionsserver liefert heute diese Kette:
+///
+///   icd360sev.icd360s.de  ←  YE2  ←  Root YE  ←  ISRG Root X2  ←  ISRG Root X1
+///
+/// Sie endet nur deshalb bei X1, weil Let's Encrypt zwei Kreuzsignaturen
+/// mitschickt. Genau die fallen weg, sobald die neuen Wurzeln breit genug
+/// verteilt sind — dann endet die Kette bei X2. Mit nur X1 als Anker wuerde in
+/// diesem Moment JEDE HTTPS-Verbindung dieser App scheitern: Anmeldung, Chat,
+/// Buchungen. Ohne Vorwarnung und ohne dass jemand etwas geaendert haette.
+///
+/// Nachgemessen am 26.08.2026 gegen den Produktivserver: gegen X2 allein
+/// validiert die heutige Kette bereits sauber (Verify return code 0). Der
+/// zweite Anker kostet nichts und nimmt dem Wegfall die Wirkung.
+///
+/// GRENZE: `Root YE` ist derzeit von X2 kreuzsigniert und damit abgedeckt.
+/// Liefert Let's Encrypt sie spaeter als eigenstaendige Wurzel aus, braucht es
+/// hier einen dritten Anker.
 class HttpClientFactory {
+  /// ISRG Root X2 — SHA-256 69:72:9B:8E:…:3C:CB:14:70, gueltig bis 2040-09-17.
+  /// Abdruck gegen den Systemspeicher geprueft, NICHT aus der Kette
+  /// uebernommen, die der Server selbst ausliefert.
+  static const String _isrgRootX2Pem = '''
+-----BEGIN CERTIFICATE-----
+MIICGzCCAaGgAwIBAgIQQdKd0XLq7qeAwSxs6S+HUjAKBggqhkjOPQQDAzBPMQsw
+CQYDVQQGEwJVUzEpMCcGA1UEChMgSW50ZXJuZXQgU2VjdXJpdHkgUmVzZWFyY2gg
+R3JvdXAxFTATBgNVBAMTDElTUkcgUm9vdCBYMjAeFw0yMDA5MDQwMDAwMDBaFw00
+MDA5MTcxNjAwMDBaME8xCzAJBgNVBAYTAlVTMSkwJwYDVQQKEyBJbnRlcm5ldCBT
+ZWN1cml0eSBSZXNlYXJjaCBHcm91cDEVMBMGA1UEAxMMSVNSRyBSb290IFgyMHYw
+EAYHKoZIzj0CAQYFK4EEACIDYgAEzZvVn4CDCuwJSvMWSj5cz3es3mcFDR0HttwW
++1qLFNvicWDEukWVEYmO6gbf9yoWHKS5xcUy4APgHoIYOIvXRdgKam7mAHf7AlF9
+ItgKbppbd9/w+kHsOdx1ymgHDB/qo0IwQDAOBgNVHQ8BAf8EBAMCAQYwDwYDVR0T
+AQH/BAUwAwEB/zAdBgNVHQ4EFgQUfEKWrt5LSDv6kviejM9ti6lyN5UwCgYIKoZI
+zj0EAwMDaAAwZQIwe3lORlCEwkSHRhtFcP9Ymd70/aTSVaYgLXTWNLxBo1BfASdW
+tL4ndQavEi51mI38AjEAi/V3bNTIZargCyzuFJ0nN6T5U6VR5CmD1/iQMVtCnwr1
+/q4AaOeMSQ+2b1tbFfLn
+-----END CERTIFICATE-----''';
+
+  /// Alle Anker hintereinander — `setTrustedCertificatesBytes` nimmt mehrere
+  /// PEM-Bloecke in einem Puffer.
+  @visibleForTesting
+  static const String vertrauensanker = '$_isrgRootX1Pem\n$_isrgRootX2Pem';
+
   static const String _isrgRootX1Pem = '''
 -----BEGIN CERTIFICATE-----
 MIIFazCCA1OgAwIBAgIRAIIQz7DSQONZRGPgu2OCiwAwDQYJKoZIhvcNAQELBQAw
@@ -39,7 +83,7 @@ emyPxgcYxn/eR44/KJ4EBs+lVDR3veyJm+kXQ99b21/+jh5Xos1AnX5iItreGCc=
     Duration idleTimeout = const Duration(seconds: 15),
   }) {
     final securityContext = SecurityContext(withTrustedRoots: false);
-    securityContext.setTrustedCertificatesBytes(utf8.encode(_isrgRootX1Pem));
+    securityContext.setTrustedCertificatesBytes(utf8.encode(vertrauensanker));
 
     final client = HttpClient(context: securityContext)
       ..connectionTimeout = connectionTimeout
