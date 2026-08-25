@@ -3,7 +3,7 @@ import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:http/io_client.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:android_package_installer/android_package_installer.dart';
 import 'device_key_service.dart';
 import 'platform_service.dart';
 import 'logger_service.dart';
@@ -34,8 +34,8 @@ class UpdateService {
   /// http-Paket folgt Weiterleitungen bei GET von sich aus.
   static const String versionUrl =
       'https://github.com/ICD360S-e-V/schatzmeister/releases/latest/download/version_schatzmeister.json';
-  static const String currentVersion = '2.0.0';
-  static const int currentBuildNumber = 20;
+  static const String currentVersion = '1.0.18';
+  static const int currentBuildNumber = 19;
   // ✅ SECURITY FIX: Removed hardcoded API key (extractable via reverse engineering)
   // All requests now use dynamic Device Key only
 
@@ -208,14 +208,28 @@ class UpdateService {
       exit(0);
 
     } else if (Platform.isAndroid) {
-      // Android: Open APK with system file manager for installation
-      final uri = Uri.file(installerPath);
-      if (await canLaunchUrl(uri)) {
-        await launchUrl(uri);
-      } else {
-        _log.error('Cannot launch APK installer', tag: 'UPDATE');
+      // ⚠️ Vorher stand hier `launchUrl(Uri.file(installerPath))`. Das kann
+      // auf keinem unterstuetzten Geraet funktionieren: seit Android 7
+      // (API 24 — genau unser minSdk) loest ein file://-URI, das an eine
+      // fremde App gereicht wird, FileUriExposedException aus. Das Update
+      // wurde also geladen und dann still verworfen.
+      //
+      // AndroidPackageInstaller kapselt den PackageInstaller samt
+      // FileProvider; der noetige <provider>-Eintrag steht im Manifest,
+      // die Freigaben in res/xml/file_paths.xml.
+      //
+      // REQUEST_INSTALL_PACKAGES war bereits deklariert — die Berechtigung
+      // allein half nur nichts, solange der Pfad nicht uebergeben werden
+      // konnte.
+      _log.info('Installiere APK: $installerPath', tag: 'UPDATE');
+      try {
+        final code = await AndroidPackageInstaller.installApk(apkFilePath: installerPath);
+        final status = PackageInstallerStatus.byCode(code ?? -1);
+        _log.info('APK-Installation: ${status.name}', tag: 'UPDATE');
+      } catch (e) {
+        _log.error('APK-Installation fehlgeschlagen: $e', tag: 'UPDATE');
       }
-      // Don't exit on Android - system will handle installation
+      // Kein exit(): das System uebernimmt und fragt den Benutzer.
 
     } else if (Platform.isIOS) {
       // iOS: Direct installation not supported - redirect to download page

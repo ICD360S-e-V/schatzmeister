@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Freigaben fuer den FileProvider. Ohne sie kann das heruntergeladene APK
+  nicht an den PackageInstaller weitergereicht werden: seit Android 7
+  (API 24, unser minSdk) loest ein file://-URI an eine fremde App
+  FileUriExposedException aus.
+
+  `cache-path` ist der Ort, an den update_service.dart laedt
+  (getTemporaryDirectory). Die beiden anderen stehen der Vollstaendigkeit
+  halber da, wie in der Vorsitzer-App.
+-->
+<paths xmlns:android="http://schemas.android.com/apk/res/android">
+    <cache-path name="cache" path="." />
+    <files-path name="files" path="." />
+    <external-path name="external" path="." />
+</paths>

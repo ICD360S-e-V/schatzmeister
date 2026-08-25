@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 2.0.0+20
+version: 1.0.18+19
 
 environment:
   sdk: ^3.6.1
@@ -97,6 +97,12 @@ dependencies:
 
   # Image cropping (pure Dart, works on all platforms including macOS)
   crop_your_image: ^2.0.0
+
+  # APK-Installation auf Android. Der Weg ueber `launchUrl(Uri.file(...))`
+  # scheitert seit Android 7 (API 24, unser minSdk): ein file://-URI an eine
+  # fremde App zu reichen loest FileUriExposedException aus. Dieses Paket
+  # kapselt den PackageInstaller samt FileProvider.
+  android_package_installer: ^0.0.3
 
   # Handwritten signature capture (pure Dart, cross-platform)
   signature: ^6.3.0
