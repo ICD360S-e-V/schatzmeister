@@ -80,8 +80,6 @@ dependencies:
   # Battery level monitoring
   battery_plus: ^7.0.0
 
-  # AES-256 encryption for routine data (client-side encryption)
-  encrypt: ^5.0.3
 
   # Date formatting and week number calculation
   intl: ^0.20.2

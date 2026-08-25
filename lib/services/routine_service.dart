@@ -2,51 +2,41 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:http/io_client.dart';
-import 'package:encrypt/encrypt.dart' as enc;
 import 'api_service.dart';
 import 'device_key_service.dart';
 import 'logger_service.dart';
 
 final _log = LoggerService();
 
-// ─── AES-256 Encryption ──────────────────────────────────────────────
-// Client-side encryption: data is encrypted BEFORE sending to server.
-// Server stores only ciphertext. Only this app can decrypt.
-
-class _RoutineCrypto {
-  // AES-256 key (32 bytes hex) — only exists in the app binary
-  static final _key = enc.Key.fromBase16('52307574316e336e4175666734623321494344333630532d323032365f4b6579');
-  static final _encrypter = enc.Encrypter(enc.AES(_key, mode: enc.AESMode.cbc, padding: 'PKCS7'));
-
-  /// Encrypt a plaintext string → Base64(IV + ciphertext)
-  static String encrypt(String plaintext) {
-    final iv = enc.IV.fromSecureRandom(16);
-    final encrypted = _encrypter.encrypt(plaintext, iv: iv);
-    // Prepend IV (16 bytes) to ciphertext for decryption
-    final combined = iv.bytes + encrypted.bytes;
-    return base64Encode(combined);
-  }
-
-  /// Decrypt Base64(IV + ciphertext) → plaintext
-  static String decrypt(String cipherBase64) {
-    try {
-      final combined = base64Decode(cipherBase64);
-      if (combined.length < 17) return cipherBase64; // Not encrypted
-      final iv = enc.IV(combined.sublist(0, 16));
-      final cipherBytes = combined.sublist(16);
-      return _encrypter.decrypt(enc.Encrypted(cipherBytes), iv: iv);
-    } catch (_) {
-      // If decryption fails, return as-is (legacy unencrypted data)
-      return cipherBase64;
-    }
-  }
-
-  /// Decrypt if non-null and non-empty
-  static String? decryptNullable(String? value) {
-    if (value == null || value.isEmpty) return value;
-    return decrypt(value);
-  }
-}
+// ─── Verschlüsselung: jetzt serverseitig ─────────────────────────────
+// Hier stand bis 26.08.2026 eine Client-Verschlüsselung mit einem
+// AES-256-Schlüssel, der als Hex-Literal in dieser Datei stand. Der
+// Kommentar darüber versprach "Server stores only ciphertext. Only this
+// app can decrypt.", und der Schlüssel trug die Zeile "only exists in the
+// app binary".
+//
+// Beides war unwahr. Diese Datei liegt im Repo ICD360S-e-V/schatzmeister,
+// und das ist öffentlich — der Schlüssel war per Browser abrufbar, ohne
+// dass man dafür auch nur das APK herunterladen musste. Selbst bei
+// privatem Repo wäre nichts gewonnen: die App wird über unser F-Droid-Repo
+// ausgeliefert, `strings` über libapp.so genügt. In `vorsitzer` wurde
+// genau das am 22.08.2026 nachgewiesen (Commit 262f154da) — ein Kandidat
+// aus dem öffentlichen APK entschlüsselte 30 von 31 echten Werten aus der
+// Produktionsdatenbank. OWASP MASTG beschreibt den Fall.
+//
+// Dazu AES-CBC ohne MAC: der Text war formbar, ein umgekipptes Bit blieb
+// unbemerkt.
+//
+// Verschlüsselt wird jetzt auf dem Server mit AES-256-GCM
+// (api/helpers/routine_krypto.php, v3-Format), wie bei den übrigen
+// Tabellen auch. Der Schlüssel liegt in der PHP-FPM-Pool-Umgebung und
+// damit NICHT im Datenbankabzug. Die Endpunkte unter
+// /api/schatzmeister/routine_*.php können das längst — dieser Client war
+// der letzte, der noch zusätzlich selbst verschlüsselte.
+//
+// ⚠️ Klartext geht hier hinaus und kommt hier herein. Wer je wieder
+// clientseitig verschlüsseln will, braucht dafür einen Schlüssel, den der
+// Server nicht kennt — ein einkompilierter ist keiner.
 
 // ─── Models ───────────────────────────────────────────────────────────
 
@@ -90,13 +80,13 @@ class Routine {
     return Routine(
       id: _parseInt(json['id']),
       userId: _parseInt(json['user_id']),
-      title: _RoutineCrypto.decrypt(json['title'] ?? ''),
-      description: _RoutineCrypto.decryptNullable(json['description']),
+      title: json['title'] ?? '',
+      description: json['description'],
       frequency: json['frequency'] ?? 'weekly',
       dayOfWeek: json['day_of_week'] != null ? _parseInt(json['day_of_week']) : null,
       dayOfMonth: json['day_of_month'] != null ? _parseInt(json['day_of_month']) : null,
       monthOfYear: json['month_of_year'] != null ? _parseInt(json['month_of_year']) : null,
-      category: _RoutineCrypto.decryptNullable(json['category']),
+      category: json['category'],
       preferredTime: json['preferred_time'] ?? '09:00:00',
       isActive: (json['is_active'] ?? 1) == 1 || json['is_active'] == true,
       createdBy: json['created_by'] ?? '',
@@ -175,11 +165,11 @@ class RoutineExecution {
       routineId: _parseInt(json['routine_id']),
       scheduledDate: DateTime.tryParse(json['scheduled_date'] ?? '') ?? DateTime.now(),
       status: json['status'] ?? 'pending',
-      notes: _RoutineCrypto.decryptNullable(json['notes']),
+      notes: json['notes'],
       completedBy: json['completed_by'],
       completedAt: json['completed_at'] != null ? DateTime.tryParse(json['completed_at']) : null,
-      routineTitle: _RoutineCrypto.decryptNullable(json['routine_title']),
-      routineCategory: _RoutineCrypto.decryptNullable(json['routine_category']),
+      routineTitle: json['routine_title'],
+      routineCategory: json['routine_category'],
       frequency: json['frequency'],
       preferredTime: json['preferred_time'],
       userId: json['user_id'] != null ? _parseInt(json['user_id']) : null,
@@ -328,7 +318,7 @@ class RoutineService {
         if (data['success'] == true) {
           // Categories are stored encrypted — decrypt each one
           final rawList = (data['categories'] as List?) ?? [];
-          return rawList.map((c) => _RoutineCrypto.decrypt(c.toString())).toList();
+          return rawList.map((c) => c.toString()).toList();
         }
       }
       return [];
@@ -353,15 +343,15 @@ class RoutineService {
     try {
       final body = {
         'user_id': userId,
-        'title': _RoutineCrypto.encrypt(title),
+        'title': title,
         'frequency': frequency,
         if (description != null && description.isNotEmpty)
-          'description': _RoutineCrypto.encrypt(description),
+          'description': description,
         if (dayOfWeek != null) 'day_of_week': dayOfWeek,
         if (dayOfMonth != null) 'day_of_month': dayOfMonth,
         if (monthOfYear != null) 'month_of_year': monthOfYear,
         if (category != null && category.isNotEmpty)
-          'category': _RoutineCrypto.encrypt(category),
+          'category': category,
         if (preferredTime != null) 'preferred_time': preferredTime,
       };
 
@@ -390,13 +380,13 @@ class RoutineService {
       // Encrypt text fields if present
       final encFields = Map<String, dynamic>.from(fields);
       if (encFields.containsKey('title') && encFields['title'] != null) {
-        encFields['title'] = _RoutineCrypto.encrypt(encFields['title'].toString());
+        encFields['title'] = encFields['title'].toString();
       }
       if (encFields.containsKey('description') && encFields['description'] != null) {
-        encFields['description'] = _RoutineCrypto.encrypt(encFields['description'].toString());
+        encFields['description'] = encFields['description'].toString();
       }
       if (encFields.containsKey('category') && encFields['category'] != null) {
-        encFields['category'] = _RoutineCrypto.encrypt(encFields['category'].toString());
+        encFields['category'] = encFields['category'].toString();
       }
 
       final body = {'routine_id': routineId, ...encFields};
@@ -480,7 +470,7 @@ class RoutineService {
     try {
       final body = <String, dynamic>{
         'status': status,
-        if (notes != null) 'notes': _RoutineCrypto.encrypt(notes),
+        if (notes != null) 'notes': notes,
       };
       if (executionId != null) {
         body['execution_id'] = executionId;
