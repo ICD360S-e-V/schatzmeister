@@ -1,0 +1,229 @@
+name: Release (auto-bump + build)
+
+# ═══════════════════════════════════════════════════════════════
+# VERSIONIERUNG OHNE COMMIT-KONVENTIONEN
+#
+# Läuft bei jedem Push auf main und liest aus dem tatsächlichen Diff seit
+# dem letzten Tag ab, wie stark zu erhöhen ist:
+#
+#   "BREAKING CHANGE" in einer Commit-Nachricht  →  MAJOR
+#   Neue Dateien unter lib/                      →  MINOR
+#   Sonst                                        →  PATCH
+#
+# Danach: pubspec.yaml und update_service.dart anheben, committen, taggen,
+# und den Android-Ablauf auf dem frischen Tag anstossen. Es gibt also nichts
+# mehr von Hand zu taggen — Pushen genügt.
+#
+# Übernommen aus der Vorsitzer-App (.github/workflows/release.yml).
+# ═══════════════════════════════════════════════════════════════
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      bump_type:
+        description: 'Sprungweite erzwingen (auto = aus dem Diff ableiten)'
+        required: false
+        default: 'auto'
+        type: choice
+        options: [auto, patch, minor, major]
+
+permissions:
+  contents: write   # committen + taggen
+  actions: write    # den Build-Ablauf anstossen
+
+# Parallele Pushes sollen sich nicht um denselben Tag streiten.
+# cancel-in-progress: false — ein halb erledigter Bump (Commit ohne Tag)
+# wäre schlimmer als eine Warteschlange.
+concurrency:
+  group: release-bump-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  bump-and-tag:
+    name: "🔢 Version anheben und taggen"
+    # Der eigene Bump-Commit trägt [skip ci] und darf sich nicht selbst
+    # wieder auslösen. Die Bedingung hier ist der Gürtel, [skip ci] die
+    # Hosenträger — GitHub wertet es aus, aber verlassen wollen wir uns
+    # nicht allein darauf.
+    if: "!contains(github.event.head_commit.message, '[skip ci]')"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
+        with:
+          # Volle Historie, sonst findet `git describe` das letzte Tag nicht.
+          # `filter: blob:none` holt dabei nur Commits und Trees, keine
+          # Dateiinhalte — der Job braucht nur Metadaten.
+          fetch-depth: 0
+          filter: blob:none
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Git einrichten
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      # ⚠️ Prüfen, BEVOR getaggt wird.
+      #
+      # Ohne diesen Schritt entstünde bei jedem Push ein Tag — auch wenn die
+      # Tests rot sind. Und weil jedes Tag ein Release nach sich zieht, wäre
+      # das Ergebnis eine veröffentlichte, kaputte Fassung. Ein Tag lässt sich
+      # zurückziehen, ein bereits geladenes APK nicht.
+      #
+      # Kostet gut eine Minute. Dafür läuft `analyse` in build-android.yml
+      # nicht mehr bei Pushes auf main, sondern nur noch auf dem Tag und in
+      # Pull Requests — unterm Strich also kein Lauf mehr als vorher.
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2  # v2
+        with:
+          flutter-version: '3.44.8'
+          cache: true
+
+      - name: Prüfen (analyze, Tests, Erreichbarkeit)
+        run: |
+          set -euo pipefail
+          flutter pub get
+          flutter analyze --no-fatal-infos
+          flutter test
+          python3 tools/erreichbarkeit.py
+
+      - name: Sprungweite aus den Änderungen ableiten
+        id: detect
+        run: |
+          set -euo pipefail
+
+          UEBERSTEUERUNG="${{ github.event.inputs.bump_type }}"
+          if [ -n "$UEBERSTEUERUNG" ] && [ "$UEBERSTEUERUNG" != "auto" ]; then
+            echo "bump=$UEBERSTEUERUNG" >> "$GITHUB_OUTPUT"
+            echo "leer=false" >> "$GITHUB_OUTPUT"
+            echo "Von Hand vorgegeben: $UEBERSTEUERUNG"
+            exit 0
+          fi
+
+          LETZTES_TAG="$(git describe --tags --abbrev=0 --match 'v*' 2>/dev/null || true)"
+          if [ -z "$LETZTES_TAG" ]; then
+            BEREICH="$(git hash-object -t tree /dev/null)..HEAD"
+            echo "Kein Tag gefunden — ganze Historie"
+          else
+            BEREICH="${LETZTES_TAG}..HEAD"
+            echo "Änderungen seit $LETZTES_TAG"
+          fi
+
+          ANZAHL="$(git rev-list --count "$BEREICH" 2>/dev/null || echo 0)"
+          if [ "$ANZAHL" -eq 0 ]; then
+            echo "Nichts Neues seit dem letzten Tag."
+            echo "leer=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "$ANZAHL Commits zu betrachten"
+
+          # MAJOR ist das Einzige, was Absicht verlangt: ein Bruch ist
+          # semantisch und aus einem Datei-Diff nicht ablesbar.
+          if git log "$BEREICH" --format='%s %b' \
+             | grep -qiE '(BREAKING[- ]CHANGE|^[a-zA-Z]+(\([^)]+\))?!:)'; then
+            echo "bump=major" >> "$GITHUB_OUTPUT"
+            echo "leer=false"  >> "$GITHUB_OUTPUT"
+            echo "Erkannt: MAJOR"
+            exit 0
+          fi
+
+          NEUE_LIB="$(git diff --name-status "$BEREICH" | awk '$1 == "A" && $2 ~ /^lib\// { print $2 }')"
+          if [ -n "$NEUE_LIB" ]; then
+            echo "Neue Dateien unter lib/:"; echo "$NEUE_LIB"
+            echo "bump=minor" >> "$GITHUB_OUTPUT"
+            echo "leer=false"  >> "$GITHUB_OUTPUT"
+            echo "Erkannt: MINOR"
+            exit 0
+          fi
+
+          echo "bump=patch" >> "$GITHUB_OUTPUT"
+          echo "leer=false"  >> "$GITHUB_OUTPUT"
+          echo "Erkannt: PATCH"
+
+      - name: Anheben, taggen, schieben
+        if: steps.detect.outputs.leer != 'true'
+        id: push
+        env:
+          BUMP: ${{ steps.detect.outputs.bump }}
+        run: |
+          set -euo pipefail
+
+          AKTUELL="$(grep '^version:' pubspec.yaml | sed 's/version:[[:space:]]*//')"
+          NAME="${AKTUELL%%+*}"
+          BUILD="${AKTUELL##*+}"
+          MAJOR="$(echo "$NAME" | cut -d. -f1)"
+          MINOR="$(echo "$NAME" | cut -d. -f2)"
+          PATCH="$(echo "$NAME" | cut -d. -f3)"
+
+          case "$BUMP" in
+            major) MAJOR=$((MAJOR + 1)); MINOR=0; PATCH=0 ;;
+            minor) MINOR=$((MINOR + 1)); PATCH=0 ;;
+            patch) PATCH=$((PATCH + 1)) ;;
+          esac
+          BUILD=$((BUILD + 1))
+          NEU="$MAJOR.$MINOR.$PATCH"
+          echo "$AKTUELL → $NEU+$BUILD ($BUMP)"
+
+          git fetch origin main --tags --prune
+
+          for versuch in 1 2 3 4 5; do
+            # Fremder Tag im Weg? Patch hochzählen, bis einer frei ist.
+            while git ls-remote --tags origin | awk '{print $2}' | grep -qx "refs/tags/v$NEU"; do
+              PATCH=$((PATCH + 1)); BUILD=$((BUILD + 1)); NEU="$MAJOR.$MINOR.$PATCH"
+              echo "Tag v$NEU besteht bereits — weiter mit $NEU+$BUILD"
+            done
+
+            # Auf den neuesten Stand setzen, damit der Push vorspulen kann.
+            git reset --hard origin/main
+
+            # ⚠️ Beide Stellen zusammen. Die App vergleicht gegen die
+            # einkompilierten Konstanten in update_service.dart; stünde dort
+            # eine andere Zahl als in pubspec.yaml, hielte sich eine frische
+            # Fassung für veraltet und böte sich selbst als Update an.
+            sed -i "s/^version: .*/version: $NEU+$BUILD/" pubspec.yaml
+            sed -i "s/static const String currentVersion = '.*'/static const String currentVersion = '$NEU'/" lib/services/update_service.dart
+            sed -i "s/static const int currentBuildNumber = .*/static const int currentBuildNumber = $BUILD;/" lib/services/update_service.dart
+
+            git add pubspec.yaml lib/services/update_service.dart
+            git commit -m "chore: auf $NEU+$BUILD anheben [skip ci]"
+            git tag "v$NEU"
+
+            # --atomic: main und Tag gemeinsam, oder gar nicht. Ein Tag ohne
+            # den zugehörigen Commit wäre ein Release, das niemand nachbauen
+            # kann.
+            if git push --atomic origin main "v$NEU"; then
+              echo "version=$NEU"  >> "$GITHUB_OUTPUT"
+              echo "build=$BUILD"  >> "$GITHUB_OUTPUT"
+              echo "✅ v$NEU+$BUILD geschoben (Versuch $versuch)"
+              exit 0
+            fi
+
+            echo "Versuch $versuch fehlgeschlagen — aufräumen und erneut"
+            git tag -d "v$NEU" 2>/dev/null || true
+            PATCH=$((PATCH + 1)); BUILD=$((BUILD + 1)); NEU="$MAJOR.$MINOR.$PATCH"
+            git fetch origin main --tags --prune
+          done
+
+          echo "::error::Nach fünf Versuchen kein Bump geschoben."
+          exit 1
+
+      - name: Android-Ablauf auf dem neuen Tag anstossen
+        # ⚠️ MUSS von Hand angestossen werden. GitHub löst `push: tags`
+        # NICHT aus, wenn der Tag mit dem GITHUB_TOKEN geschoben wurde —
+        # das ist die Schleifenbremse. Ohne diesen Schritt entstünde der Tag,
+        # aber weder APK noch Release.
+        if: steps.detect.outputs.leer != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: v${{ steps.push.outputs.version }}
+        run: |
+          set -euo pipefail
+          gh workflow run build-android.yml --ref "$TAG"
+          echo "Build für $TAG angestossen."
+          {
+            echo "### $TAG"
+            echo ""
+            echo "Sprungweite: \`${{ steps.detect.outputs.bump }}\`"
+            echo ""
+            echo "Der Android-Ablauf baut jetzt und stellt das APK ins Release."
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -20,15 +20,13 @@ name: Build Android
 
 on:
   push:
-    branches: [main]
-    # Ein Tag vX.Y.Z baut ebenfalls — dieselbe Datei, damit Release und
-    # Alltagsbau nicht auseinanderlaufen können.
+    # ⚠️ NUR Tags, kein `branches: [main]` mehr.
+    #
+    # Ein Push auf main löst jetzt release.yml aus. Der Ablauf prüft dort
+    # selbst (analyze, Tests, Erreichbarkeit), hebt die Version an und
+    # schiebt ein Tag — auf DEM läuft dann dieser Ablauf hier. Stünde main
+    # zusätzlich in dieser Liste, liefe `analyse` zweimal für denselben Baum.
     tags: ['v*']
-    # Änderungen, die den Build nicht berühren, sollen ihn nicht auslösen.
-    # `tools/**` steht bewusst NICHT hier: dort liegt der Erreichbarkeitslauf,
-    # eine Änderung daran gehört geprüft.
-    paths-ignore:
-      - '**.md'
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -89,23 +87,6 @@ jobs:
   android:
     name: "🤖 Android APK (arm64)"
     needs: analyse
-    # ⚠️ NICHT bei einem gewöhnlichen Push auf main.
-    #
-    # Wer einen Commit auf main schiebt und ihn danach taggt, löste zwei
-    # Läufe für denselben Baum aus — zweimal dasselbe APK, rund sechs
-    # Minuten davon umsonst. Gebaut wird deshalb nur dort, wo das Ergebnis
-    # auch gebraucht wird:
-    #
-    #   Pull Request       ja  — beweist vor dem Merge, dass es baut
-    #   Tag v*             ja  — daraus entsteht das Release
-    #   von Hand           ja  — wenn man ausdrücklich ein APK will
-    #   Push auf main      NEIN — der PR hat es schon bewiesen, das Tag
-    #                            baut gleich darauf die verbindliche Fassung
-    #
-    # `analyse` läuft weiterhin bei JEDEM Anlass: Tests und der
-    # Erreichbarkeitslauf kosten gut eine Minute und fangen genau das ab,
-    # was ein Direkt-Push an main sonst unbemerkt einschleppt.
-    if: github.event_name != 'push' || startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
