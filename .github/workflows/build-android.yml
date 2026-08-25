@@ -170,13 +170,21 @@ jobs:
           echo "Version $NAME+$NUMMER"
 
       - name: APK bauen
+        # STARTUP_DIAG_KEY traegt das Secret SCHATZMEISTER_STARTUP_DIAG_KEY.
+        # Der Name der Define ist in allen drei Apps gleich, der WERT je App
+        # verschieden — so trifft die Rotation der einen die anderen nicht.
+        # Fehlt das Secret, ist die Define leer und die App schickt wie
+        # bisher keine Kopfzeile; der Server nimmt das vorerst weiter an.
+        env:
+          STARTUP_DIAG_KEY: ${{ secrets.SCHATZMEISTER_STARTUP_DIAG_KEY }}
         run: |
           set -euo pipefail
           flutter build apk \
             --release \
             --target-platform android-arm64 \
             --build-name="${{ steps.version.outputs.name }}" \
-            --build-number="${{ steps.version.outputs.nummer }}"
+            --build-number="${{ steps.version.outputs.nummer }}" \
+            --dart-define=STARTUP_DIAG_KEY="$STARTUP_DIAG_KEY"
 
       # Beide Fehlerrichtungen wären sonst unsichtbar: ein APK mit allen drei
       # Architekturen (Ersparnis weg) und, schlimmer, eines ganz OHNE arm64 —
