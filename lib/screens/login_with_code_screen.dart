@@ -329,12 +329,21 @@ class _LoginWithCodeScreenState extends State<LoginWithCodeScreen> {
             for (int i = 0; i < 4; i++) ...[
               if (i > 0)
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  padding: const EdgeInsets.symmetric(horizontal: 3),
                   child: Text('–',
                       style: TextStyle(
                           fontSize: 22, color: Colors.grey.shade400)),
                 ),
-              _codeBox(i),
+              // ⚠️ Expanded, nicht feste Breite. Vier Felder zu 78 dp plus
+              // Trennstriche und Kartenrand ergaben 416 dp — auf dem Telefon
+              // der Schatzmeisterin (393 dp) lief die Zeile um 88 dp hinaus,
+              // sichtbar als gelb-schwarzer Balken. Gemessen beim Rendern,
+              // nicht geschaetzt.
+              //
+              // Die Felder teilen sich jetzt den Platz. Auf dem Schreibtisch
+              // deckelt die Karte sie ohnehin bei 440 dp, dort aendert sich
+              // also nichts Sichtbares.
+              Expanded(child: _codeBox(i)),
             ],
           ],
         ),
@@ -393,7 +402,7 @@ class _LoginWithCodeScreenState extends State<LoginWithCodeScreen> {
 
   Widget _codeBox(int i) {
     return SizedBox(
-      width: 78,
+      // Breite kommt vom Expanded des Aufrufers; nur die Hoehe steht fest.
       height: 58,
       child: TextField(
         controller: _blockC[i],
@@ -401,10 +410,13 @@ class _LoginWithCodeScreenState extends State<LoginWithCodeScreen> {
         maxLength: 4,
         textAlign: TextAlign.center,
         textCapitalization: TextCapitalization.characters,
+        // letterSpacing 3 war fuer 78 dp breite Felder gedacht. In den
+        // schmaleren Feldern auf dem Telefon draengen sich vier Zeichen
+        // sonst gegen den Rand.
         style: const TextStyle(
-            fontSize: 22,
+            fontSize: 20,
             fontWeight: FontWeight.bold,
-            letterSpacing: 3,
+            letterSpacing: 1,
             fontFamily: 'monospace'),
         decoration: InputDecoration(
           counterText: '',
