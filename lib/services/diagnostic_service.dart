@@ -9,6 +9,18 @@ import 'package:battery_plus/battery_plus.dart';
 /// Diagnostic Service - sends app diagnostics to server every 120 seconds
 class DiagnosticService {
   static const String _diagnosticUrl = 'https://icd360sev.icd360s.de/api/diagnostic/log.php';
+  /// Zur Bauzeit per --dart-define aus dem Secret
+  /// SCHATZMEISTER_STARTUP_DIAG_KEY. Leer bei `flutter run` — dann geht
+  /// die Meldung wie bisher ohne Kopfzeile hinaus.
+  ///
+  /// Hintergrund: api/diagnostic/log.php hatte bis 25.08.2026 GAR KEINE
+  /// Pruefung. Jeder im Netz konnte Zeilen unter beliebiger
+  /// Mitgliedsnummer schreiben. Den Endpunkt benutzen alle drei Apps, ein
+  /// sofort erzwungener Schluessel haette die Diagnose ueberall
+  /// abgeschaltet — deshalb nimmt der Server schluessellose Meldungen
+  /// vorerst weiter an und protokolliert sie.
+  static const String _diagKey =
+      String.fromEnvironment('STARTUP_DIAG_KEY', defaultValue: '');
   static const Duration _interval = Duration(seconds: 120);
   final Battery _battery = Battery();
 
@@ -129,7 +141,10 @@ class DiagnosticService {
 
       final response = await _client.post(
         Uri.parse(_diagnosticUrl),
-        headers: {'Content-Type': 'application/json'},
+        headers: {
+          'Content-Type': 'application/json',
+          if (_diagKey.isNotEmpty) 'X-Diag-Key': _diagKey,
+        },
         body: jsonEncode(diagnostics),
       ).timeout(const Duration(seconds: 5));
 
