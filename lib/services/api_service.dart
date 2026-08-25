@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 import 'dart:io';
@@ -42,6 +43,11 @@ class ApiService {
     }
     // Încarcă token-urile
     await loadTokens();
+    // Nach einem Neustart liegt der gespeicherte access_token womöglich seit
+    // Stunden herum. Einmal erneuern, bevor der erste Aufruf ins 401 läuft.
+    if (_refreshToken != null) {
+      await ensureFreshToken();
+    }
     return true;
   }
 
@@ -70,6 +76,113 @@ class ApiService {
       _token = token;
       _refreshToken = refreshToken;
     }
+    _startTokenRefreshTimer();
+  }
+
+  // ══════════════════════════════════════════════════════════════════
+  //  TOKEN-ERNEUERUNG
+  //
+  // ⚠️ Der refresh_token wurde bis 2026-08-25 zwar gespeichert, aber NIE
+  // benutzt. Der access_token gilt eine Stunde (ACCESS_TOKEN_EXPIRY in
+  // config.php); danach antwortete jeder JWT-Endpunkt mit 401, im Chat
+  // sichtbar als „Authentication required". Die App hielt sich weiter für
+  // angemeldet — sie war es nicht mehr.
+  // ══════════════════════════════════════════════════════════════════
+
+  Timer? _tokenRefreshTimer;
+  bool _isRefreshing = false;
+
+  /// Erneuert 10 Minuten vor Ablauf, nicht erst danach: ein Aufruf, der
+  /// genau in die Lücke fällt, bekäme sonst ein 401 zu sehen.
+  void _startTokenRefreshTimer() {
+    _tokenRefreshTimer?.cancel();
+    _tokenRefreshTimer = Timer.periodic(const Duration(minutes: 50), (_) async {
+      LoggerService().info('Turnusmäßige Token-Erneuerung', tag: 'AUTH');
+      await ensureFreshToken();
+    });
+  }
+
+  /// Besorgt einen gültigen access_token — auf welchem Weg auch immer.
+  ///
+  /// Zuerst der refresh_token. Schlägt der fehl, der device_key: refresh.php
+  /// gibt KEINEN neuen refresh_token aus, der alte läuft also nach 30 Tagen
+  /// hart ab. Ohne den zweiten Weg wäre danach nur noch ein neuer
+  /// Aktivierungscode geblieben.
+  Future<bool> ensureFreshToken() async {
+    if (_isRefreshing) return false;
+    _isRefreshing = true;
+    try {
+      if (_refreshToken != null && await _postRefresh()) return true;
+
+      LoggerService().warning(
+          'refresh_token abgelehnt — versuche es über den Geräteschlüssel',
+          tag: 'AUTH');
+      return await _reissueFromDeviceKey();
+    } finally {
+      _isRefreshing = false;
+    }
+  }
+
+  Future<bool> _postRefresh() async {
+    try {
+      final deviceKey = _deviceKeyService.deviceKey;
+      final response = await _client.post(
+        Uri.parse('$baseUrl/auth/refresh.php'),
+        headers: {
+          'Content-Type': 'application/json',
+          'User-Agent': 'ICD360S-Schatzmeister/1.0',
+          if (deviceKey != null) 'X-Device-Key': deviceKey,
+        },
+        body: jsonEncode({'refresh_token': _refreshToken}),
+      ).timeout(const Duration(seconds: 10));
+
+      if (response.statusCode != 200) return false;
+      final data = jsonDecode(response.body);
+      final neu = data['token'] as String?;
+      if (data['success'] != true || neu == null) return false;
+
+      // ⚠️ refresh.php liefert nur einen neuen access_token. Den alten
+      // refresh_token behalten — sonst stünde nach dem ersten Durchlauf
+      // keiner mehr da.
+      await saveTokens(neu, _refreshToken!);
+      LoggerService().info('access_token erneuert', tag: 'AUTH');
+      return true;
+    } catch (e) {
+      LoggerService().warning('Token-Erneuerung nicht erreichbar: $e', tag: 'AUTH');
+      return false;
+    }
+  }
+
+  /// Neues Paar aus dem Geräteschlüssel. Gleiche Vertrauensstufe wie jeder
+  /// andere Aufruf — der Geräteschlüssel authentifiziert sie ohnehin alle.
+  Future<bool> _reissueFromDeviceKey() async {
+    final deviceKey = _deviceKeyService.deviceKey;
+    if (deviceKey == null) return false;
+    try {
+      final response = await _client.post(
+        Uri.parse('$baseUrl/auth/device_token.php'),
+        headers: {
+          'Content-Type': 'application/json',
+          'User-Agent': 'ICD360S-Schatzmeister/1.0',
+          'X-Device-Key': deviceKey,
+        },
+        body: '{}',
+      ).timeout(const Duration(seconds: 10));
+
+      if (response.statusCode != 200) return false;
+      final data = jsonDecode(response.body);
+      if (data['success'] == true &&
+          data['token'] != null &&
+          data['refresh_token'] != null) {
+        await saveTokens(data['token'] as String, data['refresh_token'] as String);
+        LoggerService().info('Tokens über den Geräteschlüssel neu ausgestellt', tag: 'AUTH');
+        return true;
+      }
+      return false;
+    } catch (e) {
+      LoggerService().warning('Geräteschlüssel-Ausstellung nicht erreichbar: $e', tag: 'AUTH');
+      return false;
+    }
   }
 
   Future<void> clearTokens() async {
@@ -81,6 +194,8 @@ class ApiService {
     }
     _token = null;
     _refreshToken = null;
+    _tokenRefreshTimer?.cancel();
+    _tokenRefreshTimer = null;
   }
 
   bool get isLoggedIn => _token != null;
