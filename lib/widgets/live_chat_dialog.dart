@@ -9,6 +9,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import '../services/api_service.dart';
 import '../utils/message_emotion.dart';
+import '../utils/chat_ablauf.dart';
 import '../services/chat_service.dart';
 import '../services/voice_call_service.dart';
 import '../services/logger_service.dart';
@@ -78,6 +79,7 @@ class _LiveChatDialogState extends State<LiveChatDialog> {
   StreamSubscription? _iceCandidateSubscription;
   StreamSubscription? _callBusySubscription;
   StreamSubscription? _readReceiptSubscription;
+  StreamSubscription? _messageExpiredSubscription;
   StreamSubscription? _callOfferSubscription;
   StreamSubscription? _callStateSubscription;
   StreamSubscription? _remoteStreamSubscription;
@@ -89,6 +91,7 @@ class _LiveChatDialogState extends State<LiveChatDialog> {
 
   // Network status of support (polled every 15s)
   Timer? _networkPollTimer;
+  Timer? _countdownTimer;
   String? _supportConnectionType;
   int? _supportLatencyMs;
   String? _supportNetworkQuality;
@@ -217,6 +220,7 @@ class _LiveChatDialogState extends State<LiveChatDialog> {
     _typingTimer?.cancel();
     _callDurationTimer?.cancel();
     _networkPollTimer?.cancel();
+    _countdownTimer?.cancel();
     _messageSubscription?.cancel();
     _typingSubscription?.cancel();
     _connectionSubscription?.cancel();
@@ -227,6 +231,7 @@ class _LiveChatDialogState extends State<LiveChatDialog> {
     _iceCandidateSubscription?.cancel();
     _callBusySubscription?.cancel();
     _readReceiptSubscription?.cancel();
+    _messageExpiredSubscription?.cancel();
     _callOfferSubscription?.cancel();
     _callStateSubscription?.cancel();
     _remoteStreamSubscription?.cancel();
@@ -330,6 +335,7 @@ class _LiveChatDialogState extends State<LiveChatDialog> {
           _messages = messagesList;
         });
         _scrollToBottom();
+        _ensureCountdownTimer();
       } else {
         _log.warning('LiveChat: _loadMessages failed: ${result['message']}', tag: 'CHAT');
       }
@@ -447,7 +453,31 @@ class _LiveChatDialogState extends State<LiveChatDialog> {
               msg['status'] = event.status;
               if (event.status == 'read') {
                 msg['is_read'] = true;
+                // Der Server schickt die Frist im selben Rahmen mit. Ohne sie
+                // liefe der Balken auf der Gegenseite gegen eine andere Uhr.
+                final expIso = event.expires[msg['id'].toString()];
+                if (expIso != null) msg['expires_at'] = expIso;
               }
+            }
+          }
+        });
+        _ensureCountdownTimer();
+      }
+    });
+
+    // Der Server hat den Inhalt nach der 5-Minuten-Frist geleert: lokal
+    // nachziehen, damit die Blase sofort verschwindet und nicht erst beim
+    // naechsten Oeffnen des Fensters.
+    _messageExpiredSubscription = _chatService.messageExpiredStream.listen((event) {
+      if (!mounted) return;
+      if (event.conversationId == _conversationId) {
+        setState(() {
+          for (var msg in _messages) {
+            if (event.messageIds.contains(msg['id'])) {
+              msg['message'] = null;
+              msg['original_message'] = null;
+              msg['attachments'] = [];
+              msg['deleted_at'] = DateTime.now().toIso8601String();
             }
           }
         });
@@ -922,12 +952,39 @@ class _LiveChatDialogState extends State<LiveChatDialog> {
   }
 
   /// Mark all unread messages as read when user focuses on input
+  /// Einmal je Sekunde neu zeichnen, solange eine Blase noch laeuft.
+  /// Haelt von selbst an, sobald keine Frist mehr offen ist — ein
+  /// Dauertimer im Chatfenster waere auf dem Telefon reine Akkulast.
+  void _ensureCountdownTimer() {
+    if (_countdownTimer != null && _countdownTimer!.isActive) return;
+    _countdownTimer = Timer.periodic(const Duration(seconds: 1), (t) {
+      if (!mounted) {
+        t.cancel();
+        return;
+      }
+      final now = DateTime.now();
+      final anyPending = _messages.any((m) {
+        if (m['deleted_at'] != null) return false;
+        final exp = m['expires_at'];
+        if (exp == null) return false;
+        final dt = DateTime.tryParse(exp.toString());
+        return dt != null && dt.isAfter(now);
+      });
+      if (!anyPending) {
+        t.cancel();
+        _countdownTimer = null;
+        return;
+      }
+      setState(() {});
+    });
+  }
+
   Future<void> _markMessagesAsRead() async {
     if (_conversationId == null) return;
 
     // Find unread messages from others
     final unreadIds = _messages
-        .where((m) => m['is_own'] != true && m['status'] != 'read')
+        .where((m) => m['is_own'] != true && m['status'] != 'read' && m['deleted_at'] == null)
         .map((m) => m['id'] as int)
         .toList();
 
@@ -943,14 +1000,28 @@ class _LiveChatDialogState extends State<LiveChatDialog> {
 
       if (result['success'] == true && mounted) {
         // Update local state
+        final returned = (result['messages'] ?? result['data']?['messages']) as List?;
         setState(() {
           for (var msg in _messages) {
             if (unreadIds.contains(msg['id'])) {
               msg['status'] = 'read';
               msg['is_read'] = true;
+              msg['read_at'] ??= DateTime.now().toIso8601String();
+              // Die Frist kommt vom Server zurueck — nicht selbst rechnen,
+              // sonst laeuft der Balken gegen eine andere Uhr als die Loeschung.
+              if (returned != null) {
+                final hit = returned.firstWhere(
+                  (m) => m is Map && m['id'] == msg['id'],
+                  orElse: () => null,
+                );
+                if (hit is Map && hit['expires_at'] != null) {
+                  msg['expires_at'] = hit['expires_at'];
+                }
+              }
             }
           }
         });
+        _ensureCountdownTimer();
 
         // Broadcast via WebSocket
         if (_isConnected) {
@@ -1302,7 +1373,18 @@ class _LiveChatDialogState extends State<LiveChatDialog> {
     final senderRole = msg['sender_role'] ?? 'vorsitzer';
     final isAdmin = ['vorsitzer', 'schatzmeister', 'kassierer'].contains(senderRole);
     final attachments = msg['attachments'] as List? ?? [];
-    final messageText = msg['message'] ?? '';
+    final raw = msg['message'];
+    final messageText = (raw is String) ? raw : '';
+
+    // Beide Entscheidungen stehen in utils/chat_ablauf.dart — dort sind sie
+    // ohne WebSocket pruefbar. Siehe test/chat_ablauf_test.dart.
+    final isGhost = istAbgelaufen(msg);
+    final expireProgress = ablaufFortschritt(msg);
+
+    // Wie in `vorsitzer`: die Blase verschwindet ganz. Bis zum 26.08.2026
+    // blieb hier eine leere weisse Blase mit Absender und Uhrzeit stehen —
+    // geloescht war die Nachricht da laengst, nur sah es nach einem Fehler aus.
+    if (isGhost) return const SizedBox.shrink();
 
     // Eigentumsregel wie im Server erzwungen: reagiert wird auf Nachrichten
     // der Gegenseite. Eine dort gesetzte Reaktion erscheint auch auf eigenen
@@ -1385,6 +1467,21 @@ class _LiveChatDialogState extends State<LiveChatDialog> {
             if (attachments.isNotEmpty) ...[
               if (messageText.isNotEmpty) const SizedBox(height: 8),
               ...attachments.map((att) => _buildAttachmentItem(att, isOwn)),
+            ],
+            // Schmaler Balken, der bis zum Loeschzeitpunkt volllaeuft.
+            if (expireProgress != null) ...[
+              const SizedBox(height: 6),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(2),
+                child: LinearProgressIndicator(
+                  value: expireProgress,
+                  minHeight: 3,
+                  backgroundColor: (isOwn ? Colors.white : Colors.grey.shade300).withValues(alpha: 0.35),
+                  valueColor: AlwaysStoppedAnimation<Color>(
+                    isOwn ? Colors.white70 : Colors.lightBlue.shade300,
+                  ),
+                ),
+              ),
             ],
             // Time and read receipt
             Padding(

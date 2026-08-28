@@ -46,6 +46,9 @@ class ChatService {
   // Stream controller for read receipts
   final _readReceiptController = StreamController<ReadReceiptEvent>.broadcast();
 
+  // Nachrichten, deren Inhalt der Server nach der 5-Minuten-Frist geleert hat.
+  final _messageExpiredController = StreamController<MessageExpiredEvent>.broadcast();
+
   // Stream controller for new device login notifications
   final _newDeviceLoginController = StreamController<NewDeviceLoginEvent>.broadcast();
 
@@ -86,6 +89,10 @@ class ChatService {
 
   // Public stream - Read Receipts
   Stream<ReadReceiptEvent> get readReceiptStream => _readReceiptController.stream;
+
+  // Oeffentlicher Stream — Nachricht abgelaufen (5 Minuten nach dem Lesen;
+  // der Server hat den Inhalt auf NULL gesetzt).
+  Stream<MessageExpiredEvent> get messageExpiredStream => _messageExpiredController.stream;
 
   // Public stream - New Device Login
   Stream<NewDeviceLoginEvent> get newDeviceLoginStream => _newDeviceLoginController.stream;
@@ -677,6 +684,10 @@ class ChatService {
           _readReceiptController.add(ReadReceiptEvent.fromJson(json));
           break;
 
+        case 'message_expired':
+          _messageExpiredController.add(MessageExpiredEvent.fromJson(json));
+          break;
+
         case 'error':
           _errorController.add(json['error'] ?? 'Unknown error');
           break;
@@ -704,6 +715,7 @@ class ChatService {
     _iceCandidateController.close();
     _callBusyController.close();
     _readReceiptController.close();
+    _messageExpiredController.close();
     _onlineUsersController.close();
     _newDeviceLoginController.close();
     _ticketNotificationController.close();
@@ -838,6 +850,10 @@ class ReadReceiptEvent {
   final String status; // 'delivered' or 'read'
   final String? readBy;
   final DateTime timestamp;
+  /// message_id (als Zeichenkette) -> expires_at (ISO), damit beide Seiten
+  /// denselben Countdown zeigen. Der Server schickt das Feld laengst mit;
+  /// diese App hat es bis zum 26.08.2026 einfach verworfen.
+  final Map<String, String?> expires;
 
   ReadReceiptEvent({
     required this.conversationId,
@@ -845,14 +861,49 @@ class ReadReceiptEvent {
     required this.status,
     this.readBy,
     required this.timestamp,
+    this.expires = const {},
   });
 
   factory ReadReceiptEvent.fromJson(Map<String, dynamic> json) {
+    final raw = json['expires'];
+    final Map<String, String?> exp = {};
+    if (raw is Map) {
+      raw.forEach((k, v) {
+        exp[k.toString()] = v?.toString();
+      });
+    }
     return ReadReceiptEvent(
       conversationId: json['conversation_id'] ?? 0,
       messageIds: List<int>.from(json['message_ids'] ?? []),
       status: json['status'] ?? 'delivered',
       readBy: json['read_by'],
+      timestamp: DateTime.tryParse(json['timestamp'] ?? '') ?? DateTime.now(),
+      expires: exp,
+    );
+  }
+}
+
+/// Der Server hat den Inhalt dieser Nachrichten nach der 5-Minuten-Frist
+/// ab dem Lesen geleert. Die Blasen verschwinden daraufhin ganz.
+///
+/// ⚠️ Diese App hat den Rahmen bis zum 26.08.2026 nicht ausgewertet. Geloescht
+/// wurde trotzdem — purgeExpiredMessages() im WebSocket-Server fragt nicht nach
+/// der Rolle. Sichtbar war davon nur eine leere weisse Blase mit Uhrzeit.
+class MessageExpiredEvent {
+  final int conversationId;
+  final List<int> messageIds;
+  final DateTime timestamp;
+
+  MessageExpiredEvent({
+    required this.conversationId,
+    required this.messageIds,
+    required this.timestamp,
+  });
+
+  factory MessageExpiredEvent.fromJson(Map<String, dynamic> json) {
+    return MessageExpiredEvent(
+      conversationId: json['conversation_id'] ?? 0,
+      messageIds: List<int>.from(json['message_ids'] ?? []),
       timestamp: DateTime.tryParse(json['timestamp'] ?? '') ?? DateTime.now(),
     );
   }
