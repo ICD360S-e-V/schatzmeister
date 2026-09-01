@@ -333,13 +333,25 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
         _backgroundConversationIds = [];
         int totalUnread = 0;
         final myUserId = _chatService.currentUserId;
+        // ⚠️ Der Filter unten gilt NUR fuer Verwalter. Ihnen liefert
+        // chat/conversations.php ALLE Gespraeche, und die will diese App nicht
+        // alle beitreten. Einem gewoehnlichen Konto liefert der Server von
+        // sich aus nur die eigenen -- da waere jede zweite Auswahl hier
+        // hoechstens ein Fehler.
+        //
+        // 🔴 Und genau der trat auf: seit dem 01.09.2026 gibt es Direktchats
+        // zwischen zwei Vorstandsmitgliedern. Dort ist man mal die eine, mal
+        // die andere Seite, und `member_id` traegt das GEGENUEBER. Der alte
+        // Filter hätte das Gespraech also stumm uebersprungen -- kein Fehler,
+        // keine Meldung, nur nie wieder eine Benachrichtigung daraus.
+        final binVerwalter = result['is_admin'] == true;
         for (final conv in conversations) {
           final status = conv['status'] ?? 'open';
           if (status == 'open') {
-            // Only join own conversations (where we are the member)
             final memberId = conv['member_id'];
-            if (memberId != null && myUserId != null && memberId != myUserId) {
-              continue; // Skip conversations of other members
+            if (binVerwalter &&
+                memberId != null && myUserId != null && memberId != myUserId) {
+              continue; // Verwalter: fremde Gespraeche nicht beitreten
             }
             final convId = conv['id'];
             final id = convId is int ? convId : int.tryParse(convId.toString());
@@ -1072,6 +1084,74 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
     _showAdminChatDialogInternal(_pendingCall);
   }
 
+  /// Oeffnet den Chat -- bei mehreren Gespraechen erst die Auswahl.
+  ///
+  /// ⚠️ Bei einem eingehenden Anruf wird NICHT gefragt: dann ist klar, welches
+  /// Gespraech gemeint ist, und eine Auswahlliste waehrend es klingelt waere
+  /// genau die falsche Sekunde dafuer.
+  ///
+  /// ⚠️ Bei genau EINEM Gespraech bleibt alles wie bisher: keine zusaetzliche
+  /// Abfrage, kein zusaetzlicher Griff. Die Auswahl erscheint nur, wenn es
+  /// wirklich etwas zu waehlen gibt.
+  Future<void> _chatOeffnen(CallOfferEvent? pendingCall) async {
+    int? kennung = pendingCall?.conversationId;
+    String? gegenueber;
+
+    if (kennung == null) {
+      final r = await _apiService
+          .getChatConversations(widget.currentMitgliedernummer);
+      final liste = (r['success'] == true)
+          ? List<Map<String, dynamic>>.from(r['conversations'] ?? [])
+          : const <Map<String, dynamic>>[];
+      if (liste.length > 1) {
+        if (!mounted) return;
+        final gewaehlt = await showDialog<Map<String, dynamic>>(
+          context: context,
+          builder: (ctx) => SimpleDialog(
+            title: const Text('Mit wem?'),
+            children: [
+              for (final g in liste)
+                SimpleDialogOption(
+                  onPressed: () => Navigator.pop(ctx, g),
+                  child: ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: const Icon(Icons.chat_bubble_outline),
+                    title: Text(g['member_name']?.toString() ?? 'Gespräch ${g['id']}'),
+                    subtitle: Text(
+                      (g['last_message']?.toString() ?? '').isEmpty
+                          ? 'Noch keine Nachricht'
+                          : g['last_message'].toString(),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    trailing: ((g['unread_count'] as num?)?.toInt() ?? 0) > 0
+                        ? Badge(label: Text('${g['unread_count']}'))
+                        : null,
+                  ),
+                ),
+            ],
+          ),
+        );
+        if (gewaehlt == null) return;
+        final id = gewaehlt['id'];
+        kennung = id is int ? id : int.tryParse('$id');
+        gegenueber = gewaehlt['member_name']?.toString();
+      }
+    }
+
+    if (!mounted) return;
+    return showDialog(
+      context: context,
+      builder: (context) => LiveChatDialog(
+        mitgliedernummer: widget.currentMitgliedernummer,
+        userName: widget.userName,
+        pendingCall: pendingCall,
+        conversationId: kennung,
+        gegenueber: gegenueber,
+      ),
+    );
+  }
+
   void _showAdminChatDialogInternal(CallOfferEvent? pendingCall) {
     // Clear unread count when opening chat
     setState(() {
@@ -1081,14 +1161,7 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
     // Also clear tray unread count
     TrayService().clearUnread();
 
-    showDialog(
-      context: context,
-      builder: (context) => LiveChatDialog(
-        mitgliedernummer: widget.currentMitgliedernummer,
-        userName: widget.userName,
-        pendingCall: pendingCall,
-      ),
-    ).then((_) {
+    _chatOeffnen(pendingCall).then((_) {
       // Mark dialog as closed
       setState(() {
         _isAdminChatOpen = false;
