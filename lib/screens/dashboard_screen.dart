@@ -364,7 +364,11 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
               if (unreadCount > 0) {
                 totalUnread += unreadCount as int;
                 final unknownLabel = mounted ? AppLocalizations.of(context).unknown : 'Unknown';
-                final memberName = conv['member_name'] ?? unknownLabel;
+                // Das GEGENUEBER, nicht das Mitglied des Gespraechs: sonst
+                // stuende im eigenen Support-Gespraech der eigene Name als
+                // Absender. Rueckfall fuer aeltere Server.
+                final memberName =
+                    conv['gegenueber_name'] ?? conv['member_name'] ?? unknownLabel;
                 final lastMessage = conv['last_message'] ?? '';
                 final msgPreview = lastMessage.length > 80
                     ? '${lastMessage.substring(0, 80)}...'
@@ -1116,7 +1120,7 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
                   child: ListTile(
                     contentPadding: EdgeInsets.zero,
                     leading: const Icon(Icons.chat_bubble_outline),
-                    title: Text(g['member_name']?.toString() ?? 'Gespräch ${g['id']}'),
+                    title: Text((g['gegenueber_name'] ?? g['member_name'])?.toString() ?? 'Gespräch ${g['id']}'),
                     subtitle: Text(
                       (g['last_message']?.toString() ?? '').isEmpty
                           ? 'Noch keine Nachricht'
@@ -1135,7 +1139,8 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
         if (gewaehlt == null) return;
         final id = gewaehlt['id'];
         kennung = id is int ? id : int.tryParse('$id');
-        gegenueber = gewaehlt['member_name']?.toString();
+        gegenueber = (gewaehlt['gegenueber_name'] ?? gewaehlt['member_name'])
+            ?.toString();
       }
     }
 
