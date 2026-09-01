@@ -9,14 +9,12 @@ import '../services/api_service.dart';
 import '../services/verwarnung_service.dart';
 import '../services/dokumente_service.dart';
 import 'mitglieder_device.dart';
-import '../services/ticket_service.dart';
 import '../services/termin_service.dart';
 import '../models/user.dart';
 import '../utils/role_helpers.dart';
 import '../screens/ordnungsmassnahmen_screen.dart';
 import '../l10n/app_localizations.dart';
 import 'file_viewer_dialog.dart';
-import 'ticket_details_dialog.dart';
 
 class UserDetailsDialog extends StatefulWidget {
   final User user;
@@ -89,12 +87,6 @@ class _UserDetailsDialogState extends State<UserDetailsDialog> with SingleTicker
   String _notizKategorie = 'allgemein';
   bool _notizWichtig = false;
 
-  // Tickets
-  final _ticketService = TicketService();
-  List<Ticket> _memberTickets = [];
-  bool _isLoadingTickets = false;
-  UserTimeSummary? _userTimeSummary;
-  bool _isLoadingTimeSummary = false;
 
   // Termine
   final _terminService = TerminService();
@@ -104,7 +96,7 @@ class _UserDetailsDialogState extends State<UserDetailsDialog> with SingleTicker
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 10, vsync: this);
+    _tabController = TabController(length: 9, vsync: this);
     _nameController.text = widget.user.name;
     _emailController.text = widget.user.email;
     _selectedRole = widget.user.role;
@@ -118,8 +110,6 @@ class _UserDetailsDialogState extends State<UserDetailsDialog> with SingleTicker
     _loadBefreiungen();
     _loadErmaessigungen();
     _loadNotizen();
-    _loadMemberTickets();
-    _loadUserTimeSummary();
     _loadMemberTermine();
   }
 
@@ -564,7 +554,6 @@ class _UserDetailsDialogState extends State<UserDetailsDialog> with SingleTicker
                   Tab(icon: const Icon(Icons.verified_user), text: l.verificationTab),
                   Tab(icon: const Icon(Icons.discount), text: l.discountTab),
                   Tab(icon: const Icon(Icons.sticky_note_2), text: l.notesTab),
-                  Tab(icon: const Icon(Icons.confirmation_number), text: l.ticketsTab),
                   Tab(icon: const Icon(Icons.calendar_month), text: l.appointmentsTab),
                 ],
               ),
@@ -587,7 +576,6 @@ class _UserDetailsDialogState extends State<UserDetailsDialog> with SingleTicker
                   _buildVerifizierungTab(),
                   _buildErmaessigungTab(),
                   _buildNotizenTab(),
-                  _buildTicketsTab(),
                   _buildTermineTab(),
                 ],
               ),
@@ -5039,269 +5027,10 @@ class _UserDetailsDialogState extends State<UserDetailsDialog> with SingleTicker
     );
   }
 
-  // ==================== TICKETS TAB ====================
-
-  Future<void> _loadUserTimeSummary() async {
-    setState(() => _isLoadingTimeSummary = true);
-    try {
-      final result = await _ticketService.getUserTimeSummary(
-        mitgliedernummer: widget.adminMitgliedernummer,
-        memberMitgliedernummer: widget.user.mitgliedernummer,
-      );
-      if (mounted) {
-        setState(() {
-          _userTimeSummary = result;
-          _isLoadingTimeSummary = false;
-        });
-      }
-    } catch (e) {
-      if (mounted) setState(() => _isLoadingTimeSummary = false);
-    }
-  }
-
-  Future<void> _loadMemberTickets() async {
-    setState(() => _isLoadingTickets = true);
-    try {
-      // Use admin endpoint to get tickets translated in admin's language
-      final result = await _ticketService.getAdminTickets(
-        widget.adminMitgliedernummer,
-        memberMitgliedernummer: widget.user.mitgliedernummer,
-      );
-      if (mounted) {
-        setState(() {
-          _memberTickets = result?.tickets ?? [];
-          _isLoadingTickets = false;
-        });
-      }
-    } catch (e) {
-      if (mounted) setState(() => _isLoadingTickets = false);
-    }
-  }
-
-  Color _ticketStatusColor(String status) {
-    switch (status) {
-      case 'open': return Colors.blue;
-      case 'in_progress': return Colors.orange;
-      case 'waiting_member': return Colors.amber.shade700;
-      case 'waiting_staff': return Colors.purple;
-      case 'waiting_authority': return Colors.teal;
-      case 'done': return Colors.green;
-      default: return Colors.grey;
-    }
-  }
-
-  Color _ticketPriorityColor(String priority) {
-    switch (priority) {
-      case 'high': return Colors.red;
-      case 'medium': return Colors.orange;
-      case 'low': return Colors.green;
-      default: return Colors.grey;
-    }
-  }
-
-  Widget _buildTicketsTab() {
-    final df = DateFormat('dd.MM.yyyy HH:mm', 'de_DE');
-
-    if (_isLoadingTickets) {
-      return const Center(child: CircularProgressIndicator());
-    }
-
-    if (_memberTickets.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.confirmation_number_outlined, size: 48, color: Colors.grey.shade300),
-            const SizedBox(height: 8),
-            Text(AppLocalizations.of(context).noTicketsAvailable2, style: TextStyle(color: Colors.grey.shade500)),
-          ],
-        ),
-      );
-    }
-
-    // Stats
-    final openCount = _memberTickets.where((t) => t.status == 'open').length;
-    final inProgressCount = _memberTickets.where((t) => t.status == 'in_progress' || t.status == 'waiting_member' || t.status == 'waiting_staff' || t.status == 'waiting_authority').length;
-    final doneCount = _memberTickets.where((t) => t.status == 'done').length;
-
-    return Column(
-      children: [
-        // Stats bar
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-          decoration: BoxDecoration(
-            color: Colors.blue.shade50,
-            border: Border(bottom: BorderSide(color: Colors.blue.shade200)),
-          ),
-          child: Row(
-            children: [
-              Icon(Icons.confirmation_number, size: 18, color: Colors.blue.shade700),
-              const SizedBox(width: 8),
-              Text(AppLocalizations.of(context).ticketsCount(_memberTickets.length), style: TextStyle(fontWeight: FontWeight.w600, color: Colors.blue.shade700)),
-              const Spacer(),
-              _buildTicketStatChip(AppLocalizations.of(context).openTickets, openCount, Colors.blue),
-              const SizedBox(width: 8),
-              _buildTicketStatChip(AppLocalizations.of(context).inWorkTickets, inProgressCount, Colors.orange),
-              const SizedBox(width: 8),
-              _buildTicketStatChip(AppLocalizations.of(context).doneTickets, doneCount, Colors.green),
-              const SizedBox(width: 12),
-              IconButton(
-                icon: const Icon(Icons.refresh, size: 18),
-                onPressed: () {
-                  _loadMemberTickets();
-                  _loadUserTimeSummary();
-                },
-                tooltip: AppLocalizations.of(context).refresh,
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-              ),
-            ],
-          ),
-        ),
-        // Time summary
-        if (_userTimeSummary != null && _userTimeSummary!.summary.gesamtSeconds > 0) ...[
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.deepOrange.shade50,
-              border: Border(bottom: BorderSide(color: Colors.deepOrange.shade200)),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Icon(Icons.timer, size: 16, color: Colors.deepOrange.shade700),
-                    const SizedBox(width: 6),
-                    Text(AppLocalizations.of(context).timeTracking, style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: Colors.deepOrange.shade700)),
-                    const Spacer(),
-                    Text(
-                      _userTimeSummary!.totalDisplay,
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.deepOrange.shade800),
-                    ),
-                    const SizedBox(width: 4),
-                    Text(AppLocalizations.of(context).totalShortLabel, style: TextStyle(fontSize: 11, color: Colors.deepOrange.shade600)),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    _buildTimeChip(Icons.directions_car, AppLocalizations.of(context).travelTime, _userTimeSummary!.summary.fahrzeitDisplay, Colors.blue),
-                    const SizedBox(width: 8),
-                    _buildTimeChip(Icons.build, AppLocalizations.of(context).workTime, _userTimeSummary!.summary.arbeitszeitDisplay, Colors.green),
-                    const SizedBox(width: 8),
-                    _buildTimeChip(Icons.hourglass_empty, AppLocalizations.of(context).waitTime, _userTimeSummary!.summary.wartezeitDisplay, Colors.orange),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ] else if (_isLoadingTimeSummary) ...[
-          Container(
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            decoration: BoxDecoration(
-              color: Colors.deepOrange.shade50,
-              border: Border(bottom: BorderSide(color: Colors.deepOrange.shade200)),
-            ),
-            child: const Center(child: SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))),
-          ),
-        ],
-        // Ticket list
-        Expanded(
-          child: ListView.builder(
-            padding: const EdgeInsets.all(12),
-            itemCount: _memberTickets.length,
-            itemBuilder: (ctx, i) {
-              final ticket = _memberTickets[i];
-              final statusColor = _ticketStatusColor(ticket.status);
-              final priorityColor = _ticketPriorityColor(ticket.priority);
-
-              return Card(
-                margin: const EdgeInsets.only(bottom: 8),
-                elevation: 0.5,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  side: BorderSide(color: Colors.grey.shade200),
-                ),
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(8),
-                  onTap: () {
-                    showDialog(
-                      context: context,
-                      builder: (context) => TicketDetailsDialog(
-                        ticket: ticket,
-                        mitgliedernummer: widget.adminMitgliedernummer,
-                        onTicketAction: (ticketId, action) {
-                          _loadMemberTickets();
-                        },
-                      ),
-                    ).then((_) => _loadMemberTickets());
-                  },
-                  child: Padding(
-                    padding: const EdgeInsets.all(12),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Header: ID + Priority + Status
-                        Row(
-                          children: [
-                            Text('#${ticket.id}', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.grey.shade600)),
-                            const SizedBox(width: 8),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: priorityColor.withValues(alpha: 0.1),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Text(ticket.priorityDisplay, style: TextStyle(fontSize: 11, color: priorityColor, fontWeight: FontWeight.w600)),
-                            ),
-                            const Spacer(),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: statusColor.withValues(alpha: 0.1),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Text(ticket.statusDisplay, style: TextStyle(fontSize: 11, color: statusColor, fontWeight: FontWeight.w600)),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        // Subject
-                        Text(ticket.subject, style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 13)),
-                        const SizedBox(height: 6),
-                        // Footer: date + admin
-                        Row(
-                          children: [
-                            Icon(Icons.access_time, size: 13, color: Colors.grey.shade500),
-                            const SizedBox(width: 4),
-                            Text(df.format(ticket.createdAt), style: TextStyle(fontSize: 11, color: Colors.grey.shade500)),
-                            if (ticket.adminName != null) ...[
-                              const SizedBox(width: 12),
-                              Icon(Icons.person, size: 13, color: Colors.grey.shade500),
-                              const SizedBox(width: 4),
-                              Text(ticket.adminName!, style: TextStyle(fontSize: 11, color: Colors.grey.shade500)),
-                            ],
-                            if (ticket.categoryName != null) ...[
-                              const SizedBox(width: 12),
-                              Icon(Icons.category, size: 13, color: Colors.grey.shade500),
-                              const SizedBox(width: 4),
-                              Text(ticket.categoryName!, style: TextStyle(fontSize: 11, color: Colors.grey.shade500)),
-                            ],
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              );
-            },
-          ),
-        ),
-      ],
-    );
-  }
-
+  /// Zaehl-Plakette im Kopf des Termine-Reiters.
+  ///
+  /// ⚠️ Der Name stammt aus dem Tickets-Reiter, der am 01.09.2026 entfernt
+  /// wurde — der Termine-Reiter benutzt sie mit.
   Widget _buildTicketStatChip(String label, int count, Color color) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
@@ -5310,27 +5039,6 @@ class _UserDetailsDialogState extends State<UserDetailsDialog> with SingleTicker
         borderRadius: BorderRadius.circular(12),
       ),
       child: Text('$label: $count', style: TextStyle(fontSize: 11, color: color, fontWeight: FontWeight.w600)),
-    );
-  }
-
-  Widget _buildTimeChip(IconData icon, String label, String value, Color color) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withValues(alpha: 0.3)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 14, color: color),
-          const SizedBox(width: 4),
-          Text(value, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: color)),
-          const SizedBox(width: 2),
-          Text(label, style: TextStyle(fontSize: 10, color: color.withValues(alpha: 0.7))),
-        ],
-      ),
     );
   }
 

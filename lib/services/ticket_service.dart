@@ -1,7 +1,9 @@
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:http/io_client.dart';
+import 'api_service.dart';
 import 'device_key_service.dart';
 import 'logger_service.dart';
 
@@ -552,15 +554,39 @@ class TicketService {
   // Singleton pattern
   static final TicketService _instance = TicketService._internal();
   factory TicketService() => _instance;
+  /// Ersetzt den HTTP-Client — ausschliesslich fuer Tests.
+  ///
+  /// Ohne diese Naht laesst sich nicht pruefen, WELCHE Kopfzeilen wirklich
+  /// hinausgehen — und genau daran hing der Ausfall vom 25.08. bis 01.09.2026.
+  /// Baugleich mit `ApiService.testClient` der Vorsitzer-App.
+  @visibleForTesting
+  set testClient(http.Client client) => _client = client;
+
   TicketService._internal() {
     _client = IOClient(HttpClient());
   }
 
+  /// Das lebende Access-Token — dieselbe Quelle wie bei `ApiService`.
+  ///
+  /// ⚠️ Bis zum 01.09.2026 schickte dieser Dienst ÜBERHAUPT KEIN
+  /// `Authorization` mit — nur `X-Device-Key`. Damit lief
+  /// `schatzmeister/tickets/list.php` seit dem 25.08.2026 auf
+  /// **401 „Missing Authorization header"**: `smRequireSchatzmeister()`
+  /// nimmt die Identität ausschliesslich aus dem Token. Gemessen im
+  /// nginx-Log: **287 Aufrufe, 287 mal 401, kein einziges 200** — die
+  /// Ticketliste auf der Startseite war also nie befüllt, seit es sie gibt.
+  ///
+  /// Dieselbe Lücke hatte der `TicketService` der Vorsitzer-App
+  /// (dort PR #534). Der Kopf gehört an ALLE Aufrufe dieses Dienstes.
+  String? get _jwt => ApiService().token;
+
   Map<String, String> get _headers {
     final deviceKey = _deviceKeyService.deviceKey;
+    final jwt = _jwt;
     return {
       'Content-Type': 'application/json',
       'User-Agent': 'ICD360S-Schatzmeister/1.0',
+      if (jwt != null) 'Authorization': 'Bearer $jwt',
       if (deviceKey != null) 'X-Device-Key': deviceKey,
     };
   }
@@ -630,81 +656,6 @@ class TicketService {
     }
   }
 
-  /// Create a ticket on behalf of a member (admin only)
-  /// Returns {'ticket': Ticket} on success, {'error': String} on failure
-  Future<Map<String, dynamic>> createTicketForMember({
-    required String adminMitgliedernummer,
-    required String memberMitgliedernummer,
-    required String subject,
-    required String message,
-    String priority = 'medium',
-    required String scheduledDate,
-  }) async {
-    try {
-      final body = <String, dynamic>{
-        'admin_mitgliedernummer': adminMitgliedernummer,
-        'member_mitgliedernummer': memberMitgliedernummer,
-        'subject': subject,
-        'message': message,
-        'priority': priority,
-        'scheduled_date': scheduledDate,
-      };
-
-      final response = await _client.post(
-        Uri.parse('$baseUrl/tickets/admin_create.php'),
-        headers: _headers,
-        body: jsonEncode(body),
-      );
-
-      final data = jsonDecode(response.body);
-
-      if (response.statusCode == 201 && data['success'] == true) {
-        return {'ticket': Ticket.fromJson(data['ticket'])};
-      }
-
-      // Weekly limit or other error
-      final msg = data['message'] ?? 'Fehler beim Erstellen des Tickets';
-      return {'error': msg};
-    } catch (e) {
-      return {'error': 'Fehler beim Erstellen des Tickets'};
-    }
-  }
-
-  // ==================== ADMIN METHODS ====================
-
-  /// Get all tickets (admin only), optionally filtered by member
-  Future<AdminTicketsResult?> getAdminTickets(String mitgliedernummer, {String? statusFilter, String? memberMitgliedernummer}) async {
-    try {
-      final body = <String, dynamic>{
-        'mitgliedernummer': mitgliedernummer,
-      };
-      if (statusFilter != null) {
-        body['status'] = statusFilter;
-      }
-      if (memberMitgliedernummer != null) {
-        body['member_mitgliedernummer'] = memberMitgliedernummer;
-      }
-
-      final response = await _client.post(
-        Uri.parse('$baseUrl/tickets/admin_list.php'),
-        headers: _headers,
-        body: jsonEncode(body),
-      );
-
-      final data = jsonDecode(response.body);
-
-      if (response.statusCode == 200 && data['success'] == true) {
-        final ticketsList = data['tickets'] as List;
-        final tickets = ticketsList.map((t) => Ticket.fromJson(t)).toList();
-        final stats = TicketStats.fromJson(data['stats']);
-        return AdminTicketsResult(tickets: tickets, stats: stats);
-      }
-
-      return null;
-    } catch (e) {
-      return null;
-    }
-  }
 
   /// Update ticket (admin actions: assign, close, reopen, set_in_progress, set_scheduled_date)
   Future<Ticket?> updateTicket({
@@ -864,6 +815,13 @@ class TicketService {
       );
 
       // Add headers
+      // ⚠️ MultipartRequest bekommt `_headers` NICHT ab — die Kopfzeilen
+      // werden hier von Hand gesetzt. Genau diese Form ist am 30.08.2026
+      // schon bei platform/korrespondenz_create.php aufgefallen.
+      final jwt = _jwt;
+      if (jwt != null) {
+        request.headers['Authorization'] = 'Bearer $jwt';
+      }
       if (deviceKey != null) {
         request.headers['X-Device-Key'] = deviceKey;
       }
