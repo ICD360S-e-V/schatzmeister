@@ -24,11 +24,25 @@ class LiveChatDialog extends StatefulWidget {
   final String userName;
   final CallOfferEvent? pendingCall;
 
+  /// Ein bestimmtes Gespräch statt „mein Support-Gespräch".
+  ///
+  /// ⚠️ Ohne das öffnet der Dialog immer die eine Unterhaltung, die
+  /// `chat/start.php` zurückgibt. Seit dem 01.09.2026 gibt es Direktchats
+  /// zwischen zwei Vorstandsmitgliedern; ohne diese Kennung wäre die zweite
+  /// Unterhaltung nicht erreichbar — und zwar ohne Fehlermeldung, die App
+  /// zeigte einfach immer dieselbe.
+  final int? conversationId;
+
+  /// Name für die Kopfzeile: bei zwei Gesprächen muss man sehen, mit WEM.
+  final String? gegenueber;
+
   const LiveChatDialog({
     super.key,
     required this.mitgliedernummer,
     required this.userName,
     this.pendingCall,
+    this.conversationId,
+    this.gegenueber,
   });
 
   @override
@@ -241,6 +255,18 @@ class _LiveChatDialogState extends State<LiveChatDialog> {
     if (!mounted) return;
     final l = AppLocalizations.of(context);
     try {
+      // Ein vorgegebenes Gespräch wird NICHT über startChat geholt: das würde
+      // stillschweigend das eigene Support-Gespräch zurückgeben statt der
+      // gewünschten Unterhaltung.
+      if (widget.conversationId != null) {
+        _conversationId = widget.conversationId;
+        _log.info('LiveChat: vorgegebenes Gespräch $_conversationId', tag: 'CHAT');
+        await _loadMessages();
+        if (!mounted) return;
+        await _connectWebSocket();
+        return;
+      }
+
       // Start or get existing conversation via REST API
       _log.debug('LiveChat: Calling startChat API...', tag: 'CHAT');
       final result = await _apiService.startChat(widget.mitgliedernummer);
@@ -1161,9 +1187,9 @@ class _LiveChatDialogState extends State<LiveChatDialog> {
       children: [
         const Icon(Icons.chat, color: Color(0xFF4a90d9), size: 28),
         const SizedBox(width: 12),
-        const Text(
-          'Live Chat',
-          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+        Text(
+          widget.gegenueber ?? 'Live Chat',
+          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
         ),
         const Spacer(),
 
