@@ -364,7 +364,11 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
               if (unreadCount > 0) {
                 totalUnread += unreadCount as int;
                 final unknownLabel = mounted ? AppLocalizations.of(context).unknown : 'Unknown';
-                final memberName = conv['member_name'] ?? unknownLabel;
+                // Das GEGENUEBER, nicht das Mitglied des Gespraechs: sonst
+                // stuende im eigenen Support-Gespraech der eigene Name als
+                // Absender. Rueckfall fuer aeltere Server.
+                final memberName =
+                    conv['gegenueber_name'] ?? conv['member_name'] ?? unknownLabel;
                 final lastMessage = conv['last_message'] ?? '';
                 final msgPreview = lastMessage.length > 80
                     ? '${lastMessage.substring(0, 80)}...'
@@ -1093,6 +1097,54 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
   /// ⚠️ Bei genau EINEM Gespraech bleibt alles wie bisher: keine zusaetzliche
   /// Abfrage, kein zusaetzlicher Griff. Die Auswahl erscheint nur, wenn es
   /// wirklich etwas zu waehlen gibt.
+  /// Eine Zeile der Gesprächsauswahl: Nummer oben, Name darunter.
+  ///
+  /// ⚠️ Die Nummer bleibt oben. Sie ist im Verein die eindeutige Kennung —
+  /// zwei Menschen können denselben Namen tragen, und im Schriftverkehr mit
+  /// Behörden wird nach ihr gesucht. Der Name kommt DAZU, er ersetzt sie nicht.
+  Widget _auswahlZeile(BuildContext ctx, Map<String, dynamic> g) {
+    final name = (g['gegenueber_name'] ?? g['member_name'])?.toString() ?? '';
+    final nummer =
+        (g['gegenueber_nr'] ?? g['mitgliedernummer'] ?? g['member_nr'])
+                ?.toString() ??
+            '';
+    final oben = nummer.isNotEmpty
+        ? nummer
+        : (name.isNotEmpty ? name : 'Gespräch ${g['id']}');
+    // Nur zeigen, wenn er etwas hinzufügt — sonst stünde er zweimal da.
+    final zeigeName = name.isNotEmpty && name != oben;
+    final letzte = g['last_message']?.toString() ?? '';
+    return SimpleDialogOption(
+      onPressed: () => Navigator.pop(ctx, g),
+      child: ListTile(
+        contentPadding: EdgeInsets.zero,
+        leading: const Icon(Icons.chat_bubble_outline),
+        title: Text(oben),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (zeigeName)
+              Text(
+                name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontWeight: FontWeight.w500),
+              ),
+            Text(
+              letzte.isEmpty ? 'Noch keine Nachricht' : letzte,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontSize: 12),
+            ),
+          ],
+        ),
+        trailing: ((g['unread_count'] as num?)?.toInt() ?? 0) > 0
+            ? Badge(label: Text('${g['unread_count']}'))
+            : null,
+      ),
+    );
+  }
+
   Future<void> _chatOeffnen(CallOfferEvent? pendingCall) async {
     int? kennung = pendingCall?.conversationId;
     String? gegenueber;
@@ -1111,31 +1163,15 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
             title: const Text('Mit wem?'),
             children: [
               for (final g in liste)
-                SimpleDialogOption(
-                  onPressed: () => Navigator.pop(ctx, g),
-                  child: ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    leading: const Icon(Icons.chat_bubble_outline),
-                    title: Text(g['member_name']?.toString() ?? 'Gespräch ${g['id']}'),
-                    subtitle: Text(
-                      (g['last_message']?.toString() ?? '').isEmpty
-                          ? 'Noch keine Nachricht'
-                          : g['last_message'].toString(),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    trailing: ((g['unread_count'] as num?)?.toInt() ?? 0) > 0
-                        ? Badge(label: Text('${g['unread_count']}'))
-                        : null,
-                  ),
-                ),
+                _auswahlZeile(ctx, g),
             ],
           ),
         );
         if (gewaehlt == null) return;
         final id = gewaehlt['id'];
         kennung = id is int ? id : int.tryParse('$id');
-        gegenueber = gewaehlt['member_name']?.toString();
+        gegenueber = (gewaehlt['gegenueber_name'] ?? gewaehlt['member_name'])
+            ?.toString();
       }
     }
 
