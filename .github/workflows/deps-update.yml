@@ -1,0 +1,302 @@
+# ───────────────────────────────────────────────────────────────
+# Abhängigkeiten jede Woche anheben — aber NUR, wenn dafür nichts geändert
+# werden muss.
+#
+# Entscheidung des Users (24.09.2026, für dieses Repo übernommen am 26.09.):
+# angehoben wird nur, wenn nichts angepasst werden muss — und das wird VOR dem
+# PR geprüft, nicht danach. Übernommen aus `vorsitzer`; wie deps-monthly.yml
+# bewusst in sich geschlossen.
+#
+# Ablauf:
+#   1. anheben   — `flutter pub upgrade`, nur innerhalb der Grenzen in
+#                  pubspec.yaml. Nichts Neues → Ende. Sonst geht der Stand als
+#                  Commit auf den Prüfzweig `deps/pruefung` (ohne PR).
+#   2. bauten    — der ECHTE Bau-Ablauf auf dem Prüfzweig, per
+#                  workflow_dispatch: build-android.yml (flutter analyze,
+#                  flutter test, Erreichbarkeit, Release-APK arm64). Veröffent-
+#                  licht wird dabei nichts: publish-release hängt an `refs/tags/v`.
+#   3. abschluss — grün → derselbe Commit auf `deps/automatisch` + PR (Merge von
+#                  Hand; release.yml macht daraus wie aus jedem Push ein
+#                  Release). Rot → kein PR, eine Meldung im Issue `deps-monthly`.
+#                  Der Prüfzweig wird immer gelöscht.
+#
+# Die App wird nur für Android ausgeliefert — Linux zu prüfen gibt es hier nichts.
+# build-android.yml hat eine Concurrency-Gruppe je Ref, ein Probebau kommt einem
+# Release-Bau also nicht in die Quere.
+# ⚠️ Einen von hier angelegten PR (GITHUB_TOKEN) startet build-android.yml nur
+#   „zur Freigabe" (Banner „Approve workflows to run"); workflow_dispatch läuft
+#   dagegen immer (GitHub-Doku „Triggering a workflow").
+# ───────────────────────────────────────────────────────────────
+name: Abhängigkeiten aktualisieren (wöchentlich)
+
+on:
+  schedule:
+    # Montag 05:30 UTC.
+    - cron: '30 5 * * 1'
+  workflow_dispatch:
+    inputs:
+      probelauf:
+        description: 'Nur prüfen: alle Schritte, auch ohne Anhebung — aber kein PR und keine Meldung'
+        type: boolean
+        default: false
+
+concurrency:
+  group: deps-update
+  cancel-in-progress: false
+
+permissions:
+  contents: write        # Prüfzweig und deps/automatisch schieben, Prüfzweig löschen
+  pull-requests: write   # PR anlegen oder aktualisieren
+  statuses: write        # „vorab geprüft" an den Commit hängen
+  issues: write          # zurückgehaltene Anhebung im Issue deps-monthly melden
+  actions: write         # build-android.yml per workflow_dispatch starten
+
+env:
+  FLUTTER_VERSION: '3.44.8'
+  PRUEFZWEIG: deps/pruefung
+  ZWEIG: deps/automatisch
+  # Beim Wochenlauf leer, also „false".
+  PROBE: ${{ inputs.probelauf == true }}
+
+jobs:
+  anheben:
+    name: "📦 Anheben"
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    outputs:
+      weiter: ${{ steps.anheben.outputs.weiter }}
+      sha: ${{ steps.zweig.outputs.sha }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
+        with:
+          ref: main
+
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2  # v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+
+      - name: Anheben (nur innerhalb der Grenzen)
+        id: anheben
+        run: |
+          set -euo pipefail
+          D="$RUNNER_TEMP/daten"; mkdir -p "$D"
+          flutter pub get
+          cp pubspec.lock "$D/alt.lock"
+          flutter pub upgrade
+          cp pubspec.lock "$D/neu.lock"
+          if [ "$PROBE" = "true" ]; then
+            echo "Probelauf: alle Prüfungen laufen, PR und Meldung gibt es nicht." \
+              | tee -a "$GITHUB_STEP_SUMMARY"
+          elif cmp -s "$D/alt.lock" "$D/neu.lock"; then
+            echo "Nichts anzuheben — innerhalb der Grenzen ist alles auf dem neuesten Stand." \
+              | tee -a "$GITHUB_STEP_SUMMARY"
+            echo "weiter=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          # Ein offener oder abgelehnter PR mit genau dieser Sperrdatei bekommt
+          # keinen zweiten Lauf — sonst jede Woche derselbe Bau.
+          elif git fetch -q origin "$ZWEIG" 2>/dev/null \
+             && git show FETCH_HEAD:pubspec.lock | cmp -s - "$D/neu.lock"; then
+            echo "Zweig $ZWEIG hat schon genau diesen Stand — nichts zu tun." \
+              | tee -a "$GITHUB_STEP_SUMMARY"
+            echo "weiter=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          flutter pub outdated --json --show-all > "$D/outdated.json"
+          flutter pub deps --json > "$D/deps.json"
+          echo "weiter=true" >> "$GITHUB_OUTPUT"
+
+      - name: Stand auf den Prüfzweig
+        id: zweig
+        if: steps.anheben.outputs.weiter == 'true'
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -q -c "$PRUEFZWEIG"
+          # Nur verfolgte Dateien: pubspec.lock und die erzeugten Plugin-Listen.
+          git add -u
+          git status --short
+          # --allow-empty: im Probelauf kann sich nichts geändert haben.
+          git commit -q --allow-empty \
+            -m "chore(deps): Abhängigkeiten innerhalb der Grenzen anheben" \
+            -m "Vorab geprüft von .github/workflows/deps-update.yml: analyze, Tests, Erreichbarkeit, Release-APK."
+          git push -q --force origin "HEAD:refs/heads/$PRUEFZWEIG"
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7
+        if: steps.anheben.outputs.weiter == 'true'
+        with:
+          name: deps-daten
+          path: ${{ runner.temp }}/daten/
+          retention-days: 7
+
+  bauten:
+    name: "🏗️ build-android.yml auf dem Prüfzweig"
+    needs: anheben
+    if: needs.anheben.outputs.weiter == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GH_REPO: ${{ github.repository }}
+      SHA: ${{ needs.anheben.outputs.sha }}
+    steps:
+      - name: Bau-Ablauf starten und abwarten
+        id: bauten
+        run: |
+          set -uo pipefail
+          ERGEBNIS="$RUNNER_TEMP/ergebnis"; mkdir -p "$ERGEBNIS"
+          SERVER="${{ github.server_url }}/$GH_REPO/actions/runs"
+
+          # Startet einen Ablauf auf dem Prüfzweig und gibt die Lauf-ID aus.
+          # Neuere gh-Fassungen nennen den Lauf gleich; sonst über Commit und
+          # Zeitpunkt suchen.
+          starten() {
+            local wf=$1 vorher url id=""
+            vorher=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+            url=$(gh workflow run "$wf" --ref "$PRUEFZWEIG" 2>&1 \
+                    | grep -oE 'https://[^ ]+/actions/runs/[0-9]+' | tail -1 || true)
+            id=${url##*/}
+            for _ in $(seq 1 20); do
+              [ -n "$id" ] && break
+              sleep 15
+              id=$(gh run list --workflow "$wf" --branch "$PRUEFZWEIG" --event workflow_dispatch \
+                     --json databaseId,headSha,createdAt \
+                     --jq "[.[] | select(.headSha==\"$SHA\" and .createdAt >= \"$vorher\")][0].databaseId // empty")
+            done
+            echo "$id"
+          }
+
+          ROT=0
+          wf=build-android.yml
+          id=$(starten "$wf")
+          if [ -z "$id" ]; then
+            echo "::error::$wf ließ sich nicht starten."
+            echo "$wf|failure|" >> "$ERGEBNIS/bauten.txt"
+            ROT=1
+          elif gh run watch "$id" --exit-status --interval 60 > /dev/null; then
+            echo "$wf|success|$SERVER/$id" >> "$ERGEBNIS/bauten.txt"
+          else
+            echo "::error::$wf ist rot: $SERVER/$id"
+            echo "$wf|failure|$SERVER/$id" >> "$ERGEBNIS/bauten.txt"
+            ROT=1
+          fi
+          cat "$ERGEBNIS/bauten.txt"
+          exit $ROT
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7
+        if: always()
+        with:
+          name: bau-ergebnis
+          path: ${{ runner.temp }}/ergebnis/
+          retention-days: 7
+          if-no-files-found: ignore
+
+  abschluss:
+    name: "📬 PR oder Meldung"
+    needs: [anheben, bauten]
+    if: always() && needs.anheben.outputs.weiter == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GH_REPO: ${{ github.repository }}
+      SHA: ${{ needs.anheben.outputs.sha }}
+      LAUF: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
+        with:
+          ref: ${{ needs.anheben.outputs.sha }}
+
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8
+        with:
+          name: deps-daten
+          path: ${{ runner.temp }}/daten
+
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8
+        continue-on-error: true
+        with:
+          name: bau-ergebnis
+          path: ${{ runner.temp }}/ergebnis
+
+      - name: Prüfungen für den Text zusammenstellen
+        run: |
+          set -euo pipefail
+          Z="$RUNNER_TEMP/pruefungen.txt"
+          URL="$(cut -d'|' -f3 "$RUNNER_TEMP/ergebnis/bauten.txt" 2>/dev/null | head -1 || true)"
+          echo "build-android.yml: flutter analyze, flutter test, Erreichbarkeit (tools/erreichbarkeit.py)${URL:+ — [Lauf]($URL)}" > "$Z"
+          echo "build-android.yml: Android-Release-APK (arm64), signiert wie der Release" >> "$Z"
+          cat "$Z"
+
+      - name: Alles grün — deps/automatisch schieben, Status setzen, PR anlegen
+        id: pr
+        if: needs.bauten.result == 'success' && env.PROBE != 'true'
+        run: |
+          set -euo pipefail
+          D="$RUNNER_TEMP/daten"
+          ARGS=()
+          while IFS= read -r z; do ARGS+=(--pruefung "$z"); done < "$RUNNER_TEMP/pruefungen.txt"
+          python3 .github/scripts/deps_pr_text.py \
+            --alt "$D/alt.lock" --neu "$D/neu.lock" \
+            --outdated "$D/outdated.json" --deps "$D/deps.json" \
+            --pubspec pubspec.yaml --lauf "$LAUF" "${ARGS[@]}" \
+            > "$RUNNER_TEMP/pr.md"
+          cat "$RUNNER_TEMP/pr.md" >> "$GITHUB_STEP_SUMMARY"
+          git push -q --force origin "$SHA:refs/heads/$ZWEIG"
+          gh api "repos/$GH_REPO/statuses/$SHA" \
+            -f state=success \
+            -f context="deps-update / vorab geprüft" \
+            -f description="analyze, Tests, Erreichbarkeit, Release-APK" \
+            -f target_url="$LAUF" > /dev/null
+          TITEL="chore(deps): Abhängigkeiten aktualisieren (vorab geprüft)"
+          NR="$(gh pr list --head "$ZWEIG" --state open --json number --jq '.[0].number // empty')"
+          if [ -n "$NR" ]; then
+            gh pr edit "$NR" --title "$TITEL" --body-file "$RUNNER_TEMP/pr.md"
+            echo "PR #$NR aktualisiert." >> "$GITHUB_STEP_SUMMARY"
+          else
+            gh pr create --base main --head "$ZWEIG" --title "$TITEL" --body-file "$RUNNER_TEMP/pr.md"
+          fi
+
+      - name: "Probelauf: PR-Text nur anzeigen"
+        if: needs.bauten.result == 'success' && env.PROBE == 'true'
+        run: |
+          set -euo pipefail
+          D="$RUNNER_TEMP/daten"
+          ARGS=()
+          while IFS= read -r z; do ARGS+=(--pruefung "$z"); done < "$RUNNER_TEMP/pruefungen.txt"
+          python3 .github/scripts/deps_pr_text.py \
+            --alt "$D/alt.lock" --neu "$D/neu.lock" \
+            --outdated "$D/outdated.json" --deps "$D/deps.json" \
+            --pubspec pubspec.yaml --lauf "$LAUF" "${ARGS[@]}" \
+            >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Etwas war rot — nichts anheben, im Issue deps-monthly melden
+        if: needs.bauten.result != 'success'
+        run: |
+          set -euo pipefail
+          D="$RUNNER_TEMP/daten"
+          python3 .github/scripts/deps_pr_text.py \
+            --alt "$D/alt.lock" --neu "$D/neu.lock" \
+            --outdated "$D/outdated.json" --deps "$D/deps.json" \
+            --pubspec pubspec.yaml --lauf "$LAUF" --gescheitert "build-android.yml" \
+            > "$RUNNER_TEMP/bericht.md"
+          cat "$RUNNER_TEMP/bericht.md" >> "$GITHUB_STEP_SUMMARY"
+          if [ "$PROBE" = "true" ]; then
+            echo "Probelauf — keine Meldung im Issue."
+            exit 0
+          fi
+          # Dasselbe Issue wie deps-monthly.yml, gefunden über die ASCII-Marke.
+          MARKER='deps-monthly'
+          NR="$(gh issue list --state open --search "${MARKER} in:title" \
+                  --limit 1 --json number --jq '.[0].number // empty')"
+          if [ -n "$NR" ]; then
+            gh issue comment "$NR" --body-file "$RUNNER_TEMP/bericht.md"
+          else
+            gh issue create --title "${MARKER}: Abhängigkeiten regelmässig durchsehen" \
+              --body-file "$RUNNER_TEMP/bericht.md"
+          fi
+
+      - name: Prüfzweig löschen
+        if: always()
+        run: git push -q origin --delete "$PRUEFZWEIG" || true
