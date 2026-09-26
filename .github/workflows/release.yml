@@ -76,7 +76,7 @@ jobs:
       # Pull Requests — unterm Strich also kein Lauf mehr als vorher.
       - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2  # v2
         with:
-          flutter-version: '3.44.8'
+          flutter-version: '3.47.5'
           cache: true
 
       - name: Prüfen (analyze, Tests, Erreichbarkeit)
