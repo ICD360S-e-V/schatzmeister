@@ -511,7 +511,7 @@ class HandelsregisterClientService {
         }
         final response = await request.close();
         _storeCookies(response);
-        return _readString(response);
+        return await _readString(response);
       } on HttpException {
         if (attempt < retries) {
           debugPrint('[HR-CLIENT] GET retry ${attempt + 1}/$retries for $url');
