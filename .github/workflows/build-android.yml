@@ -34,7 +34,7 @@ on:
       flutter_version:
         description: 'Flutter-Version'
         required: false
-        default: '3.44.8'
+        default: '3.47.5'
 
 # ⚠️ Alle Aktionen per SHA gepinnt, nicht per Tag. Ein Tag laesst sich
 # umhaengen, ein SHA nicht — und die v4-Fassungen liefen auf Node 20, was
@@ -43,7 +43,7 @@ on:
 
 env:
   APP_NAME: schatzmeister
-  FLUTTER_VERSION: '3.44.8'
+  FLUTTER_VERSION: '3.47.5'
 
 permissions:
   contents: read

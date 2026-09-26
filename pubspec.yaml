@@ -154,7 +154,7 @@ dependencies:
   # MOBILE-ONLY PACKAGES (Android, iOS)
   # ============================================================
 
-  pdfrx: ^2.2.24
+  pdfrx: ^2.6.5
   archive: ^4.0.9
 
 dev_dependencies:
