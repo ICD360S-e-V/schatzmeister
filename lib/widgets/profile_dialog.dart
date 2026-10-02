@@ -878,7 +878,8 @@ class _ProfileDialogState extends State<ProfileDialog> with SingleTickerProvider
                       border: Border.all(color: Colors.red.shade200),
                     ),
                     child: Text(
-                      'Blacklisted: ${(session['ip_reputation']['blacklists'] as List?)?.join(', ') ?? ''}',
+                      tr('Blacklisted: ${(session['ip_reputation']['blacklists'] as List?)?.join(', ') ?? ''}',
+                          'Pe lista neagră: ${(session['ip_reputation']['blacklists'] as List?)?.join(', ') ?? ''}'),
                       style: TextStyle(fontSize: 11, color: Colors.red.shade700),
                     ),
                   ),
@@ -1677,7 +1678,7 @@ class _ProfileDialogState extends State<ProfileDialog> with SingleTickerProvider
               initialDate: _selectedGeburtsdatum ?? DateTime(1990),
               firstDate: DateTime(1920),
               lastDate: DateTime.now(),
-              locale: const Locale('de'),
+              locale: LanguageService.instance.isRomanian ? const Locale('ro') : const Locale('de'),
             );
             if (picked != null) {
               setState(() => _selectedGeburtsdatum = picked);
@@ -1935,7 +1936,8 @@ class _ProfileDialogState extends State<ProfileDialog> with SingleTickerProvider
     return Tooltip(
       message: isClean
           ? AppLocalizations.of(context).ipClean
-          : 'Blacklisted: ${(reputation['blacklists'] as List?)?.join(', ') ?? ''}',
+          : tr('Blacklisted: ${(reputation['blacklists'] as List?)?.join(', ') ?? ''}',
+              'Pe lista neagră: ${(reputation['blacklists'] as List?)?.join(', ') ?? ''}'),
       child: Icon(
         isClean ? Icons.verified_user : Icons.warning,
         size: 16,

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../services/language_service.dart';
+
 /// Widget for displaying member device info and sessions.
 /// Used in user_details_dialog.dart as the "Geräte" tab.
 class MitgliederDeviceWidget extends StatelessWidget {
@@ -28,24 +30,26 @@ class MitgliederDeviceWidget extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // ==================== GERÄTE ====================
-          _sectionHeader(Icons.phone_android, Colors.green, 'Registrierte Geräte',
-              '${devices.length} Gerät${devices.length == 1 ? '' : 'e'}'),
+          _sectionHeader(Icons.phone_android, Colors.green, tr('Registrierte Geräte', 'Dispozitive înregistrate'),
+              tr('${devices.length} Gerät${devices.length == 1 ? '' : 'e'}',
+                  devices.length == 1 ? '1 dispozitiv' : '${devices.length} dispozitive')),
           const SizedBox(height: 12),
 
           if (devices.isEmpty)
-            _buildEmptyCard('Keine registrierten Geräte', Icons.devices)
+            _buildEmptyCard(tr('Keine registrierten Geräte', 'Niciun dispozitiv înregistrat'), Icons.devices)
           else
             ...devices.map((device) => _buildDeviceCard(device)),
 
           const SizedBox(height: 24),
 
           // ==================== SITZUNGEN ====================
-          _sectionHeader(Icons.computer, Colors.blue, 'Aktive Sitzungen',
-              '${sessions.length} Sitzung${sessions.length == 1 ? '' : 'en'}'),
+          _sectionHeader(Icons.computer, Colors.blue, tr('Aktive Sitzungen', 'Sesiuni active'),
+              tr('${sessions.length} Sitzung${sessions.length == 1 ? '' : 'en'}',
+                  sessions.length == 1 ? '1 sesiune' : '${sessions.length} sesiuni')),
           const SizedBox(height: 12),
 
           if (sessions.isEmpty)
-            _buildEmptyCard('Keine aktiven Sitzungen', Icons.login)
+            _buildEmptyCard(tr('Keine aktiven Sitzungen', 'Nicio sesiune activă'), Icons.login)
           else
             ...sessions.map((session) => _buildSessionCard(session)),
         ],
@@ -80,7 +84,7 @@ class MitgliederDeviceWidget extends StatelessWidget {
     final hasRootInfo = device['is_rooted'] != null;
     final deviceType = device['device_type'] ?? 'unknown';
     final osVersion = device['os_version'] as String?;
-    final platform = device['platform'] ?? 'Unbekannt';
+    final platform = device['platform'] ?? tr('Unbekannt', 'Necunoscut');
     final diskEncrypted = device['disk_encrypted'];
     final firewallActive = device['firewall_active'];
     final hasDiskInfo = diskEncrypted != null;
@@ -119,7 +123,7 @@ class MitgliederDeviceWidget extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        device['device_name'] ?? 'Unbekannt',
+                        device['device_name'] ?? tr('Unbekannt', 'Necunoscut'),
                         style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
                       ),
                       const SizedBox(height: 2),
@@ -130,7 +134,7 @@ class MitgliederDeviceWidget extends StatelessWidget {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    _buildBadge(isActive ? 'Aktiv' : 'Inaktiv', isActive ? Colors.green : Colors.grey),
+                    _buildBadge(isActive ? tr('Aktiv', 'Activ') : tr('Inaktiv', 'Inactiv'), isActive ? Colors.green : Colors.grey),
                     const SizedBox(height: 4),
                     _buildBadge(_getDeviceTypeLabel(deviceType), Colors.blue),
                   ],
@@ -141,17 +145,18 @@ class MitgliederDeviceWidget extends StatelessWidget {
 
             // OS Version
             if (osVersion != null && osVersion.isNotEmpty)
-              _infoRow(Icons.computer, 'Betriebssystem', osVersion),
+              _infoRow(Icons.computer, tr('Betriebssystem', 'Sistem de operare'), osVersion),
 
             // App Version
             if (device['app_version'] != null)
-              _infoRow(Icons.update, 'Client-Version', 'ICD360S e.V Schatzmeister v${device['app_version']}'),
+              _infoRow(Icons.update, tr('Client-Version', 'Versiune client'),
+                  tr('ICD360S e.V Schatzmeister v${device['app_version']}', 'ICD360S e.V Trezorier v${device['app_version']}')),
 
             // Connection type
             if (device['connection_type'] != null)
               _infoRow(
                 _getConnectionTypeIcon(device['connection_type']),
-                'Verbindung',
+                tr('Verbindung', 'Conexiune'),
                 device['connection_type'].toString(),
               ),
             // VPN status (always show)
@@ -159,27 +164,28 @@ class MitgliederDeviceWidget extends StatelessWidget {
               _infoRow(
                 Icons.vpn_key,
                 'VPN',
-                (device['is_vpn'] == 1 || device['is_vpn'] == true) ? 'Aktiv' : 'Nicht aktiv',
+                (device['is_vpn'] == 1 || device['is_vpn'] == true) ? tr('Aktiv', 'Activ') : tr('Nicht aktiv', 'Inactiv'),
               ),
 
             // Battery
             if (device['battery_level'] != null)
               _infoRow(
                 _getBatteryIcon(device['battery_level'], device['battery_state']),
-                'Akku',
-                '${device['battery_level']}%${device['battery_state'] == 'charging' ? ' (lädt)' : device['battery_state'] == 'full' ? ' (voll)' : ''}',
+                tr('Akku', 'Baterie'),
+                '${device['battery_level']}%${device['battery_state'] == 'charging' ? tr(' (lädt)', ' (se încarcă)') : device['battery_state'] == 'full' ? tr(' (voll)', ' (plină)') : ''}',
               ),
 
             // Disk space
             if (device['disk_total_gb'] != null)
-              _infoRow(Icons.storage, 'Speicher',
-                '${device['disk_free_gb'] ?? '?'} GB frei / ${device['disk_total_gb']} GB gesamt'),
+              _infoRow(Icons.storage, tr('Speicher', 'Stocare'),
+                tr('${device['disk_free_gb'] ?? '?'} GB frei / ${device['disk_total_gb']} GB gesamt',
+                    '${device['disk_free_gb'] ?? '?'} GB liberi / ${device['disk_total_gb']} GB total')),
 
             // Disk health (SMART)
             if (device['smart_status'] != null && device['smart_status'] != 'Unknown')
               _infoRow(
                 _getSmartIcon(device['smart_status']),
-                'Festplatte',
+                tr('Festplatte', 'Disc'),
                 _getSmartLabel(device['smart_status']),
               ),
 
@@ -188,20 +194,23 @@ class MitgliederDeviceWidget extends StatelessWidget {
               _infoRow(
                 device['os_up_to_date'] == 1 || device['os_up_to_date'] == true
                     ? Icons.check_circle : Icons.system_update,
-                'System-Update',
+                tr('System-Update', 'Actualizare sistem'),
                 device['os_up_to_date'] == 1 || device['os_up_to_date'] == true
-                    ? 'Auf dem neuesten Stand'
-                    : '${device['os_updates_count'] ?? '?'} Update${(device['os_updates_count'] ?? 0) == 1 ? '' : 's'} verfügbar',
+                    ? tr('Auf dem neuesten Stand', 'La zi')
+                    : tr('${device['os_updates_count'] ?? '?'} Update${(device['os_updates_count'] ?? 0) == 1 ? '' : 's'} verfügbar',
+                        (device['os_updates_count'] ?? 0) == 1
+                            ? '1 actualizare disponibilă'
+                            : '${device['os_updates_count'] ?? '?'} actualizări disponibile'),
               ),
 
             // Last used
             if (device['last_used_at'] != null)
-              _infoRow(Icons.access_time, 'Zuletzt aktiv', _formatDate(device['last_used_at'])),
+              _infoRow(Icons.access_time, tr('Zuletzt aktiv', 'Ultima activitate'), _formatDate(device['last_used_at'])),
 
             // Security section
             if (hasDiskInfo || hasFirewallInfo || hasRootInfo) ...[
               const SizedBox(height: 10),
-              const Text('Sicherheit', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+              Text(tr('Sicherheit', 'Securitate'), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
               const SizedBox(height: 6),
               Wrap(
                 spacing: 8,
@@ -210,7 +219,7 @@ class MitgliederDeviceWidget extends StatelessWidget {
                   if (hasDiskInfo)
                     _buildSecurityChip(
                       diskEncrypted == 1 || diskEncrypted == true,
-                      'Verschlüsselung',
+                      tr('Verschlüsselung', 'Criptare'),
                       Icons.lock,
                       Icons.lock_open,
                     ),
@@ -224,7 +233,7 @@ class MitgliederDeviceWidget extends StatelessWidget {
                   if (hasRootInfo && deviceType != 'desktop')
                     _buildSecurityChip(
                       !isRooted,
-                      isRooted ? 'Root/Jailbreak' : 'Nicht gerootet',
+                      isRooted ? 'Root/Jailbreak' : tr('Nicht gerootet', 'Fără root'),
                       Icons.verified_user,
                       Icons.warning,
                     ),
@@ -240,7 +249,7 @@ class MitgliederDeviceWidget extends StatelessWidget {
   // ==================== SESSION CARD ====================
 
   Widget _buildSessionCard(Map<String, dynamic> session) {
-    final platform = session['platform'] ?? 'Unbekannt';
+    final platform = session['platform'] ?? tr('Unbekannt', 'Necunoscut');
     final ipProvider = session['ip_provider'] as Map<String, dynamic>?;
     final ipReputation = session['ip_reputation'];
     final isBlacklisted = ipReputation != null && ipReputation['clean'] == false;
@@ -264,13 +273,13 @@ class MitgliederDeviceWidget extends StatelessWidget {
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    session['device_name'] ?? 'Unbekanntes Gerät',
+                    session['device_name'] ?? tr('Unbekanntes Gerät', 'Dispozitiv necunoscut'),
                     style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                   ),
                 ),
                 IconButton(
                   icon: const Icon(Icons.logout, color: Colors.red, size: 20),
-                  tooltip: 'Sitzung widerrufen (Force Logout)',
+                  tooltip: tr('Sitzung widerrufen (Force Logout)', 'Revocă sesiunea (deconectare forțată)'),
                   onPressed: () => onRevokeSession(session['id']),
                 ),
               ],
@@ -323,7 +332,8 @@ class MitgliederDeviceWidget extends StatelessWidget {
                     const SizedBox(width: 6),
                     Expanded(
                       child: Text(
-                        'IP Blacklisted: ${(ipReputation['blacklists'] as List?)?.join(', ') ?? ''}',
+                        tr('IP Blacklisted: ${(ipReputation['blacklists'] as List?)?.join(', ') ?? ''}',
+                            'IP pe lista neagră: ${(ipReputation['blacklists'] as List?)?.join(', ') ?? ''}'),
                         style: TextStyle(fontSize: 11, color: Colors.red.shade700, fontWeight: FontWeight.w600),
                       ),
                     ),
@@ -339,11 +349,11 @@ class MitgliederDeviceWidget extends StatelessWidget {
               children: [
                 const Icon(Icons.login, size: 13, color: Colors.grey),
                 const SizedBox(width: 4),
-                Text('Angemeldet: ${_formatDate(session['created_at'])}', style: const TextStyle(fontSize: 12)),
+                Text(tr('Angemeldet: ${_formatDate(session['created_at'])}', 'Autentificat: ${_formatDate(session['created_at'])}'), style: const TextStyle(fontSize: 12)),
                 const SizedBox(width: 16),
                 const Icon(Icons.timer_off, size: 13, color: Colors.grey),
                 const SizedBox(width: 4),
-                Text('Läuft ab: ${_formatDate(session['expires_at'])}', style: const TextStyle(fontSize: 12)),
+                Text(tr('Läuft ab: ${_formatDate(session['expires_at'])}', 'Expiră: ${_formatDate(session['expires_at'])}'), style: const TextStyle(fontSize: 12)),
               ],
             ),
           ],
@@ -426,7 +436,7 @@ class MitgliederDeviceWidget extends StatelessWidget {
           Icon(isOk ? okIcon : badIcon, size: 16, color: isOk ? Colors.green.shade700 : Colors.red.shade700),
           const SizedBox(width: 6),
           Text(
-            '$label: ${isOk ? 'Aktiv' : 'Inaktiv'}',
+            '$label: ${isOk ? tr('Aktiv', 'Activ') : tr('Inaktiv', 'Inactiv')}',
             style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: isOk ? Colors.green.shade700 : Colors.red.shade700),
           ),
         ],
@@ -451,7 +461,7 @@ class MitgliederDeviceWidget extends StatelessWidget {
               color: isClean ? Colors.green.shade700 : Colors.red.shade700),
           const SizedBox(width: 3),
           Text(
-            isClean ? 'Sauber' : 'Blacklisted',
+            isClean ? tr('Sauber', 'Curat') : tr('Blacklisted', 'Pe lista neagră'),
             style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600,
                 color: isClean ? Colors.green.shade700 : Colors.red.shade700),
           ),
@@ -489,9 +499,9 @@ class MitgliederDeviceWidget extends StatelessWidget {
     // If it already contains percentage (e.g. "Verified (95% Gesund)")
     if (s.contains('%')) return s;
     final sl = s.toLowerCase();
-    if (sl == 'verified' || sl == 'healthy' || sl == 'ok') return 'Gesund';
-    if (sl == 'failing' || sl == 'unhealthy') return 'Defekt!';
-    if (sl == 'warning') return 'Warnung';
+    if (sl == 'verified' || sl == 'healthy' || sl == 'ok') return tr('Gesund', 'Sănătos');
+    if (sl == 'failing' || sl == 'unhealthy') return tr('Defekt!', 'Defect!');
+    if (sl == 'warning') return tr('Warnung', 'Avertizare');
     return s;
   }
 
@@ -510,9 +520,9 @@ class MitgliederDeviceWidget extends StatelessWidget {
   String _getDeviceTypeLabel(String deviceType) {
     switch (deviceType) {
       case 'phone': return 'Smartphone';
-      case 'tablet': return 'Tablet';
+      case 'tablet': return tr('Tablet', 'Tabletă');
       case 'desktop': return 'Desktop';
-      default: return 'Unbekannt';
+      default: return tr('Unbekannt', 'Necunoscut');
     }
   }
 

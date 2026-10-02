@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../l10n/app_localizations.dart';
+import '../services/language_service.dart';
 import '../services/termin_service.dart';
 import '../services/ticket_service.dart';
 import '../models/user.dart';
@@ -234,7 +235,7 @@ class _CreateTerminDialogState extends State<CreateTerminDialog> {
                                   initialDate: _selectedDate,
                                   firstDate: DateTime.now(),
                                   lastDate: DateTime.now().add(const Duration(days: 365)),
-                                  locale: const Locale('de', 'DE'),
+                                  locale: LanguageService.instance.isRomanian ? const Locale('ro', 'RO') : const Locale('de', 'DE'),
                                 );
                                 if (date != null) setState(() => _selectedDate = date);
                               },
@@ -285,7 +286,7 @@ class _CreateTerminDialogState extends State<CreateTerminDialog> {
                                 if (v == null || v.isEmpty) return l.required;
                                 final num = int.tryParse(v);
                                 if (num == null || num < 15 || num > 480) {
-                                  return '15-480 Min.';
+                                  return tr('15-480 Min.', '15-480 min.');
                                 }
                                 return null;
                               },

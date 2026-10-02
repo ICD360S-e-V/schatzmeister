@@ -14,6 +14,7 @@ import '../models/user.dart';
 import '../utils/role_helpers.dart';
 import '../screens/ordnungsmassnahmen_screen.dart';
 import '../l10n/app_localizations.dart';
+import '../services/language_service.dart';
 import 'file_viewer_dialog.dart';
 
 class UserDetailsDialog extends StatefulWidget {
@@ -141,7 +142,7 @@ class _UserDetailsDialogState extends State<UserDetailsDialog> with SingleTicker
           setState(() => _isLoading = false);
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(l.errorLoading(result['message'] ?? 'Unknown error')),
+              content: Text(l.errorLoading(result['message'] ?? tr('Unknown error', 'Eroare necunoscută'))),
               backgroundColor: Colors.red,
             ),
           );
@@ -233,7 +234,7 @@ class _UserDetailsDialogState extends State<UserDetailsDialog> with SingleTicker
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(l.errorWith(result['message'] ?? 'Unknown error')),
+            content: Text(l.errorWith(result['message'] ?? tr('Unknown error', 'Eroare necunoscută'))),
             backgroundColor: Colors.red,
           ),
         );
@@ -547,7 +548,7 @@ class _UserDetailsDialogState extends State<UserDetailsDialog> with SingleTicker
                 isScrollable: true,
                 tabs: [
                   Tab(icon: const Icon(Icons.account_circle), text: l.accountTab),
-                  const Tab(icon: Icon(Icons.devices), text: 'Geräte'),
+                  Tab(icon: const Icon(Icons.devices), text: tr('Geräte', 'Dispozitive')),
                   Tab(icon: const Icon(Icons.warning_amber), text: l.warningsTab),
                   Tab(icon: const Icon(Icons.folder_open), text: l.documentsTab),
                   Tab(icon: const Icon(Icons.card_membership), text: l.membershipTab),
@@ -990,13 +991,13 @@ class _UserDetailsDialogState extends State<UserDetailsDialog> with SingleTicker
                   _buildStatChip(l.total, _verwarnungStats!.total, Colors.grey),
                   const SizedBox(width: 8),
                   if (_verwarnungStats!.ermahnung > 0)
-                    _buildStatChip('Ermahnung', _verwarnungStats!.ermahnung, Colors.amber),
+                    _buildStatChip(tr('Ermahnung', 'Mustrare'), _verwarnungStats!.ermahnung, Colors.amber),
                   if (_verwarnungStats!.ermahnung > 0) const SizedBox(width: 8),
                   if (_verwarnungStats!.abmahnung > 0)
-                    _buildStatChip('Abmahnung', _verwarnungStats!.abmahnung, Colors.orange),
+                    _buildStatChip(tr('Abmahnung', 'Avertisment'), _verwarnungStats!.abmahnung, Colors.orange),
                   if (_verwarnungStats!.abmahnung > 0) const SizedBox(width: 8),
                   if (_verwarnungStats!.letzteAbmahnung > 0)
-                    _buildStatChip('Letzte', _verwarnungStats!.letzteAbmahnung, Colors.red),
+                    _buildStatChip(tr('Letzte', 'Ultima'), _verwarnungStats!.letzteAbmahnung, Colors.red),
                 ],
               ),
             ),
@@ -1125,7 +1126,7 @@ class _UserDetailsDialogState extends State<UserDetailsDialog> with SingleTicker
                             initialDate: _selectedDatum,
                             firstDate: DateTime(2020),
                             lastDate: DateTime.now().add(const Duration(days: 365)),
-                            locale: const Locale('de', 'DE'),
+                            locale: LanguageService.instance.isRomanian ? const Locale('ro', 'RO') : const Locale('de', 'DE'),
                           );
                           if (picked != null) setState(() => _selectedDatum = picked);
                         },
@@ -1450,7 +1451,7 @@ class _UserDetailsDialogState extends State<UserDetailsDialog> with SingleTicker
                           initialDate: DateTime.now().add(const Duration(days: 365)),
                           firstDate: DateTime.now(),
                           lastDate: DateTime.now().add(const Duration(days: 3650)),
-                          locale: const Locale('de', 'DE'),
+                          locale: LanguageService.instance.isRomanian ? const Locale('ro', 'RO') : const Locale('de', 'DE'),
                         );
                         if (picked != null) setDialogState(() => selectedAblaufDatum = picked);
                       },
@@ -2525,7 +2526,7 @@ class _UserDetailsDialogState extends State<UserDetailsDialog> with SingleTicker
       initialDate: widget.user.mitgliedschaftDatum ?? DateTime.now(),
       firstDate: DateTime(2000),
       lastDate: DateTime.now(),
-      locale: const Locale('de', 'DE'),
+      locale: LanguageService.instance.isRomanian ? const Locale('ro', 'RO') : const Locale('de', 'DE'),
     );
 
     if (picked == null || !mounted) return;
@@ -3776,7 +3777,7 @@ class _UserDetailsDialogState extends State<UserDetailsDialog> with SingleTicker
                         initialDate: bescheidDatum ?? DateTime.now(),
                         firstDate: DateTime(2020),
                         lastDate: DateTime.now(),
-                        locale: const Locale('de'),
+                        locale: LanguageService.instance.isRomanian ? const Locale('ro') : const Locale('de'),
                       );
                       if (picked != null) setDialogState(() => bescheidDatum = picked);
                     },
@@ -3806,7 +3807,7 @@ class _UserDetailsDialogState extends State<UserDetailsDialog> with SingleTicker
                         initialDate: gueltigVon ?? DateTime.now(),
                         firstDate: DateTime(2020),
                         lastDate: DateTime(2030),
-                        locale: const Locale('de'),
+                        locale: LanguageService.instance.isRomanian ? const Locale('ro') : const Locale('de'),
                       );
                       if (picked != null) setDialogState(() => gueltigVon = picked);
                     },
@@ -3836,7 +3837,7 @@ class _UserDetailsDialogState extends State<UserDetailsDialog> with SingleTicker
                         initialDate: gueltigBis ?? (gueltigVon != null ? gueltigVon!.add(const Duration(days: 365)) : DateTime.now().add(const Duration(days: 365))),
                         firstDate: DateTime(2020),
                         lastDate: DateTime(2035),
-                        locale: const Locale('de'),
+                        locale: LanguageService.instance.isRomanian ? const Locale('ro') : const Locale('de'),
                       );
                       if (picked != null) setDialogState(() => gueltigBis = picked);
                     },
@@ -4210,7 +4211,7 @@ class _UserDetailsDialogState extends State<UserDetailsDialog> with SingleTicker
               children: [
                 if (eingereichtAm != null)
                   Expanded(
-                    child: _befreiungInfoRow(Icons.upload, 'Eingereicht', _formatDate(eingereichtAm)),
+                    child: _befreiungInfoRow(Icons.upload, tr('Eingereicht', 'Depus'), _formatDate(eingereichtAm)),
                   ),
                 if (status == 'eingereicht')
                   Container(
@@ -4272,7 +4273,7 @@ class _UserDetailsDialogState extends State<UserDetailsDialog> with SingleTicker
                     ),
                     IconButton(
                       icon: Icon(Icons.visibility, size: 18, color: Colors.green.shade600),
-                      tooltip: 'Vorschau',
+                      tooltip: tr('Vorschau', 'Previzualizare'),
                       constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
                       padding: EdgeInsets.zero,
                       onPressed: () => _viewErmaessigungDokument(id, originalFilename),

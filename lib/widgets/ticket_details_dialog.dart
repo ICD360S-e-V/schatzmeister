@@ -10,6 +10,7 @@ import 'package:crop_your_image/crop_your_image.dart';
 import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
 import '../l10n/app_localizations.dart';
+import '../services/language_service.dart';
 import '../services/ticket_service.dart';
 import '../services/logger_service.dart';
 import 'file_viewer_dialog.dart';
@@ -788,7 +789,7 @@ class _TicketDetailsDialogState extends State<TicketDetailsDialog> with SingleTi
                       const SizedBox(width: 12),
                       Expanded(
                         child: Text(
-                          'Ticket #${widget.ticket.id}',
+                          tr('Ticket #${widget.ticket.id}', 'Tichet #${widget.ticket.id}'),
                           style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                         ),
                       ),
@@ -1067,7 +1068,7 @@ class _TicketDetailsDialogState extends State<TicketDetailsDialog> with SingleTi
                             initialDate: _scheduledDate ?? DateTime.now(),
                             firstDate: DateTime.now().subtract(const Duration(days: 365)),
                             lastDate: DateTime.now().add(const Duration(days: 365)),
-                            locale: const Locale('de', 'DE'),
+                            locale: LanguageService.instance.isRomanian ? const Locale('ro', 'RO') : const Locale('de', 'DE'),
                           );
                           if (picked != null) {
                             final dt = DateTime(picked.year, picked.month, picked.day, _scheduledTime.hour, _scheduledTime.minute);
@@ -1399,7 +1400,7 @@ class _TicketDetailsDialogState extends State<TicketDetailsDialog> with SingleTi
               Icon(Icons.folder, color: Colors.blue.shade700, size: 20),
               const SizedBox(width: 8),
               Text(
-                'Dokumente (${_attachments.length})',
+                tr('Dokumente (${_attachments.length})', 'Documente (${_attachments.length})'),
                 style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
               ),
               const Spacer(),
