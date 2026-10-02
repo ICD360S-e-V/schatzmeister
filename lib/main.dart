@@ -19,8 +19,14 @@ import 'services/tray_service.dart';
 // Windows-only package
 import 'package:windows_single_instance/windows_single_instance.dart';
 
+// Zwischenablage: jede Kopie nach 30 s gelöscht, auf Android sensibel markiert.
+import 'utils/sicher_clipboard_bindung.dart';
+import 'utils/zwischenablage_hinweis.dart';
+
 void main(List<String> args) async {
-  WidgetsFlutterBinding.ensureInitialized();
+  // Jede Kopie — auch „Kopieren" im Kontextmenü — nach 30 s gelöscht, auf
+  // Android sensibel markiert. Siehe [SicherClipboardBindung].
+  SicherClipboardBindung.ensureInitialized();
 
   // Gewählte Sprache vor dem ersten Bild laden — sonst blitzte die
   // Oberfläche einen Frame lang auf Deutsch auf.
@@ -98,6 +104,9 @@ void main(List<String> args) async {
     }
     FlutterError.presentError(details);
   };
+
+  // „Zwischenablage gelöscht" als SnackBar über dem, was gerade offen ist.
+  zwischenablageHinweisAnmelden(NotificationService.navigatorKey);
 
   runApp(const SchatzmeisterApp());
 }
