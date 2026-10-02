@@ -17,7 +17,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:icd360sev_schatzmeister/l10n/app_localizations.dart';
 import 'package:icd360sev_schatzmeister/screens/finanzverwaltung_screen.dart';
 import 'package:icd360sev_schatzmeister/screens/eigene_unterschriften_screen.dart';
+import 'package:icd360sev_schatzmeister/screens/sprachauswahl_screen.dart';
 import 'package:icd360sev_schatzmeister/services/api_service.dart';
+import 'package:icd360sev_schatzmeister/services/language_service.dart';
 
 /// Die Breiten, die auf Android tatsaechlich vorkommen — in logischen
 /// Pixeln (dp), nicht in Hardware-Pixeln.
@@ -41,8 +43,12 @@ const Map<String, Size> kAndroidBreiten = {
   '412 dp (Moto G)': Size(412, 915),
 };
 
-Widget _rahmen(Widget kind) => MaterialApp(
-      locale: const Locale('de'),
+/// Jede Pruefung laeuft in beiden Sprachen: rumaenische Texte sind oft
+/// laenger als die deutschen und laufen auf schmalen Telefonen zuerst ueber.
+const kSprachen = ['de', 'ro'];
+
+Widget _rahmen(Widget kind, String sprache) => MaterialApp(
+      locale: Locale(sprache),
       localizationsDelegates: const [
         AppLocalizations.delegate,
         GlobalMaterialLocalizations.delegate,
@@ -56,14 +62,16 @@ Widget _rahmen(Widget kind) => MaterialApp(
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
+  for (final sprache in kSprachen) {
   for (final fall in kAndroidBreiten.entries) {
-    testWidgets('Finanzverwaltung laeuft nicht ueber — ${fall.key}',
+    testWidgets('Finanzverwaltung laeuft nicht ueber — ${fall.key} [$sprache]',
         (tester) async {
       tester.view.physicalSize = fall.value;
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.reset);
+      await LanguageService.instance.setLanguage(sprache);
 
-      await tester.pumpWidget(_rahmen(const FinanzverwaltungScreen()));
+      await tester.pumpWidget(_rahmen(const FinanzverwaltungScreen(), sprache));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
 
@@ -75,8 +83,9 @@ void main() {
       // 320 dp der Kennzahl-Chip mit 43 dp. Alle drei kamen daher, dass ein
       // Row seine Kinder ohne Flex nebeneinander stellte.
       expect(tester.takeException(), isNull,
-          reason: 'Layout-Ueberlauf auf ${fall.value.width} dp');
+          reason: 'Layout-Ueberlauf auf ${fall.value.width} dp [$sprache]');
     });
+  }
   }
 
   // ⚠️ Der Aktivierungsbildschirm steht bewusst NICHT hier. Er wartet in
@@ -94,19 +103,42 @@ void main() {
   // Der Unterschriften-Bildschirm. Er laedt beim Oeffnen die Vorgangsliste;
   // ohne Netz bleibt sie leer, das Geruest wird trotzdem aufgebaut — und
   // genau das soll geprueft werden.
+  for (final sprache in kSprachen) {
   for (final fall in kAndroidBreiten.entries) {
-    testWidgets('Unterschriften laufen nicht ueber — ${fall.key}',
+    testWidgets('Unterschriften laufen nicht ueber — ${fall.key} [$sprache]',
+        (tester) async {
+      tester.view.physicalSize = fall.value;
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+      await LanguageService.instance.setLanguage(sprache);
+
+      await tester.pumpWidget(_rahmen(
+        EigeneUnterschriftenScreen(apiService: ApiService()),
+        sprache,
+      ));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(tester.takeException(), isNull,
+          reason: 'Layout-Ueberlauf auf ${fall.value.width} dp [$sprache]');
+    });
+  }
+  }
+
+  // Die Sprachauswahl ist der allererste Bildschirm — sie darf auf keiner
+  // Breite ueberlaufen. Auf 320 dp rutscht die zweite Kachel in eine eigene
+  // Zeile, statt hinauszulaufen.
+  for (final fall in kAndroidBreiten.entries) {
+    testWidgets('Sprachauswahl laeuft nicht ueber — ${fall.key}',
         (tester) async {
       tester.view.physicalSize = fall.value;
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.reset);
 
-      await tester.pumpWidget(_rahmen(
-        EigeneUnterschriftenScreen(apiService: ApiService()),
-      ));
+      await tester.pumpWidget(_rahmen(const SprachauswahlScreen(), 'de'));
       await tester.pump();
-      await tester.pump(const Duration(milliseconds: 300));
 
+      expect(find.text('Română'), findsOneWidget);
       expect(tester.takeException(), isNull,
           reason: 'Layout-Ueberlauf auf ${fall.value.width} dp');
     });
