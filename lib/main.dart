@@ -11,6 +11,7 @@ import 'services/notification_service.dart';
 import 'services/logger_service.dart';
 import 'services/startup_service.dart';
 import 'services/platform_service.dart';
+import 'widgets/remote_touch_overlay.dart';
 
 // Desktop-only packages (compile on all platforms, but only used on desktop)
 import 'package:window_manager/window_manager.dart';
@@ -181,6 +182,10 @@ class _SchatzmeisterAppState extends State<SchatzmeisterApp> {
         // Use system font on each platform
         fontFamily: Platform.isWindows ? 'Segoe UI' : null,
       ),
+      // Fernwartung: zeigt während einer Sitzung, wohin getippt wird — im
+      // geteilten Bild sieht der Vorsitz es mit. Ohne Sitzung unsichtbar.
+      builder: (context, child) =>
+          RemoteTouchOverlay(child: child ?? const SizedBox.shrink()),
       // Erster Start: erst die Sprache wählen, dann aktivieren.
       home: LanguageService.instance.hasUserChoice
           ? const LoginWithCodeScreen()

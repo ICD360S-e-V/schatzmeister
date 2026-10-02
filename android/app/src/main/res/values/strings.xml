@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Fernwartung: so steht der Dienst unter Einstellungen ▸ Bedienungshilfen.
+         ⚠️ Eigener Name, nicht der der Mitglieder-App: sind beide Apps auf
+         einem Telefon, muss klar sein, welche Zeile zu welcher gehoert. -->
+    <string name="fernwartung_dienst_kurz">ICD360S Schatzmeister – Fernwartung (Steuerung)</string>
+    <string name="fernwartung_dienst_beschreibung">Erlaubt dem Vorsitz des ICD360S e.V., Ihr Telefon während einer Fernwartung zu bedienen — tippen, wischen, zurück, auch in anderen Apps.\n\nNur wenn Sie die Fernwartung ausdrücklich erlaubt haben. Ohne laufende Sitzung geschieht nichts.\n\nDieser Dienst kann Ihren Bildschirm NICHT lesen: keine Texte, keine Passwörter, keine Kontonummern. Er kann nur tippen und wischen.\n\nSie können die Sitzung jederzeit beenden: in der App oben mit „Stopp“ oder in der Benachrichtigung mit „Beenden“.</string>
+</resources>

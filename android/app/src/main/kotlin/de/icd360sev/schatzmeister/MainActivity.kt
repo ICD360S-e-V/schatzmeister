@@ -3,9 +3,11 @@ package de.icd360sev.schatzmeister
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.os.PowerManager
 import android.provider.Settings
+import android.util.Log
 import android.view.WindowManager
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
@@ -19,13 +21,45 @@ class MainActivity : FlutterActivity() {
     private val BATTERY_CHANNEL = "de.icd360sev.schatzmeister/battery"
     private val INTEGRITY_CHANNEL = "de.icd360sev.schatzmeister/device_integrity"
 
+    companion object {
+        const val TAG = "MainActivity"
+
+        // Fernwartung — eigene Kanalnamen, nicht die der Mitglieder-App.
+        const val SECURE_CHANNEL = "de.icd360sev.schatzmeister/secure_screen"
+        const val CAPTURE_CHANNEL = "de.icd360sev.schatzmeister/screen_capture"
+        const val STEUERUNG_CHANNEL = "de.icd360sev.schatzmeister/fernsteuerung"
+
+        /**
+         * Laeuft gerade eine Fernwartung, in der der Bildschirm geteilt wird?
+         *
+         * ⚠️ MUSS die Activity ueberleben: `onCreate` setzt FLAG_SECURE und
+         * laeuft bei jeder Neuerzeugung erneut. Mitten in einer Sitzung setzte
+         * das die Sperre wieder, und die App wurde im geteilten Bild SCHWARZ —
+         * in der Mitglieder-App so geschehen, ohne jede Fehlermeldung.
+         */
+        @Volatile
+        var fernwartungLaeuft: Boolean = false
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        // Prevent screenshots and screen recording
-        window.setFlags(
-            WindowManager.LayoutParams.FLAG_SECURE,
-            WindowManager.LayoutParams.FLAG_SECURE
-        )
+        // Prevent screenshots and screen recording — ausser waehrend einer
+        // zugestimmten Fernwartung (siehe [fernwartungLaeuft]).
+        if (!fernwartungLaeuft) {
+            window.setFlags(
+                WindowManager.LayoutParams.FLAG_SECURE,
+                WindowManager.LayoutParams.FLAG_SECURE
+            )
+        } else {
+            Log.d(TAG, "FLAG_SECURE NICHT gesetzt — Fernwartung laeuft")
+        }
+    }
+
+    override fun cleanUpFlutterEngine(flutterEngine: FlutterEngine) {
+        // Ohne Engine gibt es niemanden mehr, der eine Sitzung beenden koennte;
+        // der Dienst beendet sich dann selbst (siehe ScreenCaptureService).
+        ScreenCaptureService.beiStopp = null
+        super.cleanUpFlutterEngine(flutterEngine)
     }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
@@ -56,6 +90,131 @@ class MainActivity : FlutterActivity() {
                     val threat = checkDeviceIntegrity()
                     result.success(threat)
                 }
+                else -> result.notImplemented()
+            }
+        }
+
+        fernwartungKanaele(flutterEngine)
+    }
+
+    /**
+     * Fernwartung: FLAG_SECURE, Vordergrunddienst und Fernsteuerung —
+     * uebernommen aus der Mitglieder-App.
+     */
+    private fun fernwartungKanaele(flutterEngine: FlutterEngine) {
+        val boten = flutterEngine.dartExecutor.binaryMessenger
+
+        // FLAG_SECURE nur waehrend einer zugestimmten Sitzung aufheben.
+        MethodChannel(boten, SECURE_CHANNEL).setMethodCallHandler { call, result ->
+            when (call.method) {
+                "setSecure" -> {
+                    val secure = call.argument<Boolean>("secure") ?: true
+                    fernwartungLaeuft = !secure
+                    // ⚠️ Die Antwort kommt AUS dem UI-Thread: `await
+                    // setSecure(false)` soll heissen „ist aus", nicht
+                    // „wird gleich aus sein".
+                    runOnUiThread {
+                        if (secure) {
+                            window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
+                        } else {
+                            window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
+                        }
+                        val jetzt = (window.attributes.flags and
+                            WindowManager.LayoutParams.FLAG_SECURE) != 0
+                        Log.d(TAG, "FLAG_SECURE angefordert=$secure, tatsaechlich=$jetzt")
+                        result.success(jetzt)
+                    }
+                }
+                else -> result.notImplemented()
+            }
+        }
+
+        // Vordergrunddienst um die Aufnahme. Er traegt die Sitzung, wenn die
+        // App im Hintergrund ist — dort wird meistens geholfen.
+        val aufnahme = MethodChannel(boten, CAPTURE_CHANNEL)
+        aufnahme.setMethodCallHandler { call, result ->
+            when (call.method) {
+                "start" -> {
+                    // „Beenden" in der Benachrichtigung landet in Dart, wo die
+                    // Sitzung lebt. onStartCommand laeuft schon im
+                    // Hauptthread — direkt aufrufen, ohne die Activity
+                    // festzuhalten.
+                    ScreenCaptureService.beiStopp = {
+                        aufnahme.invokeMethod("stoppGetippt", null)
+                    }
+                    val i = Intent(this, ScreenCaptureService::class.java)
+                        .putExtra(ScreenCaptureService.EXTRA_TITEL, call.argument<String>("titel"))
+                        .putExtra(ScreenCaptureService.EXTRA_TEXT, call.argument<String>("text"))
+                        .putExtra(ScreenCaptureService.EXTRA_STOPP, call.argument<String>("stopp"))
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        startForegroundService(i)
+                    } else {
+                        startService(i)
+                    }
+                    Log.d(TAG, "ScreenCaptureService gestartet")
+                    result.success(null)
+                }
+                "stop" -> {
+                    ScreenCaptureService.beiStopp = null
+                    stopService(Intent(this, ScreenCaptureService::class.java))
+                    Log.d(TAG, "ScreenCaptureService gestoppt")
+                    result.success(null)
+                }
+                else -> result.notImplemented()
+            }
+        }
+
+        // Fernsteuerung ueber den AccessibilityService.
+        MethodChannel(boten, STEUERUNG_CHANNEL).setMethodCallHandler { call, result ->
+            when (call.method) {
+                // Grundwahrheit: der Dienst setzt seine Instanz, sobald das
+                // System ihn verbunden hat.
+                "verfuegbar" -> result.success(FernwartungService.instanz != null)
+
+                // Zweites Schloss — nur fuer die Dauer einer zugestimmten Sitzung.
+                "freigeben" -> {
+                    FernwartungService.freigegeben = call.argument<Boolean>("frei") ?: false
+                    Log.d(TAG, "Fernsteuerung freigegeben=${FernwartungService.freigegeben}")
+                    result.success(null)
+                }
+
+                "zug" -> {
+                    val d = FernwartungService.instanz
+                    if (d == null) {
+                        result.success(false)
+                    } else {
+                        result.success(
+                            d.zug(
+                                call.argument<Double>("x1") ?: 0.0,
+                                call.argument<Double>("y1") ?: 0.0,
+                                call.argument<Double>("x2") ?: 0.0,
+                                call.argument<Double>("y2") ?: 0.0,
+                                (call.argument<Number>("ms") ?: 60).toLong()
+                            )
+                        )
+                    }
+                }
+
+                "aktion" -> {
+                    val d = FernwartungService.instanz
+                    result.success(d?.globaleAktion(call.argument<String>("name") ?: "") ?: false)
+                }
+
+                // Eine App kann sich diese Berechtigung nicht selbst erteilen —
+                // nur die Systemseite oeffnen.
+                "einstellungenOeffnen" -> {
+                    try {
+                        startActivity(
+                            Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
+                                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        )
+                        result.success(true)
+                    } catch (e: Exception) {
+                        Log.w(TAG, "Bedienungshilfen nicht zu oeffnen: ${e.message}")
+                        result.success(false)
+                    }
+                }
+
                 else -> result.notImplemented()
             }
         }

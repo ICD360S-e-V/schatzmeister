@@ -9,6 +9,7 @@ import '../services/logger_service.dart';
 import '../services/verwarnung_service.dart';
 import '../services/dokumente_service.dart';
 import '../services/language_service.dart';
+import 'fernsteuerung_zeile.dart';
 import '../utils/role_helpers.dart';
 import 'flagge.dart';
 import 'visitenkarte.dart';
@@ -740,6 +741,9 @@ class _ProfileDialogState extends State<ProfileDialog> with SingleTickerProvider
           _buildInfoRow(Icons.phone, l.phone, _currentPhone),
           const SizedBox(height: 12),
           _buildSprachZeile(),
+          // Fernwartung: Steuerung erlauben (nur Android).
+          const SizedBox(height: 12),
+          const FernsteuerungZeile(),
           const SizedBox(height: 24),
 
           // Change Phone Button/Form

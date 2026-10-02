@@ -30,6 +30,8 @@ import '../widgets/profile_dialog.dart';
 import '../widgets/dashboard_sidebar.dart';
 import '../widgets/eastern.dart';
 import 'finanzverwaltung_screen.dart';
+import '../services/fernwartung_anfragen.dart';
+import '../widgets/remote_sharing_banner.dart';
 
 final _log = LoggerService();
 
@@ -128,6 +130,8 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
     _setupMessageListener();
     _setupTicketNotificationListener();
     _setupNotificationClickListener();
+    // Fernwartung: Anfragen des Vorsitzes → Zustimmungsdialog.
+    FernwartungAnfragen.instance.starten();
     _startTicketAutoRefresh();
     // Start heartbeat to update last_seen in real-time
     _heartbeatService.start(widget.currentMitgliedernummer);
@@ -205,6 +209,7 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
     _callOfferSubscription?.cancel();
     _ticketNotificationSubscription?.cancel();
     _notificationClickSubscription?.cancel();
+    FernwartungAnfragen.instance.stoppen();
     _ticketRefreshTimer?.cancel();
     _heartbeatService.stop();
     _ticketNotificationService.stop();
@@ -1424,21 +1429,29 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
           : null,
       // Desktop: Sidebar + content, Mobile: Just content
       body: SeasonalBackground(
-        child: isMobile
-            ? _buildMainContent()
-            : Row(
-                children: [
-                  DashboardSidebar(
-                    userName: widget.userName,
-                    mitgliedernummer: widget.currentMitgliedernummer,
-                    selectedMenuIndex: _selectedMenuIndex,
-                    onMenuSelected: (index) => setState(() => _selectedMenuIndex = index),
-                  ),
-                  Expanded(
-                    child: _buildMainContent(),
-                  ),
-                ],
-              ),
+        child: Column(
+          children: [
+            // Fernwartung: nur während einer Sitzung sichtbar, mit „Stopp".
+            const RemoteSharingBanner(),
+            Expanded(
+              child: isMobile
+                  ? _buildMainContent()
+                  : Row(
+                      children: [
+                        DashboardSidebar(
+                          userName: widget.userName,
+                          mitgliedernummer: widget.currentMitgliedernummer,
+                          selectedMenuIndex: _selectedMenuIndex,
+                          onMenuSelected: (index) => setState(() => _selectedMenuIndex = index),
+                        ),
+                        Expanded(
+                          child: _buildMainContent(),
+                        ),
+                      ],
+                    ),
+            ),
+          ],
+        ),
       ),
       // Impressum, Datenschutz, Changelog UND die automatische Update-Suche
       // (alle 5 Minuten) haengen an dieser Leiste. Sie stand bisher auf

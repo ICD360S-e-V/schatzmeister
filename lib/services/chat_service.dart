@@ -55,6 +55,13 @@ class ChatService {
   // Stream controller for ticket notifications
   final _ticketNotificationController = StreamController<TicketNotificationEvent>.broadcast();
 
+  // Fernwartung: diese App ist die GETEILTE Seite. Sie reagiert auf das
+  // Angebot des Vorsitzes (Zustimmungsdialog), auf seine ICE-Kandidaten und
+  // auf das Sitzungsende. Eigene Rahmenarten, nie mit Anrufen vermischt.
+  final _remoteOfferController = StreamController<RemoteOfferEvent>.broadcast();
+  final _remoteEndedController = StreamController<RemoteEndedEvent>.broadcast();
+  final _remoteIceController = StreamController<RemoteIceEvent>.broadcast();
+
   // Set to track online users by mitgliedernummer
   final Set<String> _onlineUsers = {};
 
@@ -92,6 +99,11 @@ class ChatService {
 
   // Public stream - Ticket Notifications
   Stream<TicketNotificationEvent> get ticketNotificationStream => _ticketNotificationController.stream;
+
+  // Public streams - Fernwartung
+  Stream<RemoteOfferEvent> get remoteOfferStream => _remoteOfferController.stream;
+  Stream<RemoteEndedEvent> get remoteEndedStream => _remoteEndedController.stream;
+  Stream<RemoteIceEvent> get remoteIceStream => _remoteIceController.stream;
 
   bool get isConnected => _isConnected;
 
@@ -467,6 +479,60 @@ class ChatService {
     });
   }
 
+  // ==================== Fernwartung ====================
+  // Nur die Rahmen der GETEILTEN Seite. Ein Angebot schickt diese App nie —
+  // eine Sitzung beginnt ausschliesslich beim Vorsitz.
+
+  /// Zugestimmt: Antwort mit der WebRTC-Antwort. [plattform], [steuerung] und
+  /// [bildFrei] braucht der Vorsitz für Anzeige und Prüfprotokoll.
+  void sendRemoteAnswer(
+    int conversationId,
+    String sdp,
+    String sdpType, {
+    String? plattform,
+    bool? steuerung,
+    bool? bildFrei,
+  }) {
+    _send({
+      'type': 'remote_answer',
+      'conversation_id': conversationId,
+      'sdp': sdp,
+      'sdp_type': sdpType,
+      if (plattform != null) 'plattform': plattform,
+      if (steuerung != null) 'steuerung': steuerung,
+      // false = FLAG_SECURE liess sich nicht aufheben, die App bleibt schwarz.
+      if (bildFrei != null) 'bild_frei': bildFrei,
+    });
+  }
+
+  /// Abgelehnt (oder: läuft schon eine Sitzung → `busy`).
+  void sendRemoteReject(int conversationId, String reason) {
+    _send({
+      'type': 'remote_reject',
+      'conversation_id': conversationId,
+      'reason': reason,
+    });
+  }
+
+  /// Sitzung beenden.
+  void sendRemoteEnd(int conversationId) {
+    _send({
+      'type': 'remote_end',
+      'conversation_id': conversationId,
+    });
+  }
+
+  /// ICE-Kandidat der Fernwartung — eigener Rahmen, nie `ice_candidate`.
+  void sendRemoteIce(int conversationId, String candidate, String sdpMid, int sdpMLineIndex) {
+    _send({
+      'type': 'remote_ice',
+      'conversation_id': conversationId,
+      'candidate': candidate,
+      'sdp_mid': sdpMid,
+      'sdp_mline_index': sdpMLineIndex,
+    });
+  }
+
   void _send(Map<String, dynamic> data) {
     if (_channel != null) {
       _channel!.sink.add(jsonEncode(data));
@@ -673,6 +739,36 @@ class ChatService {
           _callBusyController.add(json['conversation_id'] ?? 0);
           break;
 
+        // Fernwartung — Angebot, ICE und Ende kommen vom Vorsitz.
+        case 'remote_offer':
+          _log.info('WebSocket: REMOTE_OFFER von ${json['controller_name'] ?? '?'} '
+              '(conv ${json['conversation_id']})', tag: 'REMOTE');
+          _remoteOfferController.add(RemoteOfferEvent(
+            conversationId: json['conversation_id'] ?? 0,
+            controllerId: json['controller_id']?.toString() ?? '',
+            controllerName: json['controller_name'] ?? '',
+            sdp: json['sdp'] ?? '',
+            sdpType: json['sdp_type'] ?? 'offer',
+          ));
+          break;
+
+        case 'remote_ended':
+          _remoteEndedController.add(RemoteEndedEvent(
+            conversationId: json['conversation_id'] ?? 0,
+            endedBy: json['ended_by'] ?? '',
+            reason: json['reason'],
+          ));
+          break;
+
+        case 'remote_ice':
+          _remoteIceController.add(RemoteIceEvent(
+            conversationId: json['conversation_id'] ?? 0,
+            candidate: json['candidate'] ?? '',
+            sdpMid: json['sdp_mid'] ?? '',
+            sdpMLineIndex: json['sdp_mline_index'] ?? 0,
+          ));
+          break;
+
         case 'read_receipt':
           _readReceiptController.add(ReadReceiptEvent.fromJson(json));
           break;
@@ -707,6 +803,9 @@ class ChatService {
     _onlineUsersController.close();
     _newDeviceLoginController.close();
     _ticketNotificationController.close();
+    _remoteOfferController.close();
+    _remoteEndedController.close();
+    _remoteIceController.close();
   }
 }
 
@@ -824,6 +923,53 @@ class IceCandidateEvent {
   final int sdpMLineIndex;
 
   IceCandidateEvent({
+    required this.conversationId,
+    required this.candidate,
+    required this.sdpMid,
+    required this.sdpMLineIndex,
+  });
+}
+
+// ==================== Fernwartung ====================
+
+/// Anfrage des Vorsitzes — vor jeder Freigabe steht der Zustimmungsdialog.
+class RemoteOfferEvent {
+  final int conversationId;
+  final String controllerId;
+  final String controllerName;
+  final String sdp;
+  final String sdpType;
+
+  RemoteOfferEvent({
+    required this.conversationId,
+    required this.controllerId,
+    required this.controllerName,
+    required this.sdp,
+    required this.sdpType,
+  });
+}
+
+/// Sitzungsende — vom Vorsitz oder vom Server (eine Seite ist weggefallen).
+class RemoteEndedEvent {
+  final int conversationId;
+  final String endedBy;
+  final String? reason;
+
+  RemoteEndedEvent({
+    required this.conversationId,
+    required this.endedBy,
+    this.reason,
+  });
+}
+
+/// ICE-Kandidat der Fernwartung (getrennt von [IceCandidateEvent] der Anrufe).
+class RemoteIceEvent {
+  final int conversationId;
+  final String candidate;
+  final String sdpMid;
+  final int sdpMLineIndex;
+
+  RemoteIceEvent({
     required this.conversationId,
     required this.candidate,
     required this.sdpMid,
