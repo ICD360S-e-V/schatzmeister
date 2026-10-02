@@ -433,91 +433,6 @@ class ApiService {
     return jsonDecode(response.body);
   }
 
-  // Update user status
-  Future<Map<String, dynamic>> updateUserStatus(int userId, String status) async {
-    final response = await _client.post(
-      Uri.parse('$baseUrl/admin/user_status.php'),
-      headers: _headers,
-      body: jsonEncode({
-        'user_id': userId,
-        'status': status,
-      }),
-    );
-
-    return jsonDecode(response.body);
-  }
-
-  // Delete user
-  Future<Map<String, dynamic>> deleteUser(int userId) async {
-    final response = await _client.post(
-      Uri.parse('$baseUrl/admin/user_delete.php'),
-      headers: _headers,
-      body: jsonEncode({
-        'user_id': userId,
-      }),
-    );
-
-    return jsonDecode(response.body);
-  }
-
-  // Get user details with sessions and devices (admin only)
-  Future<Map<String, dynamic>> getUserDetails(int userId) async {
-    final response = await _client.post(
-      Uri.parse('$baseUrl/admin/user_details.php'),
-      headers: _headers,
-      body: jsonEncode({
-        'user_id': userId,
-      }),
-    );
-
-    return jsonDecode(response.body);
-  }
-
-  // Update user (admin only)
-  Future<Map<String, dynamic>> updateUser({
-    required int userId,
-    String? email,
-    String? password,
-    String? name,
-    String? role,
-    String? mitgliedschaftDatum,
-    String? vorname2,
-    String? bundesland,
-    String? land,
-    String? mitgliedsart,
-    String? zahlungsmethode,
-    int? zahlungstag,
-    String? geburtsdatum,
-    String? geburtsort,
-    String? staatsangehoerigkeit,
-    String? muttersprache,
-  }) async {
-    final response = await _client.post(
-      Uri.parse('$baseUrl/admin/user_update.php'),
-      headers: _headers,
-      body: jsonEncode({
-        'user_id': userId,
-        if (email != null) 'email': email,
-        if (password != null) 'password': password,
-        if (name != null) 'name': name,
-        if (role != null) 'role': role,
-        if (mitgliedschaftDatum != null) 'mitgliedschaft_datum': mitgliedschaftDatum,
-        if (vorname2 != null) 'vorname2': vorname2,
-        if (bundesland != null) 'bundesland': bundesland,
-        if (land != null) 'land': land,
-        if (mitgliedsart != null) 'mitgliedsart': mitgliedsart,
-        if (zahlungsmethode != null) 'zahlungsmethode': zahlungsmethode,
-        if (zahlungstag != null) 'zahlungstag': zahlungstag,
-        if (geburtsdatum != null) 'geburtsdatum': geburtsdatum,
-        if (geburtsort != null) 'geburtsort': geburtsort,
-        if (staatsangehoerigkeit != null) 'staatsangehoerigkeit': staatsangehoerigkeit,
-        if (muttersprache != null) 'muttersprache': muttersprache,
-      }),
-    );
-
-    return jsonDecode(response.body);
-  }
-
   // Admin register new member (status: neu)
   Future<Map<String, dynamic>> adminRegisterMember({
     required String name,
@@ -533,19 +448,6 @@ class ApiService {
         'email': email,
         'password': password,
         'role': role,
-      }),
-    );
-
-    return jsonDecode(response.body);
-  }
-
-  // Revoke session (admin only)
-  Future<Map<String, dynamic>> revokeSession(int sessionId) async {
-    final response = await _client.post(
-      Uri.parse('$baseUrl/admin/session_revoke.php'),
-      headers: _headers,
-      body: jsonEncode({
-        'session_id': sessionId,
       }),
     );
 
@@ -1413,78 +1315,6 @@ class ApiService {
     };
   }
 
-  // ============= FINANZAMT DOKUMENTE API =============
-
-  // List finanzamt documents
-  Future<Map<String, dynamic>> getFinanzamtDokumente() async {
-    try {
-      final response = await _client.get(
-        Uri.parse('$baseUrl/admin/finanzamt/dokumente.php'),
-        headers: _headers,
-      );
-      return jsonDecode(response.body);
-    } catch (e) {
-      return {'success': false, 'message': 'Failed to load documents: $e'};
-    }
-  }
-
-  // Upload finanzamt document
-  Future<Map<String, dynamic>> uploadFinanzamtDokument({
-    required String filePath,
-    required String fileName,
-    String kategorie = 'sonstiges',
-    String beschreibung = '',
-  }) async {
-    try {
-      final uri = Uri.parse('$baseUrl/admin/finanzamt/dokumente.php');
-      final request = http.MultipartRequest('POST', uri);
-
-      for (final entry in _headers.entries) {
-        request.headers[entry.key] = entry.value;
-      }
-      request.headers.remove('Content-Type');
-
-      request.fields['kategorie'] = kategorie;
-      request.fields['beschreibung'] = beschreibung;
-      request.files.add(await http.MultipartFile.fromPath('file', filePath, filename: fileName));
-
-      final streamedResponse = await _client.send(request);
-      final response = await http.Response.fromStream(streamedResponse);
-      return jsonDecode(response.body);
-    } catch (e) {
-      return {'success': false, 'message': 'Failed to upload: $e'};
-    }
-  }
-
-  // Delete finanzamt document
-  Future<Map<String, dynamic>> deleteFinanzamtDokument(int id) async {
-    try {
-      final request = http.Request('DELETE', Uri.parse('$baseUrl/admin/finanzamt/dokumente.php'));
-      request.headers.addAll(_headers);
-      request.body = jsonEncode({'id': id});
-
-      final streamedResponse = await _client.send(request);
-      final response = await http.Response.fromStream(streamedResponse);
-      return jsonDecode(response.body);
-    } catch (e) {
-      return {'success': false, 'message': 'Failed to delete: $e'};
-    }
-  }
-
-  // Download finanzamt document (returns bytes)
-  Future<http.Response?> downloadFinanzamtDokument(int id) async {
-    try {
-      final response = await _client.get(
-        Uri.parse('$baseUrl/admin/finanzamt/download.php?id=$id'),
-        headers: _headers,
-      );
-      if (response.statusCode == 200) return response;
-      return null;
-    } catch (_) {
-      return null;
-    }
-  }
-
   // ============= NOTAR API =============
 
   // Get Notar Rechnungen (Invoices)
@@ -1986,54 +1816,6 @@ class ApiService {
     }
   }
 
-  // ============= ADMIN STATUS MESSAGE API =============
-
-  // Get active admin status message (banner)
-  Future<Map<String, dynamic>> getAdminStatusMessage() async {
-    try {
-      final response = await _client.get(
-        Uri.parse('$baseUrl/admin/status_message.php'),
-        headers: _headers,
-      );
-
-      return jsonDecode(response.body);
-    } catch (e) {
-      return {'success': false, 'message': 'Failed to load status message: $e'};
-    }
-  }
-
-  // Set or update admin status message
-  Future<Map<String, dynamic>> setAdminStatusMessage(String message, {String? createdBy}) async {
-    try {
-      final response = await _client.post(
-        Uri.parse('$baseUrl/admin/status_message.php'),
-        headers: _headers,
-        body: jsonEncode({
-          'message': message,
-          if (createdBy != null) 'created_by': createdBy,
-        }),
-      );
-
-      return jsonDecode(response.body);
-    } catch (e) {
-      return {'success': false, 'message': 'Failed to set status message: $e'};
-    }
-  }
-
-  // Clear (deactivate) admin status message
-  Future<Map<String, dynamic>> clearAdminStatusMessage() async {
-    try {
-      final response = await _client.delete(
-        Uri.parse('$baseUrl/admin/status_message.php'),
-        headers: _headers,
-      );
-
-      return jsonDecode(response.body);
-    } catch (e) {
-      return {'success': false, 'message': 'Failed to clear status message: $e'};
-    }
-  }
-
   // ============= LOGS API =============
 
   // Push client logs to server
@@ -2141,16 +1923,6 @@ class ApiService {
         ? Uri.parse('$baseUrl/stadtverwaltung/maerkte.php?typ=$typ')
         : Uri.parse('$baseUrl/stadtverwaltung/maerkte.php');
     final response = await _client.get(uri, headers: _headers);
-    return jsonDecode(response.body);
-  }
-
-  // Get verification stages for a user
-  Future<Map<String, dynamic>> getVerifizierung(int userId) async {
-    final response = await _client.post(
-      Uri.parse('$baseUrl/admin/verifizierung_list.php'),
-      headers: _headers,
-      body: jsonEncode({'user_id': userId}),
-    );
     return jsonDecode(response.body);
   }
 
@@ -2295,26 +2067,6 @@ class ApiService {
     final streamed = await _client.send(request);
     final body = await streamed.stream.bytesToString();
     return jsonDecode(body);
-  }
-
-  // Update a verification stage
-  Future<Map<String, dynamic>> updateVerifizierung({
-    required int userId,
-    required int stufe,
-    required String status,
-    String? notiz,
-  }) async {
-    final response = await _client.post(
-      Uri.parse('$baseUrl/admin/verifizierung_update.php'),
-      headers: _headers,
-      body: jsonEncode({
-        'user_id': userId,
-        'stufe': stufe,
-        'status': status,
-        if (notiz != null) 'notiz': notiz,
-      }),
-    );
-    return jsonDecode(response.body);
   }
 
   // ========== BEFREIUNG ==========
