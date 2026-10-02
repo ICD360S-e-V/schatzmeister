@@ -17,9 +17,13 @@ import 'package:flutter/foundation.dart';
 /// validiert die heutige Kette bereits sauber (Verify return code 0). Der
 /// zweite Anker kostet nichts und nimmt dem Wegfall die Wirkung.
 ///
-/// GRENZE: `Root YE` ist derzeit von X2 kreuzsigniert und damit abgedeckt.
-/// Liefert Let's Encrypt sie spaeter als eigenstaendige Wurzel aus, braucht es
-/// hier einen dritten Anker.
+/// UND DIE NAECHSTE GENERATION — seit 10/2026 vier Anker. `Root YE` endet heute
+/// nur deshalb unter X2, weil der Server ihre Kreuzsignatur von X2 mitschickt.
+/// Faellt die weg, endet die Kette bei Root YE selbst — mit X1 und X2 allein
+/// schluege dann wieder JEDE Verbindung fehl. Deshalb sind ISRG Root YE (ECDSA)
+/// und ISRG Root YR (RSA) ebenfalls Anker, beide aus letsencrypt.org/certs/gen-y/
+/// und ueber ihren Abdruck geprueft. Nachgemessen am 02.10.2026: mit YE allein
+/// als Anker validiert die heutige Kette ebenfalls — WebSocket und REST.
 class HttpClientFactory {
   /// ISRG Root X2 — SHA-256 69:72:9B:8E:…:3C:CB:14:70, gueltig bis 2040-09-17.
   /// Abdruck gegen den Systemspeicher geprueft, NICHT aus der Kette
@@ -43,7 +47,8 @@ tL4ndQavEi51mI38AjEAi/V3bNTIZargCyzuFJ0nN6T5U6VR5CmD1/iQMVtCnwr1
   /// Alle Anker hintereinander — `setTrustedCertificatesBytes` nimmt mehrere
   /// PEM-Bloecke in einem Puffer.
   @visibleForTesting
-  static const String vertrauensanker = '$_isrgRootX1Pem\n$_isrgRootX2Pem';
+  static const String vertrauensanker =
+      '$_isrgRootX1Pem\n$_isrgRootX2Pem\n$_isrgRootYePem\n$_isrgRootYrPem';
 
   static const String _isrgRootX1Pem = '''
 -----BEGIN CERTIFICATE-----
@@ -76,6 +81,62 @@ oyi3B43njTOQ5yOf+1CceWxG1bQVs5ZufpsMljq4Ui0/1lvh+wjChP4kqKOJ2qxq
 4RgqsahDYVvTH9w7jXbyLeiNdd8XM2w9U/t7y0Ff/9yi0GE44Za4rF2LN9d11TPA
 mRGunUHBcnWEvgJBQl9nJEiU0Zsnvgc/ubhPgXRR4Xq37Z0j4r7g1SgEEzwxA57d
 emyPxgcYxn/eR44/KJ4EBs+lVDR3veyJm+kXQ99b21/+jh5Xos1AnX5iItreGCc=
+-----END CERTIFICATE-----''';
+
+  /// ISRG Root YE — Let's Encrypts ECDSA-Wurzel der naechsten Generation
+  /// („Gen Y"). SHA-256 E1:4F:FC:AD:…:AA:5D:56:66, gueltig bis 2045-09-02.
+  /// Quelle: letsencrypt.org/certs/gen-y/root-ye.pem. Geprueft am 02.10.2026:
+  /// selbstsigniert; derselbe Schluessel wie die „Root YE", die unser Server
+  /// von X2 kreuzsigniert mitschickt; diese Kreuzsignatur prueft gegen X2.
+  static const String _isrgRootYePem = '''
+-----BEGIN CERTIFICATE-----
+MIIB2TCCAWCgAwIBAgIRAKQCa6LvbHwg1AR+XmWmk4AwCgYIKoZIzj0EAwMwLjEL
+MAkGA1UEBhMCVVMxDTALBgNVBAoTBElTUkcxEDAOBgNVBAMTB1Jvb3QgWUUwHhcN
+MjUwOTAzMDAwMDAwWhcNNDUwOTAyMjM1OTU5WjAuMQswCQYDVQQGEwJVUzENMAsG
+A1UEChMESVNSRzEQMA4GA1UEAxMHUm9vdCBZRTB2MBAGByqGSM49AgEGBSuBBAAi
+A2IABDwS/6vhrcVqcbBo+wgdI3fwn9x7DNJJOY/lTOti0vkwuRN87RhEhTH17E7X
+yFjWsPYhIPt/wzOqxTd2b+4ZJNy9ID04YywF9U5zasDVyGSNErVNtz8uSGh5izW8
+7j77GaNCMEAwDgYDVR0PAQH/BAQDAgEGMA8GA1UdEwEB/wQFMAMBAf8wHQYDVR0O
+BBYEFKPIJlqOoUzQNWP8myPIOq5W809WMAoGCCqGSM49BAMDA2cAMGQCMHhMr8N9
+LdL1VQKs9BdV81r76eXRB6mtjuNjzk6/lBsPNToWLTDzGYgtQKO1jl63uAIwGV7m
+onyF377c+MM1oqVNs17sgu7F9YKZwgLmVbeOMDbKAXHtKMDLbiGllCcs8f47
+-----END CERTIFICATE-----''';
+
+  /// ISRG Root YR — Let's Encrypts RSA-Wurzel der naechsten Generation.
+  /// SHA-256 E5:7B:7E:6F:…:EB:F4:A8:6F, gueltig bis 2045-09-02.
+  /// Quelle: letsencrypt.org/certs/gen-y/root-yr.pem. Geprueft am 02.10.2026:
+  /// selbstsigniert; die Kreuzsignatur von X1 (root-yr-by-x1.pem) traegt
+  /// denselben Schluessel und prueft gegen X1.
+  static const String _isrgRootYrPem = '''
+-----BEGIN CERTIFICATE-----
+MIIFKTCCAxGgAwIBAgIRAOxGNJNgz0sP+KmC2Tqpyj0wDQYJKoZIhvcNAQELBQAw
+LjELMAkGA1UEBhMCVVMxDTALBgNVBAoTBElTUkcxEDAOBgNVBAMTB1Jvb3QgWVIw
+HhcNMjUwOTAzMDAwMDAwWhcNNDUwOTAyMjM1OTU5WjAuMQswCQYDVQQGEwJVUzEN
+MAsGA1UEChMESVNSRzEQMA4GA1UEAxMHUm9vdCBZUjCCAiIwDQYJKoZIhvcNAQEB
+BQADggIPADCCAgoCggIBANvGJnN78CTJdWL3+eGfsLN5TrNBJs+VH9hRXqRbwxu9
+sGNiB0BD1fcOxbSUQCJIM1xE13Db+5Cw1w0s0EBYsvuIP/6joF0w8cuImbgR1OGg
+YbSQ4OpzI+DG8SGuTlcE873OCS+kh3srlo6vl43M5OJg4Aeo1sfHp6kTJDoIiFBN
+JAY+OKfX/FUvYKuhjT+no49lmqmupSBI5PkBQiqrEGtWU5uxU/cQWHGu8jSjFBzn
+ZqvbNPLMXMLFxCb3WTfrJBXXjqvWG+v4bjzxjjeAtOlU7qarRDvNOyAuQYLln904
+M+faKx8hnLCpJ15ZqaEgcNlY+9MMWcC5yvL2A2j3l9+2buggZX+dOE91zYmIdawT
+vSZuVvlbRrAlLxIB6pwMBjneXCjYQ8+3BCCjssbSNpZU3hTcBDdhfAlEDlYr6pEa
+tnMdmDT5BqnKC92bd0EhM1fbLHioLccLCuievT8ZkPhZrq7Mii7gNXAcUEAR8+lz
+Yal+9zTg7C5DALyVOeG/CqfRAMn1KSHCR0NSA6P8tn/mGRlnCct5rtVCLnVySVpU
+6H1qGg3DgTOuskf8eahTMiYbI5ezPJmO5ertalskQ1utp74+eDy92PI4ftHKTbq9
+IWhH4YZKh3WnJEIt+oQvlYZbY8tpEroKrFB6PFGzrJIDRyts4HqvuH52RFj2zv/B
+AgMBAAGjQjBAMA4GA1UdDwEB/wQEAwIBBjAPBgNVHRMBAf8EBTADAQH/MB0GA1Ud
+DgQWBBTe51tg0CJtQCh9Pw0B/qS1UrRRlDANBgkqhkiG9w0BAQsFAAOCAgEAWHnf
+713Bdkq7t5yN2dNIgQakUb94X9WuyhMEHHkgx4oDpSUlnG0w4g94MoqaEUE31ZjR
+LU7L5LD1g9ujFHTQu8AD215AHMVQFbm6j8hQxdXHAzDajFNQnOlDJrLjzIx176oy
+AjvUtejZx2NNmdb5fd0WGVGsCdoAJ3N8ozo7ajE8t6vfxStZb4BQ9WYJGHUDrv2N
+i5tJF6CNiPnlzs3BUfECRbE4JSk+jvy8+VoGiFE8qsH/j78x2fjgQhAQFV7P7Zxy
+dBTZ1wEkNpZNW2qnaK1SKBLa+xf6E06YRIq5uaI+HWH8SY1y5VbRgzq40EKg3yxP
+06fz+uYAUIFJoLNfhwRCc3Q6pQVuMX3yAjHAes4gk4moGcLQ5p7HAh39yeylZc1J
+41sx/jKwLIkPE6Rr1Nf4pxdsxf9SA4yOEiAkDgq04DVxn8hgYFdUtBCuiuVC2heA
+EiqVEa+8QZjuw8Gj0EbHXcRd1nInvGqRS1o9Is7YBdQN57X1AYveGBNNqjICSb7c
+awuw1EawTDrs13VUlJVEsbQ0/O/1aaV73mCdOQ8azqL2KTv1Ewu1xbquE2S+kdQU
+To9TUwat3wUA6cwXh1EfpS/3fJ0aGah5hdpRyoCLDlsSn8tkrjMfFFX0viC+GxHc
+sI1ANRYvqSFC2X1VRZfDg+wD6E21BccmifG4yWc=
 -----END CERTIFICATE-----''';
 
   static HttpClient createPinnedHttpClient({

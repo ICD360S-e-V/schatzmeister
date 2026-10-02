@@ -202,7 +202,8 @@ class ChatService {
     try {
       _log.info('Connecting to ${testWsUrl ?? wsUrl}...', tag: 'WS');
 
-      // Connect using IOWebSocketChannel with certificate pinning (ISRG Root X1)
+      // Connect using IOWebSocketChannel with certificate pinning (ISRG roots
+      // X1, X2, YE, YR — see HttpClientFactory)
       final pinnedClient = HttpClientFactory.createPinnedHttpClient();
       final webSocket = await WebSocket.connect(
         testWsUrl ?? wsUrl,
