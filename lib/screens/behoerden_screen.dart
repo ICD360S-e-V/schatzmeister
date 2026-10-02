@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
+import '../services/language_service.dart';
 import 'finanzamt_screen.dart';
 import 'handelsregister_screen.dart';
 import 'vereinregister_screen.dart';
@@ -53,14 +54,14 @@ class _BehoerdenScreenState extends State<BehoerdenScreen> {
               IconButton(
                 icon: const Icon(Icons.arrow_back),
                 onPressed: widget.onBack,
-                tooltip: 'Zurück',
+                tooltip: tr('Zurück', 'Înapoi'),
               ),
               const SizedBox(width: 8),
               Icon(Icons.account_balance, size: 32, color: Colors.blue.shade700),
               const SizedBox(width: 12),
-              const Text(
-                'Behörden',
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+              Text(
+                tr('Behörden', 'Autorități'),
+                style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
               ),
             ],
           ),
@@ -86,7 +87,7 @@ class _BehoerdenScreenState extends State<BehoerdenScreen> {
   Widget _buildVereinregisterCard() {
     return _buildClickableCard(
       icon: Icons.article,
-      title: 'Vereinregister',
+      title: tr('Vereinregister', 'Vereinregister (registrul asociațiilor)'),
       color: Colors.indigo,
       subtitle: 'Amtsgericht Memmingen\nVR 201335 - ICD360S e.V.',
       onTap: () => setState(() => _subview = 'vereinregister'),
@@ -96,9 +97,9 @@ class _BehoerdenScreenState extends State<BehoerdenScreen> {
   Widget _buildHandelsregisterCard() {
     return _buildClickableCard(
       icon: Icons.search,
-      title: 'Handelsregister',
+      title: tr('Handelsregister', 'Handelsregister (registrul comerțului)'),
       color: Colors.green,
-      subtitle: 'Firmen & Vereine suchen\nhandelsregister.de',
+      subtitle: tr('Firmen & Vereine suchen\nhandelsregister.de', 'Caută firme și asociații\nhandelsregister.de'),
       onTap: () => setState(() => _subview = 'handelsregister'),
     );
   }
@@ -106,9 +107,9 @@ class _BehoerdenScreenState extends State<BehoerdenScreen> {
   Widget _buildFinanzamtCard() {
     return _buildClickableCard(
       icon: Icons.receipt_long,
-      title: 'Finanzamt',
+      title: tr('Finanzamt', 'Finanzamt (fisc)'),
       color: Colors.teal,
-      subtitle: 'Finanzamt Neu-Ulm\nSteuernummer, Gemeinnützigkeit',
+      subtitle: tr('Finanzamt Neu-Ulm\nSteuernummer, Gemeinnützigkeit', 'Finanzamt Neu-Ulm\nNumăr fiscal, statut nonprofit (Gemeinnützigkeit)'),
       onTap: () => setState(() => _subview = 'finanzamt'),
     );
   }

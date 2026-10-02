@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../services/platform_service.dart';
+import '../services/language_service.dart';
 import 'package:webview_flutter/webview_flutter.dart' as mobile_webview;
 import 'package:webview_windows/webview_windows.dart' as windows_webview;
 
@@ -139,7 +140,7 @@ class _DbMobilitaetUnterstuetzungScreenState
               IconButton(
                 icon: const Icon(Icons.arrow_back),
                 onPressed: widget.onBack,
-                tooltip: 'Zurück',
+                tooltip: tr('Zurück', 'Înapoi'),
               ),
               const SizedBox(width: 4),
               Icon(Icons.train, color: Colors.blue.shade700, size: 24),
@@ -153,22 +154,22 @@ class _DbMobilitaetUnterstuetzungScreenState
               IconButton(
                 icon: const Icon(Icons.arrow_back_ios, size: 18),
                 onPressed: _goBack,
-                tooltip: 'Zurück',
+                tooltip: tr('Zurück', 'Înapoi'),
               ),
               IconButton(
                 icon: const Icon(Icons.refresh, size: 20),
                 onPressed: _reload,
-                tooltip: 'Aktualisieren',
+                tooltip: tr('Aktualisieren', 'Actualizează'),
               ),
               IconButton(
                 icon: const Icon(Icons.home, size: 20),
                 onPressed: _loadHome,
-                tooltip: 'Startseite',
+                tooltip: tr('Startseite', 'Pagina principală'),
               ),
               IconButton(
                 icon: const Icon(Icons.open_in_new, size: 20),
                 onPressed: _openExternal,
-                tooltip: 'Im Browser öffnen',
+                tooltip: tr('Im Browser öffnen', 'Deschide în browser'),
               ),
             ],
           ),
@@ -211,13 +212,13 @@ class _DbMobilitaetUnterstuetzungScreenState
 
   Widget _buildWebView() {
     if (!_isInitialized) {
-      return const Center(
+      return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            CircularProgressIndicator(),
-            SizedBox(height: 16),
-            Text('Browser wird geladen...'),
+            const CircularProgressIndicator(),
+            const SizedBox(height: 16),
+            Text(tr('Browser wird geladen...', 'Browserul se încarcă...')),
           ],
         ),
       );
@@ -230,8 +231,8 @@ class _DbMobilitaetUnterstuetzungScreenState
       return mobile_webview.WebViewWidget(controller: _mobileController!);
     }
 
-    return const Center(
-      child: Text('WebView nicht unterstützt'),
+    return Center(
+      child: Text(tr('WebView nicht unterstützt', 'WebView nu este suportat')),
     );
   }
 }
