@@ -5,15 +5,22 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:icd360sev_schatzmeister/main.dart';
 import 'package:icd360sev_schatzmeister/screens/login_with_code_screen.dart';
+import 'package:icd360sev_schatzmeister/services/language_service.dart';
 
 void main() {
   // Der Einstieg ist seit 2026-08-23 die Geräteaktivierung per Code, nicht
   // mehr der Passwort-Login. Der alte Test suchte nach „Anmelden" und schlug
   // schon vor dieser Umstellung fehl — die Texte stammten aus einer noch
   // älteren Fassung des Login-Bildschirms.
-  setUp(() {
+  //
+  // Seit der Sprachauswahl (DE/RO) steht beim allerersten Start die Wahl der
+  // Sprache davor — dieser Test spielt deshalb ein Gerät nach, auf dem
+  // schon einmal gewählt wurde. Den ersten Start prüft sprachauswahl_test.
+  setUp(() async {
     // Ohne Mock wirft SharedPreferences im Test (kein Plattform-Kanal).
-    SharedPreferences.setMockInitialValues({});
+    SharedPreferences.setMockInitialValues({'app_locale_v1': 'de'});
+    LanguageService.instance.resetForTest();
+    await LanguageService.instance.load();
   });
 
   testWidgets('App startet auf dem Aktivierungsbildschirm', (tester) async {

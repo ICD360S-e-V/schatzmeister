@@ -7,10 +7,13 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../services/api_service.dart';
 import '../services/device_key_service.dart';
 import '../services/diagnostic_service.dart';
+import '../services/language_service.dart';
 import '../services/logger_service.dart';
 import '../services/update_service.dart';
 import '../widgets/diagnostic_consent_dialog.dart';
+import '../widgets/flagge.dart';
 import 'dashboard_screen.dart';
+import 'sprachauswahl_screen.dart';
 
 /// Geräteaktivierung für das Schatzmeister-Portal.
 ///
@@ -190,9 +193,14 @@ class _LoginWithCodeScreenState extends State<LoginWithCodeScreen> {
                 elevation: 8,
                 shape:
                     RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                child: Padding(
-                  padding: const EdgeInsets.all(28),
-                  child: _step == 0 ? _buildNummerStep() : _buildCodeStep(),
+                child: Stack(
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.all(28),
+                      child: _step == 0 ? _buildNummerStep() : _buildCodeStep(),
+                    ),
+                    Positioned(top: 4, right: 4, child: _sprachKnopf()),
+                  ],
                 ),
               ),
             ),
@@ -210,7 +218,7 @@ class _LoginWithCodeScreenState extends State<LoginWithCodeScreen> {
         Icon(Icons.vpn_key, size: 64, color: Colors.teal.shade400),
         const SizedBox(height: 16),
         Text(
-          'Gerät aktivieren',
+          tr('Gerät aktivieren', 'Activare dispozitiv'),
           style: TextStyle(
               fontSize: 22,
               fontWeight: FontWeight.bold,
@@ -218,7 +226,8 @@ class _LoginWithCodeScreenState extends State<LoginWithCodeScreen> {
         ),
         const SizedBox(height: 6),
         Text(
-          'Schritt 1 von 2 — Schatzmeister-Nummer eingeben',
+          tr('Schritt 1 von 2 — Schatzmeister-Nummer eingeben',
+              'Pasul 1 din 2 — introduceți numărul de trezorier'),
           style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
         ),
         const SizedBox(height: 24),
@@ -235,8 +244,8 @@ class _LoginWithCodeScreenState extends State<LoginWithCodeScreen> {
                 )),
           ],
           decoration: InputDecoration(
-            labelText: 'Schatzmeister-Nummer',
-            hintText: 'z. B. S12345',
+            labelText: tr('Schatzmeister-Nummer', 'Număr trezorier'),
+            hintText: tr('z. B. S12345', 'de ex. S12345'),
             prefixIcon: const Icon(Icons.badge),
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
           ),
@@ -252,7 +261,7 @@ class _LoginWithCodeScreenState extends State<LoginWithCodeScreen> {
           width: double.infinity,
           child: FilledButton.icon(
             icon: const Icon(Icons.arrow_forward),
-            label: const Text('Weiter'),
+            label: Text(tr('Weiter', 'Continuă')),
             onPressed: _loading ? null : _goToCodeStep,
             style: FilledButton.styleFrom(
               padding: const EdgeInsets.symmetric(vertical: 14),
@@ -262,8 +271,12 @@ class _LoginWithCodeScreenState extends State<LoginWithCodeScreen> {
         ),
         const SizedBox(height: 12),
         Text(
-          'Dieses Portal ist ausschließlich für den Schatzmeister. '
-          'Noch keinen Code? Bitte beim Vorsitzenden anfordern.',
+          tr(
+            'Dieses Portal ist ausschließlich für den Schatzmeister. '
+                'Noch keinen Code? Bitte beim Vorsitzenden anfordern.',
+            'Acest portal este destinat exclusiv trezorierului. '
+                'Nu aveți încă un cod? Vă rugăm să-l cereți președintelui.',
+          ),
           style: TextStyle(
               fontSize: 11,
               color: Colors.grey.shade600,
@@ -278,14 +291,16 @@ class _LoginWithCodeScreenState extends State<LoginWithCodeScreen> {
     final nummer = _nummerC.text.trim();
 
     if (nummer.length < 4) {
-      setState(() => _error = 'Bitte eine gültige Nummer eingeben');
+      setState(() => _error = tr('Bitte eine gültige Nummer eingeben',
+          'Vă rugăm introduceți un număr valid'));
       return;
     }
     // Schatzmeister-Nummern beginnen mit "S". Früh abfangen spart einen
     // Fehlversuch gegen das Rate-Limit des Servers (5 pro 15 Minuten).
     if (!nummer.startsWith('S')) {
-      setState(() => _error =
-          'Dieses Portal ist nur für Schatzmeister (S-Nummern) zugänglich.');
+      setState(() => _error = tr(
+          'Dieses Portal ist nur für Schatzmeister (S-Nummern) zugänglich.',
+          'Acest portal este accesibil doar trezorierilor (numere S).'));
       return;
     }
 
@@ -305,7 +320,7 @@ class _LoginWithCodeScreenState extends State<LoginWithCodeScreen> {
         Icon(Icons.pin, size: 64, color: Colors.teal.shade400),
         const SizedBox(height: 16),
         Text(
-          'Aktivierungscode',
+          tr('Aktivierungscode', 'Cod de activare'),
           style: TextStyle(
               fontSize: 22,
               fontWeight: FontWeight.bold,
@@ -313,13 +328,14 @@ class _LoginWithCodeScreenState extends State<LoginWithCodeScreen> {
         ),
         const SizedBox(height: 6),
         Text(
-          'Schritt 2 von 2 — 16-stelligen Code eingeben',
+          tr('Schritt 2 von 2 — 16-stelligen Code eingeben',
+              'Pasul 2 din 2 — introduceți codul de 16 caractere'),
           style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
           textAlign: TextAlign.center,
         ),
         const SizedBox(height: 6),
         Text(
-          'Nummer: ${_nummerC.text.trim()}',
+          '${tr('Nummer', 'Număr')}: ${_nummerC.text.trim()}',
           style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
         ),
         const SizedBox(height: 24),
@@ -349,8 +365,12 @@ class _LoginWithCodeScreenState extends State<LoginWithCodeScreen> {
         ),
         const SizedBox(height: 12),
         Text(
-          'Tipp: Sie können den vollständigen Code (mit oder ohne Bindestriche) '
-          'in ein beliebiges Feld einfügen.',
+          tr(
+            'Tipp: Sie können den vollständigen Code (mit oder ohne Bindestriche) '
+                'in ein beliebiges Feld einfügen.',
+            'Sfat: puteți lipi codul complet (cu sau fără cratime) '
+                'în oricare dintre câmpuri.',
+          ),
           style: TextStyle(
               fontSize: 10,
               color: Colors.grey.shade500,
@@ -372,7 +392,9 @@ class _LoginWithCodeScreenState extends State<LoginWithCodeScreen> {
                     child: CircularProgressIndicator(
                         strokeWidth: 2, color: Colors.white))
                 : const Icon(Icons.check_circle),
-            label: Text(_loading ? 'Aktiviere…' : 'Gerät aktivieren'),
+            label: Text(_loading
+                ? tr('Aktiviere…', 'Se activează…')
+                : tr('Gerät aktivieren', 'Activare dispozitiv')),
             onPressed: _loading ? null : _submit,
             style: FilledButton.styleFrom(
               padding: const EdgeInsets.symmetric(vertical: 14),
@@ -383,7 +405,8 @@ class _LoginWithCodeScreenState extends State<LoginWithCodeScreen> {
         const SizedBox(height: 12),
         TextButton.icon(
           icon: const Icon(Icons.arrow_back, size: 16),
-          label: const Text('Nummer ändern', style: TextStyle(fontSize: 12)),
+          label: Text(tr('Nummer ändern', 'Schimbă numărul'),
+              style: const TextStyle(fontSize: 12)),
           onPressed: _loading
               ? null
               : () {
@@ -492,7 +515,8 @@ class _LoginWithCodeScreenState extends State<LoginWithCodeScreen> {
   Future<void> _submit() async {
     final code = _blockC.map((c) => c.text.trim()).join();
     if (code.length != 16) {
-      setState(() => _error = 'Der Code muss genau 16 Zeichen enthalten');
+      setState(() => _error = tr('Der Code muss genau 16 Zeichen enthalten',
+          'Codul trebuie să conțină exact 16 caractere'));
       return;
     }
 
@@ -523,7 +547,9 @@ class _LoginWithCodeScreenState extends State<LoginWithCodeScreen> {
 
       if (result['success'] != true) {
         setState(() {
-          _error = (result['message'] ?? 'Aktivierung fehlgeschlagen').toString();
+          _error = (result['message'] ??
+                  tr('Aktivierung fehlgeschlagen', 'Activare eșuată'))
+              .toString();
           _loading = false;
         });
         return;
@@ -532,7 +558,8 @@ class _LoginWithCodeScreenState extends State<LoginWithCodeScreen> {
       final deviceKey = result['device_key']?.toString();
       if (deviceKey == null || deviceKey.isEmpty) {
         setState(() {
-          _error = 'Ungültige Server-Antwort (device_key fehlt)';
+          _error = tr('Ungültige Server-Antwort (device_key fehlt)',
+              'Răspuns invalid de la server (lipsește device_key)');
           _loading = false;
         });
         return;
@@ -556,7 +583,7 @@ class _LoginWithCodeScreenState extends State<LoginWithCodeScreen> {
       _log.error('Aktivierungsfehler: $e', tag: 'AUTH');
       if (mounted) {
         setState(() {
-          _error = 'Netzwerkfehler: $e';
+          _error = '${tr('Netzwerkfehler', 'Eroare de rețea')}: $e';
           _loading = false;
         });
       }
@@ -566,6 +593,20 @@ class _LoginWithCodeScreenState extends State<LoginWithCodeScreen> {
   // ═══════════════════════════════════════════════════════
   // Hilfsmittel
   // ═══════════════════════════════════════════════════════
+
+  /// Flagge der aktuellen Sprache oben rechts — öffnet die Sprachauswahl.
+  Widget _sprachKnopf() {
+    return IconButton(
+      key: const ValueKey('sprache_wechseln'),
+      tooltip: tr('Sprache ändern', 'Schimbă limba'),
+      icon: Flagge(code: LanguageService.instance.currentCode, breite: 28),
+      onPressed: _loading
+          ? null
+          : () => Navigator.of(context).push(MaterialPageRoute(
+                builder: (_) => const SprachauswahlScreen(allowBack: true),
+              )),
+    );
+  }
 
   Widget _errorBanner(String msg) {
     return Container(
