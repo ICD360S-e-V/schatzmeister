@@ -65,6 +65,10 @@ class MainActivity : FlutterActivity() {
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
 
+        // Jede Kopie: sensibel markiert, nach 30 s geloescht, und die App
+        // sagt es. Siehe [Zwischenablage].
+        Zwischenablage.anbinden(this, flutterEngine)
+
         // Battery optimization channel
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, BATTERY_CHANNEL).setMethodCallHandler { call, result ->
             when (call.method) {
