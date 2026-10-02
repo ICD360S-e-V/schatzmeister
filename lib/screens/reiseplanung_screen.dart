@@ -330,6 +330,15 @@ class _ReiseplanungScreenState extends State<ReiseplanungScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Entschieden wird nach der Breite, die der Bildschirm wirklich bekommt
+    // (auf dem Schreibtisch nimmt die Seitenleiste ihren Teil), nicht nach
+    // MediaQuery. Unter 600 dp: Telefon.
+    return LayoutBuilder(
+      builder: (context, constraints) => _aufbau(schmal: constraints.maxWidth < 600),
+    );
+  }
+
+  Widget _aufbau({required bool schmal}) {
     return Column(
       children: [
         // Header
@@ -346,19 +355,21 @@ class _ReiseplanungScreenState extends State<ReiseplanungScreen> {
               Icon(Icons.route, color: Colors.indigo.shade700, size: 24),
               const SizedBox(width: 8),
               // Expanded statt Text + Spacer: der rumänische Titel ist länger
-              // und lief auf dem Telefon rechts hinaus.
+              // und lief auf dem Telefon rechts hinaus. Auf dem Telefon steht
+              // die Quelle unter dem Titel — daneben blieb vom Titel nur
+              // „Planificare călăt…“.
               Expanded(
-                child: Text(
-                  tr('Reiseplanung', 'Planificare călătorii'),
-                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                  overflow: TextOverflow.ellipsis,
-                ),
+                child: schmal
+                    ? Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [_titel(), _quelle()],
+                      )
+                    : _titel(),
               ),
-              Text(
-                'Deutsche Bahn + DELFI',
-                style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
-              ),
-              const SizedBox(width: 8),
+              if (!schmal) ...[
+                _quelle(),
+                const SizedBox(width: 8),
+              ],
             ],
           ),
         ),
@@ -366,105 +377,37 @@ class _ReiseplanungScreenState extends State<ReiseplanungScreen> {
         // Search form
         Padding(
           padding: const EdgeInsets.all(16),
-          child: Row(
+          child: schmal ? _suchformularSchmal() : Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // From/To inputs
-              Expanded(
-                child: Column(
-                  children: [
-                    _buildStationInput(
-                      controller: _fromController,
-                      focusNode: _fromFocus,
-                      label: tr('Von', 'De la'),
-                      icon: Icons.trip_origin,
-                      color: Colors.green,
-                      suggestions: _fromSuggestions,
-                      showSuggestions: _showFromSuggestions,
-                      onChanged: _onFromChanged,
-                      onSelect: _selectFromStation,
-                      selectedStation: _fromStation,
-                      isSearching: _fromSearching,
-                    ),
-                    const SizedBox(height: 8),
-                    _buildStationInput(
-                      controller: _toController,
-                      focusNode: _toFocus,
-                      label: tr('Nach', 'Către'),
-                      icon: Icons.location_on,
-                      color: Colors.red,
-                      suggestions: _toSuggestions,
-                      showSuggestions: _showToSuggestions,
-                      onChanged: _onToChanged,
-                      onSelect: _selectToStation,
-                      selectedStation: _toStation,
-                      isSearching: _toSearching,
-                    ),
-                  ],
-                ),
-              ),
+              Expanded(child: _stationsfelder()),
               const SizedBox(width: 8),
               // Swap button
-              Padding(
-                padding: const EdgeInsets.only(top: 12),
-                child: IconButton(
-                  icon: const Icon(Icons.swap_vert, size: 28),
-                  tooltip: tr('Tauschen', 'Inversează'),
-                  onPressed: _swapStations,
-                  color: Colors.indigo,
-                ),
-              ),
+              _tauschknopf(),
               const SizedBox(width: 8),
               // Date/Time + Search
+              // 200 statt 180 dp: mit dem Haken des gewählten Segments blieben
+              // „Abfahrt“/„Plecare“ nur 36 dp, das Wort brach auch auf dem
+              // Schreibtisch um („Abfah|rt“). Ab 196 dp steht es in einer Zeile.
               Column(
                 children: [
                   // Departure/Arrival toggle
                   SizedBox(
-                    width: 180,
-                    child: SegmentedButton<bool>(
-                      segments: [
-                        ButtonSegment(value: true, label: Text(tr('Abfahrt', 'Plecare'), style: const TextStyle(fontSize: 12))),
-                        ButtonSegment(value: false, label: Text(tr('Ankunft', 'Sosire'), style: const TextStyle(fontSize: 12))),
-                      ],
-                      selected: {_isDeparture},
-                      onSelectionChanged: (v) => setState(() => _isDeparture = v.first),
-                      style: ButtonStyle(
-                        visualDensity: VisualDensity.compact,
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      ),
-                    ),
+                    width: 200,
+                    child: _abfahrtAnkunft(),
                   ),
                   const SizedBox(height: 8),
                   // Date/Time picker
                   SizedBox(
-                    width: 180,
-                    child: OutlinedButton.icon(
-                      icon: const Icon(Icons.access_time, size: 16),
-                      label: Text(
-                        DateFormat('dd.MM. HH:mm').format(_departureTime),
-                        style: const TextStyle(fontSize: 13),
-                      ),
-                      onPressed: _pickDateTime,
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                      ),
-                    ),
+                    width: 200,
+                    child: _zeitKnopf(),
                   ),
                   const SizedBox(height: 8),
                   // Search button
                   SizedBox(
-                    width: 180,
-                    child: FilledButton.icon(
-                      icon: _isSearching
-                          ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                          : const Icon(Icons.search, size: 18),
-                      label: Text(tr('Suchen', 'Caută')),
-                      onPressed: _isSearching ? null : () => _searchJourneys(),
-                      style: FilledButton.styleFrom(
-                        backgroundColor: Colors.indigo,
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                      ),
-                    ),
+                    width: 200,
+                    child: _suchKnopf(),
                   ),
                 ],
               ),
@@ -512,11 +455,130 @@ class _ReiseplanungScreenState extends State<ReiseplanungScreen> {
                     ],
                   ),
                 )
-              : _buildJourneyList(),
+              : _buildJourneyList(schmal: schmal),
         ),
       ],
     );
   }
+
+  Widget _titel() => Text(
+        tr('Reiseplanung', 'Planificare călătorii'),
+        style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+        overflow: TextOverflow.ellipsis,
+      );
+
+  Widget _quelle() => Text(
+        'Deutsche Bahn + DELFI',
+        style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+      );
+
+  Widget _stationsfelder() => Column(
+        children: [
+          _buildStationInput(
+            controller: _fromController,
+            focusNode: _fromFocus,
+            label: tr('Von', 'De la'),
+            icon: Icons.trip_origin,
+            color: Colors.green,
+            suggestions: _fromSuggestions,
+            showSuggestions: _showFromSuggestions,
+            onChanged: _onFromChanged,
+            onSelect: _selectFromStation,
+            selectedStation: _fromStation,
+            isSearching: _fromSearching,
+          ),
+          const SizedBox(height: 8),
+          _buildStationInput(
+            controller: _toController,
+            focusNode: _toFocus,
+            label: tr('Nach', 'Către'),
+            icon: Icons.location_on,
+            color: Colors.red,
+            suggestions: _toSuggestions,
+            showSuggestions: _showToSuggestions,
+            onChanged: _onToChanged,
+            onSelect: _selectToStation,
+            selectedStation: _toStation,
+            isSearching: _toSearching,
+          ),
+        ],
+      );
+
+  Widget _tauschknopf() => Padding(
+        padding: const EdgeInsets.only(top: 12),
+        child: IconButton(
+          icon: const Icon(Icons.swap_vert, size: 28),
+          tooltip: tr('Tauschen', 'Inversează'),
+          onPressed: _swapStations,
+          color: Colors.indigo,
+        ),
+      );
+
+  Widget _abfahrtAnkunft() => SegmentedButton<bool>(
+        segments: [
+          ButtonSegment(value: true, label: Text(tr('Abfahrt', 'Plecare'), style: const TextStyle(fontSize: 12))),
+          ButtonSegment(value: false, label: Text(tr('Ankunft', 'Sosire'), style: const TextStyle(fontSize: 12))),
+        ],
+        selected: {_isDeparture},
+        onSelectionChanged: (v) => setState(() => _isDeparture = v.first),
+        style: ButtonStyle(
+          visualDensity: VisualDensity.compact,
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        ),
+      );
+
+  Widget _zeitKnopf() => OutlinedButton.icon(
+        icon: const Icon(Icons.access_time, size: 16),
+        label: Text(
+          DateFormat('dd.MM. HH:mm').format(_departureTime),
+          style: const TextStyle(fontSize: 13),
+        ),
+        onPressed: _pickDateTime,
+        style: OutlinedButton.styleFrom(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        ),
+      );
+
+  Widget _suchKnopf() => FilledButton.icon(
+        icon: _isSearching
+            ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+            : const Icon(Icons.search, size: 18),
+        label: Text(tr('Suchen', 'Caută')),
+        onPressed: _isSearching ? null : () => _searchJourneys(),
+        style: FilledButton.styleFrom(
+          backgroundColor: Colors.indigo,
+          padding: const EdgeInsets.symmetric(vertical: 12),
+        ),
+      );
+
+  /// Telefon-Fassung des Suchformulars. Neben Tauschknopf und der 180 dp
+  /// breiten Spalte mit Abfahrt/Ankunft, Uhrzeit und „Suchen“ blieben den
+  /// Feldern „Von“ und „Nach“ auf 393 dp gut 100 dp, auf 320 dp keine 50 —
+  /// vom Bahnhof war nichts mehr zu lesen. Hier bekommen die Felder die
+  /// ganze Breite, Abfahrt/Ankunft, Uhrzeit und Suchen stehen darunter.
+  Widget _suchformularSchmal() => Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(child: _stationsfelder()),
+              const SizedBox(width: 4),
+              _tauschknopf(),
+            ],
+          ),
+          const SizedBox(height: 12),
+          _abfahrtAnkunft(),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(child: _zeitKnopf()),
+              const SizedBox(width: 8),
+              Expanded(child: _suchKnopf()),
+            ],
+          ),
+        ],
+      );
 
   // ── Station Input Widget ─────────────────────────────────────
 
@@ -567,21 +629,26 @@ class _ReiseplanungScreenState extends State<ReiseplanungScreen> {
               border: Border.all(color: Colors.grey.shade300),
               boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 8)],
             ),
-            child: ListView.builder(
-              shrinkWrap: true,
-              padding: EdgeInsets.zero,
-              itemCount: suggestions.length,
-              itemBuilder: (_, i) {
-                final s = suggestions[i];
-                return ListTile(
-                  dense: true,
-                  visualDensity: VisualDensity.compact,
-                  leading: Icon(_stationIcon(s.products), size: 18, color: Colors.grey.shade600),
-                  title: Text(s.name, style: const TextStyle(fontSize: 13)),
-                  subtitle: Text(s.productLabels, style: TextStyle(fontSize: 10, color: Colors.grey.shade500)),
-                  onTap: () => onSelect(s),
-                );
-              },
+            // Eigenes Material: ohne zeichnete der weiße Kasten über die
+            // Tintenwelle der Vorschläge (Flutter meldet das als Fehler).
+            child: Material(
+              type: MaterialType.transparency,
+              child: ListView.builder(
+                shrinkWrap: true,
+                padding: EdgeInsets.zero,
+                itemCount: suggestions.length,
+                itemBuilder: (_, i) {
+                  final s = suggestions[i];
+                  return ListTile(
+                    dense: true,
+                    visualDensity: VisualDensity.compact,
+                    leading: Icon(_stationIcon(s.products), size: 18, color: Colors.grey.shade600),
+                    title: Text(s.name, style: const TextStyle(fontSize: 13)),
+                    subtitle: Text(s.productLabels, style: TextStyle(fontSize: 10, color: Colors.grey.shade500)),
+                    onTap: () => onSelect(s),
+                  );
+                },
+              ),
             ),
           ),
       ],
@@ -600,7 +667,7 @@ class _ReiseplanungScreenState extends State<ReiseplanungScreen> {
 
   // ── Journey Results List ─────────────────────────────────────
 
-  Widget _buildJourneyList() {
+  Widget _buildJourneyList({required bool schmal}) {
     return Column(
       children: [
         // Earlier button
@@ -614,7 +681,7 @@ class _ReiseplanungScreenState extends State<ReiseplanungScreen> {
           child: ListView.builder(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
             itemCount: _journeys.length,
-            itemBuilder: (_, i) => _buildJourneyCard(_journeys[i]),
+            itemBuilder: (_, i) => _buildJourneyCard(_journeys[i], schmal: schmal),
           ),
         ),
         // Later button
@@ -631,7 +698,7 @@ class _ReiseplanungScreenState extends State<ReiseplanungScreen> {
     );
   }
 
-  Widget _buildJourneyCard(_Journey journey) {
+  Widget _buildJourneyCard(_Journey journey, {required bool schmal}) {
     final df = DateFormat('HH:mm');
     final duration = journey.arrival.difference(journey.departure);
     final hours = duration.inHours;
@@ -649,69 +716,131 @@ class _ReiseplanungScreenState extends State<ReiseplanungScreen> {
         childrenPadding: const EdgeInsets.fromLTRB(14, 0, 14, 12),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         // Header: times + duration + transfers
-        title: Row(
-          children: [
-            // Departure time
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+        title: schmal
+            ? _verbindungsKopfSchmal(journey, durationStr, transitLegs, transfers)
+            : Row(
               children: [
-                Text(df.format(journey.departure), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                Text(journey.legs.first.originName, style: TextStyle(fontSize: 10, color: Colors.grey.shade600), overflow: TextOverflow.ellipsis),
-              ],
-            ),
-            const SizedBox(width: 12),
-            // Arrow + product icons
-            Expanded(
-              child: Column(
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
+                // Departure time
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(df.format(journey.departure), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                    Text(journey.legs.first.originName, style: TextStyle(fontSize: 10, color: Colors.grey.shade600), overflow: TextOverflow.ellipsis),
+                  ],
+                ),
+                const SizedBox(width: 12),
+                // Arrow + product icons
+                Expanded(
+                  child: Column(
                     children: [
-                      ...transitLegs.take(4).map((l) => Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 2),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: _legColor(l.mode),
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Text(
-                            l.lineName ?? l.mode ?? '?',
-                            style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white),
-                          ),
-                        ),
-                      )),
+                      // Wrap statt Row: vier Linien passten auf einem schmalen
+                      // Tablet (600 dp) nicht in eine Zeile und liefen hinaus.
+                      Wrap(
+                        alignment: WrapAlignment.center,
+                        runSpacing: 2,
+                        children: [
+                          ...transitLegs.take(4).map((l) => Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 2),
+                            child: _linie(l),
+                          )),
+                        ],
+                      ),
+                      const SizedBox(height: 2),
+                      Row(
+                        children: [
+                          Expanded(child: Divider(color: Colors.grey.shade300)),
+                          Icon(Icons.arrow_forward, size: 14, color: Colors.grey.shade400),
+                          Expanded(child: Divider(color: Colors.grey.shade300)),
+                        ],
+                      ),
+                      Text(
+                        '$durationStr • ${transfers == 0 ? tr('Direkt', 'Direct') : '$transfers ${transfers == 1 ? tr('Umstieg', 'schimbare') : tr('Umstiege', 'schimbări')}'}',
+                        style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
+                      ),
                     ],
                   ),
-                  const SizedBox(height: 2),
-                  Row(
-                    children: [
-                      Expanded(child: Divider(color: Colors.grey.shade300)),
-                      Icon(Icons.arrow_forward, size: 14, color: Colors.grey.shade400),
-                      Expanded(child: Divider(color: Colors.grey.shade300)),
-                    ],
-                  ),
-                  Text(
-                    '$durationStr • ${transfers == 0 ? tr('Direkt', 'Direct') : '$transfers ${transfers == 1 ? tr('Umstieg', 'schimbare') : tr('Umstiege', 'schimbări')}'}',
-                    style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 12),
-            // Arrival time
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(df.format(journey.arrival), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                Text(journey.legs.last.destinationName, style: TextStyle(fontSize: 10, color: Colors.grey.shade600), overflow: TextOverflow.ellipsis),
+                ),
+                const SizedBox(width: 12),
+                // Arrival time
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(df.format(journey.arrival), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                    Text(journey.legs.last.destinationName, style: TextStyle(fontSize: 10, color: Colors.grey.shade600), overflow: TextOverflow.ellipsis),
+                  ],
+                ),
               ],
             ),
-          ],
-        ),
         // Expanded: leg details
         children: journey.legs.map((leg) => _buildLegRow(leg)).toList(),
       ),
+    );
+  }
+
+  /// Farbiges Kästchen mit dem Namen einer Linie („ICE 597“).
+  Widget _linie(_Leg l) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+        decoration: BoxDecoration(
+          color: _legColor(l.mode),
+          borderRadius: BorderRadius.circular(4),
+        ),
+        child: Text(
+          l.lineName ?? l.mode ?? '?',
+          style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white),
+        ),
+      );
+
+  /// Telefon-Fassung des Kartenkopfs. In einer Zeile nahmen Abfahrts- und
+  /// Zielort (ohne Breitengrenze) fast alles, die Mitte schrumpfte auf
+  /// einen Buchstaben je Zeile („2 h 2 1 m i n“) und die Linien liefen
+  /// hinaus. Hier: Zeiten mit Pfeil, darunter beide Orte je zur Hälfte,
+  /// darunter Linien und Dauer.
+  Widget _verbindungsKopfSchmal(_Journey journey, String durationStr, List<_Leg> transitLegs, int transfers) {
+    final df = DateFormat('HH:mm');
+    const zeitStil = TextStyle(fontSize: 18, fontWeight: FontWeight.bold);
+    final ortStil = TextStyle(fontSize: 10, color: Colors.grey.shade600);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            Text(df.format(journey.departure), style: zeitStil),
+            const SizedBox(width: 8),
+            Expanded(child: Divider(color: Colors.grey.shade300)),
+            Icon(Icons.arrow_forward, size: 14, color: Colors.grey.shade400),
+            Expanded(child: Divider(color: Colors.grey.shade300)),
+            const SizedBox(width: 8),
+            Text(df.format(journey.arrival), style: zeitStil),
+          ],
+        ),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: Text(journey.legs.first.originName,
+                  style: ortStil, maxLines: 2, overflow: TextOverflow.ellipsis),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(journey.legs.last.destinationName,
+                  style: ortStil, textAlign: TextAlign.end, maxLines: 2, overflow: TextOverflow.ellipsis),
+            ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        Wrap(
+          spacing: 4,
+          runSpacing: 4,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            ...transitLegs.take(4).map(_linie),
+            Text(
+              '$durationStr • ${transfers == 0 ? tr('Direkt', 'Direct') : '$transfers ${transfers == 1 ? tr('Umstieg', 'schimbare') : tr('Umstiege', 'schimbări')}'}',
+              style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
+            ),
+          ],
+        ),
+      ],
     );
   }
 
@@ -727,9 +856,11 @@ class _ReiseplanungScreenState extends State<ReiseplanungScreen> {
             const SizedBox(width: 50),
             Icon(Icons.directions_walk, size: 16, color: Colors.grey.shade500),
             const SizedBox(width: 8),
-            Text(
-              '${tr('Fußweg', 'Pe jos')}${durMins > 0 ? ' ($durMins min)' : ''}${leg.walkingDistance != null ? ' • ${leg.walkingDistance} m' : ''}',
-              style: TextStyle(fontSize: 12, color: Colors.grey.shade600, fontStyle: FontStyle.italic),
+            Flexible(
+              child: Text(
+                '${tr('Fußweg', 'Pe jos')}${durMins > 0 ? ' ($durMins min)' : ''}${leg.walkingDistance != null ? ' • ${leg.walkingDistance} m' : ''}',
+                style: TextStyle(fontSize: 12, color: Colors.grey.shade600, fontStyle: FontStyle.italic),
+              ),
             ),
           ],
         ),

@@ -173,27 +173,21 @@ class _VereinverwaltungScreenState extends State<VereinverwaltungScreen> {
     final l = AppLocalizations.of(context);
 
     // Default overview
-    return Padding(
-      padding: const EdgeInsets.all(24.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header
-          Row(
-            children: [
-              Icon(Icons.apartment, size: 32, color: Colors.blue.shade700),
-              const SizedBox(width: 12),
-              Text(
-                l.vereinverwaltungTitle,
-                style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-              ),
-            ],
-          ),
-          const SizedBox(height: 24),
-
+    return _seite(
+      icon: Icons.apartment,
+      iconFarbe: Colors.blue.shade700,
+      titel: l.vereinverwaltungTitle,
+      inhalt: (breite) => breite < 900
+          ? _kartenListe([
+              _buildBehoerdenCard(),
+              _buildPartnerCard(),
+              _buildNotarCard(),
+              _buildBankenCard(),
+              _buildVorstandCard(),
+              _buildOrdnungsmassnahmenCard(),
+            ], breite)
           // 3-column grid
-          Expanded(
-            child: Column(
+          : Column(
               children: [
                 // Row 1
                 Expanded(
@@ -225,9 +219,97 @@ class _VereinverwaltungScreenState extends State<VereinverwaltungScreen> {
                 ),
               ],
             ),
+    );
+  }
+
+  // ==================== LAYOUT (Telefon, Tablet, Schreibtisch) ====================
+
+  /// Rahmen jeder Ansicht: Kopfzeile über dem Inhalt. Entscheidend ist die
+  /// Breite, die der Bildschirm wirklich bekommt (auf dem Schreibtisch nimmt
+  /// die Seitenleiste Platz weg), daher LayoutBuilder statt MediaQuery.
+  /// Ab 600 dp wie bisher. Auf dem Telefon schmalerer Rand, 20er Titel und
+  /// neben dem Zurück-Pfeil kein Zierbild — sonst bricht z. B.
+  /// „IT-Beschaffungsplattform“ auf 320 dp mitten im Wort um.
+  Widget _seite({
+    VoidCallback? zurueck,
+    String? zurueckTooltip,
+    required IconData icon,
+    required Color iconFarbe,
+    required String titel,
+    required Widget Function(double breite) inhalt,
+  }) {
+    return LayoutBuilder(
+      // Jede Ansicht frisch aufbauen: alle Ansichten haben jetzt denselben
+      // Aufbau, ohne Schlüssel übernähme z. B. die Vorstandsliste die
+      // Scrollposition der Übersicht oder eine Karte den Tipp-Effekt der
+      // Karte, die an derselben Stelle angetippt wurde.
+      key: ValueKey(_vereinSubview),
+      builder: (context, constraints) {
+        final breite = constraints.maxWidth;
+        final telefon = breite < 600;
+        return Padding(
+          padding: EdgeInsets.all(telefon ? 16.0 : 24.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header
+              Row(
+                children: [
+                  if (zurueck != null) ...[
+                    IconButton(
+                      icon: const Icon(Icons.arrow_back),
+                      onPressed: zurueck,
+                      tooltip: zurueckTooltip,
+                    ),
+                    const SizedBox(width: 8),
+                  ],
+                  if (zurueck == null || !telefon) ...[
+                    Icon(icon, size: 32, color: iconFarbe),
+                    const SizedBox(width: 12),
+                  ],
+                  Flexible(
+                    child: Text(
+                      titel,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(fontSize: telefon ? 20 : 24, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ],
+              ),
+              SizedBox(height: telefon ? 16 : 24),
+              Expanded(child: inhalt(breite)),
+            ],
           ),
+        );
+      },
+    );
+  }
+
+  /// Unter 900 dp: die Karten mit ihrer natürlichen Höhe untereinander, die
+  /// Seite scrollt — statt dreier Spalten, in denen die Titel Buchstabe für
+  /// Buchstabe umbrachen und die Karten unten hinausliefen. Ab 700 dp zwei
+  /// nebeneinander (schmaler bräche „Beschaffungsplattform“ mitten im Wort).
+  Widget _kartenListe(List<Widget> karten, double breite) {
+    final spalten = breite >= 700 ? 2 : 1;
+    final abstand = breite < 600 ? 12.0 : 16.0;
+    return ListView(
+      children: [
+        for (var i = 0; i < karten.length; i += spalten) ...[
+          if (i > 0) SizedBox(height: abstand),
+          if (spalten == 1)
+            karten[i]
+          else
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(child: karten[i]),
+                SizedBox(width: abstand),
+                Expanded(child: i + 1 < karten.length ? karten[i + 1] : const SizedBox()),
+              ],
+            ),
         ],
-      ),
+      ],
     );
   }
 
@@ -303,56 +385,50 @@ class _VereinverwaltungScreenState extends State<VereinverwaltungScreen> {
 
   Widget _buildPartnerDetailView() {
     final l = AppLocalizations.of(context);
-    return Padding(
-      padding: const EdgeInsets.all(24.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header with back button
-          Row(
-            children: [
-              IconButton(
-                icon: const Icon(Icons.arrow_back),
-                onPressed: () => setState(() => _vereinSubview = 'overview'),
-                tooltip: l.backToOverview,
-              ),
-              const SizedBox(width: 8),
-              Icon(Icons.handshake, size: 32, color: Colors.green.shade700),
-              const SizedBox(width: 12),
-              Text(
-                l.partnersAndProviders,
-                style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-              ),
-            ],
-          ),
-          const SizedBox(height: 24),
-          Expanded(
-            child: Row(
+    // Header with back button
+    return _seite(
+      zurueck: () => setState(() => _vereinSubview = 'overview'),
+      zurueckTooltip: l.backToOverview,
+      icon: Icons.handshake,
+      iconFarbe: Colors.green.shade700,
+      titel: l.partnersAndProviders,
+      inhalt: (breite) => breite < 900
+          ? _kartenListe([
+              _buildDeutschePostCard(),
+              _buildHetznerCard(),
+              _buildInwxCard(),
+              _buildITBeschaffungCard(),
+            ], breite)
+          : Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(child: _buildDeutschePostCard()),
-                const SizedBox(width: 16),
-                Expanded(child: _buildHetznerCard()),
-                const SizedBox(width: 16),
-                Expanded(child: _buildInwxCard()),
+                Expanded(
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(child: _buildDeutschePostCard()),
+                      const SizedBox(width: 16),
+                      Expanded(child: _buildHetznerCard()),
+                      const SizedBox(width: 16),
+                      Expanded(child: _buildInwxCard()),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Expanded(
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(child: _buildITBeschaffungCard()),
+                      const SizedBox(width: 16),
+                      const Expanded(child: SizedBox()), // Placeholder
+                      const SizedBox(width: 16),
+                      const Expanded(child: SizedBox()),
+                    ],
+                  ),
+                ),
               ],
             ),
-          ),
-          const SizedBox(height: 16),
-          Expanded(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(child: _buildITBeschaffungCard()),
-                const SizedBox(width: 16),
-                const Expanded(child: SizedBox()), // Placeholder
-                const SizedBox(width: 16),
-                const Expanded(child: SizedBox()),
-              ],
-            ),
-          ),
-        ],
-      ),
     );
   }
 
@@ -404,86 +480,51 @@ class _VereinverwaltungScreenState extends State<VereinverwaltungScreen> {
     final l = AppLocalizations.of(context);
     final notarEntries = _getByKategorie('notar');
 
-    return Padding(
-      padding: const EdgeInsets.all(24.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              IconButton(
-                icon: const Icon(Icons.arrow_back),
-                onPressed: () => setState(() => _vereinSubview = 'overview'),
-                tooltip: l.backToOverview,
-              ),
-              const SizedBox(width: 8),
-              Icon(Icons.gavel, size: 32, color: Colors.deepOrange.shade700),
-              const SizedBox(width: 12),
-              Text(
-                l.notarTitle,
-                style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-              ),
-            ],
-          ),
-          const SizedBox(height: 24),
-          Expanded(
-            child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : notarEntries.isEmpty
-                    ? Center(child: Text(l.noNotarData))
-                    : ListView.builder(
-                        itemCount: notarEntries.length,
-                        itemBuilder: (context, index) {
-                          final n = notarEntries[index];
-                          return _buildContactCard(
-                            icon: Icons.gavel,
-                            color: Colors.deepOrange,
-                            name: n['name'] ?? '',
-                            name2: n['name2'],
-                            strasse: n['strasse'],
-                            hausnummer: n['hausnummer'],
-                            plz: n['plz'],
-                            ort: n['ort'],
-                            telefon: n['telefon'],
-                            fax: n['fax'],
-                            email: n['email'],
-                            website: n['website'],
-                            notizen: n['notizen'],
-                          );
-                        },
-                      ),
-          ),
-        ],
-      ),
+    return _seite(
+      zurueck: () => setState(() => _vereinSubview = 'overview'),
+      zurueckTooltip: l.backToOverview,
+      icon: Icons.gavel,
+      iconFarbe: Colors.deepOrange.shade700,
+      titel: l.notarTitle,
+      inhalt: (_) => _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : notarEntries.isEmpty
+              ? Center(child: Text(l.noNotarData))
+              : ListView.builder(
+                  itemCount: notarEntries.length,
+                  itemBuilder: (context, index) {
+                    final n = notarEntries[index];
+                    return _buildContactCard(
+                      icon: Icons.gavel,
+                      color: Colors.deepOrange,
+                      name: n['name'] ?? '',
+                      name2: n['name2'],
+                      strasse: n['strasse'],
+                      hausnummer: n['hausnummer'],
+                      plz: n['plz'],
+                      ort: n['ort'],
+                      telefon: n['telefon'],
+                      fax: n['fax'],
+                      email: n['email'],
+                      website: n['website'],
+                      notizen: n['notizen'],
+                    );
+                  },
+                ),
     );
   }
 
   Widget _buildBankenDetailView() {
     final l = AppLocalizations.of(context);
-    return Padding(
-      padding: const EdgeInsets.all(24.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              IconButton(
-                icon: const Icon(Icons.arrow_back),
-                onPressed: () => setState(() => _vereinSubview = 'overview'),
-                tooltip: l.backToOverview,
-              ),
-              const SizedBox(width: 8),
-              Icon(Icons.account_balance, size: 32, color: Colors.amber.shade700),
-              const SizedBox(width: 12),
-              Text(
-                l.banksTitle,
-                style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-              ),
-            ],
-          ),
-          const SizedBox(height: 24),
-          Expanded(
-            child: Row(
+    return _seite(
+      zurueck: () => setState(() => _vereinSubview = 'overview'),
+      zurueckTooltip: l.backToOverview,
+      icon: Icons.account_balance,
+      iconFarbe: Colors.amber.shade700,
+      titel: l.banksTitle,
+      inhalt: (breite) => breite < 900
+          ? _kartenListe([_buildVolksbankCard(), _buildGlsBankCard()], breite)
+          : Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Expanded(child: _buildVolksbankCard()),
@@ -493,9 +534,6 @@ class _VereinverwaltungScreenState extends State<VereinverwaltungScreen> {
                 const Expanded(child: SizedBox()),
               ],
             ),
-          ),
-        ],
-      ),
     );
   }
 
@@ -527,186 +565,118 @@ class _VereinverwaltungScreenState extends State<VereinverwaltungScreen> {
         ['vorsitzer', 'schatzmeister', 'kassierer', 'mitgliedergrunder'].contains(u.role)
     ).toList();
 
-    return Padding(
-      padding: const EdgeInsets.all(24.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              IconButton(
-                icon: const Icon(Icons.arrow_back),
-                onPressed: () => setState(() => _vereinSubview = 'overview'),
-                tooltip: l.backToOverview,
-              ),
-              const SizedBox(width: 8),
-              Icon(Icons.people, size: 32, color: Colors.purple.shade700),
-              const SizedBox(width: 12),
-              Text(
-                l.boardTitle,
-                style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-              ),
-            ],
-          ),
-          const SizedBox(height: 24),
-          Expanded(
-            child: adminUsers.isEmpty
-                ? Center(child: Text(l.noBoardMembers))
-                : ListView.builder(
-                    itemCount: adminUsers.length,
-                    itemBuilder: (context, index) {
-                      final user = adminUsers[index];
-                      return Card(
-                        elevation: 2,
-                        margin: const EdgeInsets.only(bottom: 12),
-                        child: ListTile(
-                          leading: CircleAvatar(
-                            backgroundColor: widget.getRoleColor(user.role),
-                            child: Text(
-                              user.name.isNotEmpty ? user.name[0].toUpperCase() : '?',
-                              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-                            ),
-                          ),
-                          title: Text(user.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-                          subtitle: Text('${widget.getRoleText(user.role)} (${user.mitgliedernummer})'),
-                          trailing: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: user.isActive ? Colors.green.shade100 : Colors.orange.shade100,
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Text(
-                              user.isActive ? l.active : user.status,
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: user.isActive ? Colors.green.shade800 : Colors.orange.shade800,
-                              ),
-                            ),
-                          ),
+    return _seite(
+      zurueck: () => setState(() => _vereinSubview = 'overview'),
+      zurueckTooltip: l.backToOverview,
+      icon: Icons.people,
+      iconFarbe: Colors.purple.shade700,
+      titel: l.boardTitle,
+      inhalt: (_) => adminUsers.isEmpty
+          ? Center(child: Text(l.noBoardMembers))
+          : ListView.builder(
+              itemCount: adminUsers.length,
+              itemBuilder: (context, index) {
+                final user = adminUsers[index];
+                return Card(
+                  elevation: 2,
+                  margin: const EdgeInsets.only(bottom: 12),
+                  child: ListTile(
+                    leading: CircleAvatar(
+                      backgroundColor: widget.getRoleColor(user.role),
+                      child: Text(
+                        user.name.isNotEmpty ? user.name[0].toUpperCase() : '?',
+                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    title: Text(user.name, style: const TextStyle(fontWeight: FontWeight.bold)),
+                    subtitle: Text('${widget.getRoleText(user.role)} (${user.mitgliedernummer})'),
+                    trailing: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: user.isActive ? Colors.green.shade100 : Colors.orange.shade100,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        user.isActive ? l.active : user.status,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: user.isActive ? Colors.green.shade800 : Colors.orange.shade800,
                         ),
-                      );
-                    },
+                      ),
+                    ),
                   ),
-          ),
-        ],
-      ),
+                );
+              },
+            ),
     );
   }
 
   Widget _buildHetznerDetailView() {
     final l = AppLocalizations.of(context);
-    return Padding(
-      padding: const EdgeInsets.all(24.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              IconButton(
-                icon: const Icon(Icons.arrow_back),
-                onPressed: () => setState(() => _vereinSubview = 'partner'),
-                tooltip: l.backToPartner,
-              ),
-              const SizedBox(width: 8),
-              Icon(Icons.dns, size: 32, color: Colors.red.shade700),
-              const SizedBox(width: 12),
-              const Text(
-                'Hetzner',
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-              ),
-            ],
-          ),
-          const SizedBox(height: 24),
-          Expanded(
-            child: _buildInfoCard(
-              icon: Icons.cloud,
-              title: l.hetznerServices,
-              color: Colors.red,
-              items: [
-                'Dedicated Server: 148.251.68.9 (Proxmox)',
-                'Cloud Storage',
-                'Backup Solutions',
-                tr('Rechnungen & Verträge', 'Facturi și contracte'),
-                tr('Support-Tickets', 'Tichete de suport'),
-              ],
-            ),
-          ),
-        ],
-      ),
+    final karte = _buildInfoCard(
+      icon: Icons.cloud,
+      title: l.hetznerServices,
+      color: Colors.red,
+      items: [
+        'Dedicated Server: 148.251.68.9 (Proxmox)',
+        'Cloud Storage',
+        'Backup Solutions',
+        tr('Rechnungen & Verträge', 'Facturi și contracte'),
+        tr('Support-Tickets', 'Tichete de suport'),
+      ],
+    );
+    return _seite(
+      zurueck: () => setState(() => _vereinSubview = 'partner'),
+      zurueckTooltip: l.backToPartner,
+      icon: Icons.dns,
+      iconFarbe: Colors.red.shade700,
+      titel: 'Hetzner',
+      // Unter 900 dp in natürlicher Höhe statt über die ganze Höhe gezogen.
+      inhalt: (breite) => breite < 900 ? SingleChildScrollView(child: karte) : karte,
     );
   }
 
   Widget _buildInwxDetailView() {
     final l = AppLocalizations.of(context);
-    return Padding(
-      padding: const EdgeInsets.all(24.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              IconButton(
-                icon: const Icon(Icons.arrow_back),
-                onPressed: () => setState(() => _vereinSubview = 'partner'),
-                tooltip: l.backToPartner,
-              ),
-              const SizedBox(width: 8),
-              Icon(Icons.language, size: 32, color: Colors.blueGrey.shade700),
-              const SizedBox(width: 12),
-              const Text(
-                'INWX',
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-              ),
-            ],
-          ),
-          const SizedBox(height: 24),
-          Expanded(
-            child: _buildInfoCard(
-              icon: Icons.dns,
-              title: l.inwxDomainServices,
-              color: Colors.blueGrey,
-              items: [
-                tr('Domain: icd360s.de', 'Domeniu: icd360s.de'),
-                tr('DNS-Verwaltung', 'Administrare DNS'),
-                tr('SSL-Zertifikate', 'Certificate SSL'),
-                tr('E-Mail-Weiterleitungen', 'Redirecționări e-mail'),
-                tr('Nameserver-Einstellungen', 'Setări nameserver'),
-              ],
-            ),
-          ),
-        ],
-      ),
+    final karte = _buildInfoCard(
+      icon: Icons.dns,
+      title: l.inwxDomainServices,
+      color: Colors.blueGrey,
+      items: [
+        tr('Domain: icd360s.de', 'Domeniu: icd360s.de'),
+        tr('DNS-Verwaltung', 'Administrare DNS'),
+        tr('SSL-Zertifikate', 'Certificate SSL'),
+        tr('E-Mail-Weiterleitungen', 'Redirecționări e-mail'),
+        tr('Nameserver-Einstellungen', 'Setări nameserver'),
+      ],
+    );
+    return _seite(
+      zurueck: () => setState(() => _vereinSubview = 'partner'),
+      zurueckTooltip: l.backToPartner,
+      icon: Icons.language,
+      iconFarbe: Colors.blueGrey.shade700,
+      titel: 'INWX',
+      inhalt: (breite) => breite < 900 ? SingleChildScrollView(child: karte) : karte,
     );
   }
 
   Widget _buildITBeschaffungDetailView() {
     final l = AppLocalizations.of(context);
-    return Padding(
-      padding: const EdgeInsets.all(24.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header with back button
-          Row(
-            children: [
-              IconButton(
-                icon: const Icon(Icons.arrow_back),
-                onPressed: () => setState(() => _vereinSubview = 'partner'),
-                tooltip: l.backToPartner,
-              ),
-              const SizedBox(width: 8),
-              Icon(Icons.computer, size: 32, color: Colors.deepPurple.shade700),
-              const SizedBox(width: 12),
-              Text(
-                l.itProcurementPlatform,
-                style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-              ),
-            ],
-          ),
-          const SizedBox(height: 24),
-          // Stifter-helfen Card (clickable)
-          Expanded(
-            child: Row(
+    // Header with back button
+    return _seite(
+      zurueck: () => setState(() => _vereinSubview = 'partner'),
+      zurueckTooltip: l.backToPartner,
+      icon: Icons.computer,
+      iconFarbe: Colors.deepPurple.shade700,
+      titel: l.itProcurementPlatform,
+      // Stifter-helfen Card (clickable)
+      inhalt: (breite) => breite < 900
+          ? _kartenListe([
+              _buildStifterHelfenClickableCard(),
+              _buildGoogleNonprofitClickableCard(),
+              _buildMicrosoftNonprofitClickableCard(),
+            ], breite)
+          : Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Expanded(child: _buildStifterHelfenClickableCard()),
@@ -716,9 +686,6 @@ class _VereinverwaltungScreenState extends State<VereinverwaltungScreen> {
                 Expanded(child: _buildMicrosoftNonprofitClickableCard()),
               ],
             ),
-          ),
-        ],
-      ),
     );
   }
 
@@ -770,65 +737,45 @@ class _VereinverwaltungScreenState extends State<VereinverwaltungScreen> {
 
   Widget _buildStifterHelfenDetailView() {
     final l = AppLocalizations.of(context);
-    return Padding(
-      padding: const EdgeInsets.all(24.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              IconButton(
-                icon: const Icon(Icons.arrow_back),
-                onPressed: () => setState(() => _vereinSubview = 'it-beschaffung'),
-                tooltip: l.backToITDesc,
-              ),
-              const SizedBox(width: 8),
-              Icon(Icons.volunteer_activism, size: 32, color: Colors.deepPurple.shade700),
-              const SizedBox(width: 12),
-              const Text(
-                'Stifter-helfen.de',
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-              ),
-            ],
-          ),
-          const SizedBox(height: 24),
-          Expanded(
-            child: SingleChildScrollView(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildInfoCard(
-                    icon: Icons.card_giftcard,
-                    title: l.softwareDonations,
-                    color: Colors.deepPurple,
-                    items: [
-                      tr('Microsoft 365 (bis zu 90% Rabatt)',
-                          'Microsoft 365 (reducere de până la 90%)'),
-                      tr('Adobe Creative Cloud (65% Rabatt)',
-                          'Adobe Creative Cloud (reducere de 65%)'),
-                      'Dropbox Business',
-                      'Zoom Pro/Business',
-                      'Slack',
-                      'Canva Pro',
-                      'Asana Business',
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  ElevatedButton.icon(
-                    onPressed: () => _launchURL('https://www.stifter-helfen.de'),
-                    icon: const Icon(Icons.open_in_new),
-                    label: Text(l.openStifterHelfen),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.deepPurple,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                    ),
-                  ),
-                ],
+    return _seite(
+      zurueck: () => setState(() => _vereinSubview = 'it-beschaffung'),
+      zurueckTooltip: l.backToITDesc,
+      icon: Icons.volunteer_activism,
+      iconFarbe: Colors.deepPurple.shade700,
+      titel: 'Stifter-helfen.de',
+      inhalt: (_) => SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildInfoCard(
+              icon: Icons.card_giftcard,
+              title: l.softwareDonations,
+              color: Colors.deepPurple,
+              items: [
+                tr('Microsoft 365 (bis zu 90% Rabatt)',
+                    'Microsoft 365 (reducere de până la 90%)'),
+                tr('Adobe Creative Cloud (65% Rabatt)',
+                    'Adobe Creative Cloud (reducere de 65%)'),
+                'Dropbox Business',
+                'Zoom Pro/Business',
+                'Slack',
+                'Canva Pro',
+                'Asana Business',
+              ],
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton.icon(
+              onPressed: () => _launchURL('https://www.stifter-helfen.de'),
+              icon: const Icon(Icons.open_in_new),
+              label: Text(l.openStifterHelfen),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.deepPurple,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -886,9 +833,11 @@ class _VereinverwaltungScreenState extends State<VereinverwaltungScreen> {
                     children: [
                       Icon(Icons.task_alt, size: 14, color: badgeColor ?? Colors.orange),
                       const SizedBox(width: 4),
-                      Text(
-                        badge,
-                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: badgeColor ?? Colors.orange),
+                      Flexible(
+                        child: Text(
+                          badge,
+                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: badgeColor ?? Colors.orange),
+                        ),
                       ),
                     ],
                   ),

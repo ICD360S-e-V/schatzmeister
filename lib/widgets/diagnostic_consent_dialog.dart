@@ -11,11 +11,14 @@ class DiagnosticConsentDialog extends StatelessWidget {
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context);
     return AlertDialog(
+      // Kleine Telefone (320 × 640 dp): Frage, drei Punkte und Hinweis sind
+      // höher als der Platz — der Inhalt scrollt, statt unten abzureißen.
+      scrollable: true,
       title: Row(
         children: [
           Icon(Icons.analytics_outlined, color: Colors.blue.shade700),
           const SizedBox(width: 12),
-          Text(l.diagnosticData),
+          Flexible(child: Text(l.diagnosticData)),
         ],
       ),
       content: ConstrainedBox(

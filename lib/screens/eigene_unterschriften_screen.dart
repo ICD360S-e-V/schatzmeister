@@ -461,16 +461,24 @@ class _EigeneUnterschriftLeistenScreenState
                   if (zurueck != null)
                     TextButton(
                         onPressed: zurueck, child: Text(tr('Zurück', 'Înapoi'))),
-                  const Spacer(),
-                  FilledButton(
-                    onPressed: weiter,
-                    child: _sendet
-                        ? const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : Text(weiterText),
+                  // Der Weiter-Knopf nimmt den Rest der Zeile und darf
+                  // umbrechen: „Rechtsverbindlich unterschreiben“ lief neben
+                  // „Zurück“ auf 320 dp um 33 dp hinaus. Passt er, steht er
+                  // rechts wie bisher.
+                  Expanded(
+                    child: Align(
+                      alignment: Alignment.centerRight,
+                      child: FilledButton(
+                        onPressed: weiter,
+                        child: _sendet
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              )
+                            : Text(weiterText, textAlign: TextAlign.center),
+                      ),
+                    ),
                   ),
                 ],
               ),

@@ -9,78 +9,95 @@ class GlsBankScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Nach der Breite, die der Bildschirm wirklich bekommt (auf dem
+    // Schreibtisch nimmt die Seitenleiste Platz weg), nicht nach MediaQuery.
+    return LayoutBuilder(builder: (context, c) => _seite(c.maxWidth));
+  }
+
+  Widget _seite(double breite) {
+    // Schreibtisch (≥ 900 dp): je zwei Karten nebeneinander wie bisher.
+    // Darunter alle Karten untereinander in voller Breite; auf dem Telefon
+    // (< 600 dp) schmalerer Rand und Abstand wie im Dashboard.
+    final nebeneinander = breite >= 900;
+    final telefon = breite < 600;
+    final abstand = telefon ? 8.0 : 16.0;
     return Padding(
-      padding: const EdgeInsets.all(24.0),
+      padding: EdgeInsets.all(telefon ? 12.0 : 24.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header
-          Row(
-            children: [
-              IconButton(
-                icon: const Icon(Icons.arrow_back),
-                onPressed: onBack,
-                tooltip: tr('Zurück zu Banken', 'Înapoi la bănci'),
-              ),
-              const SizedBox(width: 8),
-              Icon(Icons.eco, size: 32, color: Colors.green.shade700),
-              const SizedBox(width: 12),
-              const Text(
-                'GLS Bank',
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-              ),
-              const Spacer(),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: Colors.green.shade50,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.green.shade200),
-                ),
-                child: Row(
+          // Header — reicht die Breite nicht, rutscht das Schild unter den Titel
+          SizedBox(
+            width: double.infinity,
+            child: Wrap(
+              alignment: WrapAlignment.spaceBetween,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: 12,
+              runSpacing: 4,
+              children: [
+                Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.eco, size: 14, color: Colors.green.shade700),
-                    const SizedBox(width: 4),
-                    Text(
-                      tr('Nachhaltige Bank', 'Bancă sustenabilă'),
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.green.shade700,
+                    IconButton(
+                      icon: const Icon(Icons.arrow_back),
+                      onPressed: onBack,
+                      tooltip: tr('Zurück zu Banken', 'Înapoi la bănci'),
+                    ),
+                    const SizedBox(width: 8),
+                    Icon(Icons.eco, size: 32, color: Colors.green.shade700),
+                    const SizedBox(width: 12),
+                    const Flexible(
+                      child: Text(
+                        'GLS Bank',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
                       ),
                     ),
                   ],
                 ),
-              ),
-            ],
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.green.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.green.shade200),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.eco, size: 14, color: Colors.green.shade700),
+                      const SizedBox(width: 4),
+                      Flexible(
+                        child: Text(
+                          tr('Nachhaltige Bank', 'Bancă sustenabilă'),
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.green.shade700,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
-          const SizedBox(height: 24),
-          // Content - 2x2 grid + Nachhaltigkeit row
+          SizedBox(height: telefon ? 12 : 24),
+          // Content - 2x2 grid + Nachhaltigkeit row (schmal: untereinander)
           Expanded(
             child: SingleChildScrollView(
               child: Column(
                 children: [
                   // Row 1: Kontoinformationen + Karten
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(child: _buildKontoinformationenCard()),
-                      const SizedBox(width: 16),
-                      Expanded(child: _buildKartenCard()),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
+                  _kartenPaar(_buildKontoinformationenCard(), _buildKartenCard(),
+                      nebeneinander: nebeneinander, abstand: abstand),
+                  SizedBox(height: abstand),
                   // Row 2: Zahlungsverkehr + Konditionen
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(child: _buildZahlungsverkehrCard()),
-                      const SizedBox(width: 16),
-                      Expanded(child: _buildKonditionenCard()),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
+                  _kartenPaar(_buildZahlungsverkehrCard(), _buildKonditionenCard(),
+                      nebeneinander: nebeneinander, abstand: abstand),
+                  SizedBox(height: abstand),
                   // Row 3: Nachhaltigkeit (full width)
                   _buildNachhaltigkeitCard(),
                 ],
@@ -89,6 +106,27 @@ class GlsBankScreen extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+
+  /// Zwei Karten einer Zeile: nebeneinander (Schreibtisch, wie bisher) oder
+  /// untereinander in voller Breite — nebeneinander bekäme auf dem Telefon
+  /// jede Karte nur 130–175 dp.
+  Widget _kartenPaar(Widget links, Widget rechts,
+      {required bool nebeneinander, required double abstand}) {
+    if (nebeneinander) {
+      return Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(child: links),
+          SizedBox(width: abstand),
+          Expanded(child: rechts),
+        ],
+      );
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [links, SizedBox(height: abstand), rechts],
     );
   }
 
@@ -319,24 +357,21 @@ class GlsBankScreen extends StatelessWidget {
             style: TextStyle(fontSize: 13, color: Colors.grey.shade700),
           ),
           const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(child: _nachhaltigkeitItem(Icons.wind_power, tr('Erneuerbare Energien', 'Energii regenerabile'), tr('Windkraft, Solar, Biogas', 'Eoliană, solară, biogaz'), Colors.blue)),
-              const SizedBox(width: 12),
-              Expanded(child: _nachhaltigkeitItem(Icons.home, tr('Wohnen', 'Locuințe'), tr('Soziales Wohnen, Baugruppen', 'Locuințe sociale, construcții în comun'), Colors.brown)),
-              const SizedBox(width: 12),
-              Expanded(child: _nachhaltigkeitItem(Icons.health_and_safety, tr('Soziales & Gesundheit', 'Social și sănătate'), tr('Pflege, Inklusion, Therapie', 'Îngrijire, incluziune, terapie'), Colors.red)),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(child: _nachhaltigkeitItem(Icons.store, tr('Nachhaltige Wirtschaft', 'Economie sustenabilă'), tr('Bio, Naturkosmetik, Textilien', 'Bio, cosmetice naturale, textile'), Colors.green)),
-              const SizedBox(width: 12),
-              Expanded(child: _nachhaltigkeitItem(Icons.school, tr('Bildung & Kultur', 'Educație și cultură'), tr('Schulen, Kunst, Medien', 'Școli, artă, media'), Colors.purple)),
-              const SizedBox(width: 12),
-              Expanded(child: _nachhaltigkeitItem(Icons.restaurant, tr('Ernährung', 'Alimentație'), tr('Bio-Landwirtschaft, Hofläden', 'Agricultură bio, magazine de fermă'), Colors.orange)),
-            ],
+          // Breit drei Kacheln je Zeile (wie bisher), auf dem Telefon zwei —
+          // bei drei blieben bei 320 dp gut 50 dp Text je Kachel, und Wörter
+          // wie „regenerabile“ brächen mittendrin um.
+          LayoutBuilder(
+            builder: (context, c) => _kachelRaster(
+              spalten: c.maxWidth >= 480 ? 3 : 2,
+              kacheln: [
+                _nachhaltigkeitItem(Icons.wind_power, tr('Erneuerbare Energien', 'Energii regenerabile'), tr('Windkraft, Solar, Biogas', 'Eoliană, solară, biogaz'), Colors.blue),
+                _nachhaltigkeitItem(Icons.home, tr('Wohnen', 'Locuințe'), tr('Soziales Wohnen, Baugruppen', 'Locuințe sociale, construcții în comun'), Colors.brown),
+                _nachhaltigkeitItem(Icons.health_and_safety, tr('Soziales & Gesundheit', 'Social și sănătate'), tr('Pflege, Inklusion, Therapie', 'Îngrijire, incluziune, terapie'), Colors.red),
+                _nachhaltigkeitItem(Icons.store, tr('Nachhaltige Wirtschaft', 'Economie sustenabilă'), tr('Bio, Naturkosmetik, Textilien', 'Bio, cosmetice naturale, textile'), Colors.green),
+                _nachhaltigkeitItem(Icons.school, tr('Bildung & Kultur', 'Educație și cultură'), tr('Schulen, Kunst, Medien', 'Școli, artă, media'), Colors.purple),
+                _nachhaltigkeitItem(Icons.restaurant, tr('Ernährung', 'Alimentație'), tr('Bio-Landwirtschaft, Hofläden', 'Agricultură bio, magazine de fermă'), Colors.orange),
+              ],
+            ),
           ),
           const SizedBox(height: 16),
           Container(
@@ -382,6 +417,30 @@ class GlsBankScreen extends StatelessWidget {
           Text(subtitle, style: TextStyle(fontSize: 10, color: Colors.grey.shade600), textAlign: TextAlign.center),
         ],
       ),
+    );
+  }
+
+  /// Kacheln in Zeilen zu je [spalten] Stück; die Kacheln einer Zeile sind
+  /// gleich hoch, auch wenn ein Text auf schmalen Bildschirmen umbricht.
+  Widget _kachelRaster({required int spalten, required List<Widget> kacheln}) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        for (var i = 0; i < kacheln.length; i += spalten) ...[
+          if (i > 0) const SizedBox(height: 12),
+          IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                for (var j = i; j < i + spalten; j++) ...[
+                  if (j > i) const SizedBox(width: 12),
+                  Expanded(child: j < kacheln.length ? kacheln[j] : const SizedBox.shrink()),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ],
     );
   }
 
@@ -439,28 +498,42 @@ class GlsBankScreen extends StatelessWidget {
     );
   }
 
+  /// Schmaler als das (Telefon), steht die Bezeichnung über dem Wert: neben
+  /// der festen 160-dp-Spalte passte die IBAN (≈ 195 dp) auf keinem Telefon
+  /// in eine Zeile. Die schmalste Schreibtisch-Karte (900 dp, zwei Spalten)
+  /// hat 378 dp und behält die Spalte.
+  static const double _infoZeileMitSpalte = 360;
+
   Widget _infoRow(IconData icon, String label, String value) {
+    final bezeichnung = Text(
+      label,
+      style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+    );
+    final wert = Text(
+      value,
+      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+    );
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, size: 18, color: Colors.grey.shade600),
-          const SizedBox(width: 10),
-          SizedBox(
-            width: 160,
-            child: Text(
-              label,
-              style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
-            ),
-          ),
-          Expanded(
-            child: Text(
-              value,
-              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-            ),
-          ),
-        ],
+      child: LayoutBuilder(
+        builder: (context, c) => Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(icon, size: 18, color: Colors.grey.shade600),
+            const SizedBox(width: 10),
+            if (c.maxWidth < _infoZeileMitSpalte)
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [bezeichnung, const SizedBox(height: 2), wert],
+                ),
+              )
+            else ...[
+              SizedBox(width: 160, child: bezeichnung),
+              Expanded(child: wert),
+            ],
+          ],
+        ),
       ),
     );
   }
@@ -521,7 +594,9 @@ class GlsBankScreen extends StatelessWidget {
               children: [
                 Icon(Icons.eco, size: 12, color: Colors.green.shade700),
                 const SizedBox(width: 4),
-                Text(material, style: TextStyle(fontSize: 11, color: Colors.green.shade700, fontWeight: FontWeight.w500)),
+                Flexible(
+                  child: Text(material, style: TextStyle(fontSize: 11, color: Colors.green.shade700, fontWeight: FontWeight.w500)),
+                ),
               ],
             ),
           ),
@@ -549,19 +624,30 @@ class GlsBankScreen extends StatelessWidget {
     );
   }
 
+  /// Schmaler als das, steht die Bezeichnung über dem Wert — neben der festen
+  /// 130-dp-Spalte passte sonst die Kartennummer (≈ 110 dp) nicht mehr.
+  static const double _kartenZeileMitSpalte = 250;
+
   Widget _cardDetail(String label, String value) {
+    final bezeichnung = Text(label, style: TextStyle(fontSize: 12, color: Colors.grey.shade600));
+    final wert = Text(value, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600));
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 3),
-      child: Row(
-        children: [
-          SizedBox(
-            width: 130,
-            child: Text(label, style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
-          ),
-          Expanded(
-            child: Text(value, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-          ),
-        ],
+      child: LayoutBuilder(
+        builder: (context, c) {
+          if (c.maxWidth < _kartenZeileMitSpalte) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [bezeichnung, wert],
+            );
+          }
+          return Row(
+            children: [
+              SizedBox(width: 130, child: bezeichnung),
+              Expanded(child: wert),
+            ],
+          );
+        },
       ),
     );
   }

@@ -104,35 +104,100 @@ class _StatistikScreenState extends State<StatistikScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Entschieden wird nach der Breite, die der Bildschirm wirklich bekommt
+    // (auf dem Schreibtisch nimmt die Seitenleiste Platz weg), nicht nach
+    // dem ganzen Fenster.
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final breite = constraints.maxWidth;
+        if (breite >= 900) return _buildRaster();
+        return _buildListe(telefon: breite < 600);
+      },
+    );
+  }
+
+  /// Unter 900 dp: im 2×2-Raster blieben einer Karte auf 393 dp rund 170 dp.
+  /// Telefon: die vier Karten untereinander in voller Breite; Tablet: zwei
+  /// Spalten in derselben Anordnung wie auf dem Schreibtisch. Jede Karte in
+  /// natürlicher Höhe, die Seite scrollt.
+  Widget _buildListe({required bool telefon}) {
+    final abstand = SizedBox(height: telefon ? 12 : 16);
+    return SingleChildScrollView(
+      padding: EdgeInsets.all(telefon ? 12 : 24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildKopf(),
+          SizedBox(height: telefon ? 12 : 24),
+          if (telefon) ...[
+            _buildMitgliederCard(),
+            abstand,
+            _buildBeitragCard(),
+            abstand,
+            _buildSpendenCard(),
+            abstand,
+            _buildArbeitszeitCard(),
+          ] else
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Column(
+                    children: [_buildMitgliederCard(), abstand, _buildSpendenCard()],
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    children: [_buildBeitragCard(), abstand, _buildArbeitszeitCard()],
+                  ),
+                ),
+              ],
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildKopf() {
+    return Row(
+      children: [
+        Icon(Icons.bar_chart, size: 28, color: Colors.blue.shade700),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Text(
+            tr('Statistik', 'Statistică'),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+          ),
+        ),
+        IconButton(
+          icon: const Icon(Icons.refresh),
+          tooltip: tr('Aktualisieren', 'Actualizează'),
+          onPressed: () {
+            setState(() {
+              _beitragLoading = true;
+              _spendenLoading = true;
+              _arbeitszeitLoading = true;
+            });
+            _loadData();
+          },
+        ),
+      ],
+    );
+  }
+
+  /// Schreibtisch (ab 900 dp): 2×2-Raster, das die Höhe füllt; jede Karte
+  /// scrollt für sich — so wie bisher.
+  Widget _buildRaster() {
     return Padding(
       padding: const EdgeInsets.all(24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Header
-          Row(
-            children: [
-              Icon(Icons.bar_chart, size: 28, color: Colors.blue.shade700),
-              const SizedBox(width: 12),
-              Text(
-                tr('Statistik', 'Statistică'),
-                style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-              ),
-              const Spacer(),
-              IconButton(
-                icon: const Icon(Icons.refresh),
-                tooltip: tr('Aktualisieren', 'Actualizează'),
-                onPressed: () {
-                  setState(() {
-                    _beitragLoading = true;
-                    _spendenLoading = true;
-                    _arbeitszeitLoading = true;
-                  });
-                  _loadData();
-                },
-              ),
-            ],
-          ),
+          _buildKopf(),
           const SizedBox(height: 24),
           // 2 rows of 2 cards
           Expanded(
@@ -345,11 +410,12 @@ class _StatistikScreenState extends State<StatistikScreen> {
               ),
             ),
             const SizedBox(width: 8),
-            Text(
-              '${wt.weekStart.substring(8, 10)}.${wt.weekStart.substring(5, 7)}. - ${wt.weekEnd.substring(8, 10)}.${wt.weekEnd.substring(5, 7)}.',
-              style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+            Expanded(
+              child: Text(
+                '${wt.weekStart.substring(8, 10)}.${wt.weekStart.substring(5, 7)}. - ${wt.weekEnd.substring(8, 10)}.${wt.weekEnd.substring(5, 7)}.',
+                style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+              ),
             ),
-            const Spacer(),
             if (wt.isOverLimit)
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
@@ -374,9 +440,11 @@ class _StatistikScreenState extends State<StatistikScreen> {
           children: [
             Icon(Icons.timer, color: progressColor, size: 18),
             const SizedBox(width: 6),
-            Text(
-              wt.totalDisplay,
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: progressColor),
+            Flexible(
+              child: Text(
+                wt.totalDisplay,
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: progressColor),
+              ),
             ),
             Text(
               ' / ${wt.maxDisplay}',
@@ -432,52 +500,70 @@ class _StatistikScreenState extends State<StatistikScreen> {
     required Color color,
     required List<Widget> children,
   }) {
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+    // Header
+    final kopf = Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+      ),
+      child: Row(
         children: [
-          // Header
           Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.1),
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+              color: color.withValues(alpha: 0.2),
+              borderRadius: BorderRadius.circular(8),
             ),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: color.withValues(alpha: 0.2),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Icon(icon, color: color, size: 24),
-                ),
-                const SizedBox(width: 12),
-                Text(
-                  title,
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: color,
-                  ),
-                ),
-              ],
-            ),
+            child: Icon(icon, color: color, size: 24),
           ),
-          // Content
+          const SizedBox(width: 12),
           Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                children: children,
+            child: Text(
+              title,
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: color,
               ),
             ),
           ),
         ],
+      ),
+    );
+    // Content
+    final inhalt = Column(
+      children: children,
+    );
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      // Im Raster des Schreibtischs ist die Höhe vorgegeben: die Karte füllt
+      // ihre Zelle, der Inhalt scrollt. In der scrollenden Liste (Telefon,
+      // Tablet) ist sie offen: dort nimmt die Karte die Höhe ihres Inhalts.
+      child: LayoutBuilder(
+        builder: (context, constraints) => constraints.hasBoundedHeight
+            ? Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  kopf,
+                  Expanded(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.all(16),
+                      child: inhalt,
+                    ),
+                  ),
+                ],
+              )
+            : Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  kopf,
+                  Padding(padding: const EdgeInsets.all(16), child: inhalt),
+                ],
+              ),
       ),
     );
   }

@@ -80,177 +80,71 @@ class _RoutinenaufgabenScreenState extends State<RoutinenaufgabenScreen> {
     final weekRange = LanguageService.instance.isRomanian
         ? '${DateFormat('dd').format(_currentWeekStart)} - ${DateFormat('dd MMMM yyyy', 'ro').format(weekEnd)}'
         : '${DateFormat('dd.').format(_currentWeekStart)} - ${DateFormat('dd. MMMM yyyy', 'de_DE').format(weekEnd)}';
+    final wochenText = tr('KW $weekNumber  •  $weekRange', 'Săpt. $weekNumber  •  $weekRange');
 
+    // Entscheidend ist die Breite, die der Bildschirm wirklich bekommt — am
+    // Schreibtisch nimmt die Seitenleiste des Dashboards einen Teil weg.
+    // Ab 900 dp bleibt alles wie bisher: fünf Tagesspalten nebeneinander.
+    // Schmaler wären die Spalten auf dem Telefon nur gut 60 dp breit; dort
+    // stehen die Tage untereinander und die ganze Seite rollt.
+    return LayoutBuilder(
+      builder: (context, constraints) => constraints.maxWidth >= 900
+          ? _buildBreit(wochenText)
+          : _buildSchmal(wochenText, telefon: constraints.maxWidth < 600),
+    );
+  }
+
+  /// Schreibtisch: Kopf und Filter je in einer Zeile, darunter das
+  /// Wochenraster — wie bisher. Ist das Fenster für eine Zeile zu schmal,
+  /// rutscht deren rechter Teil in eine zweite Zeile, statt überzulaufen.
+  Widget _buildBreit(String wochenText) {
     return Padding(
       padding: const EdgeInsets.all(24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Header
-          Row(
-            children: [
-              Icon(Icons.repeat, size: 32, color: Colors.teal.shade700),
-              const SizedBox(width: 12),
-              Text(tr('Routinenaufgaben', 'Sarcini de rutină'),
-                style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-              const Spacer(),
-              // Stats
-              if (_stats != null) ...[
-                _buildStatBadge(tr('Gesamt', 'Total'), '${_stats!.total}', Colors.blue),
-                const SizedBox(width: 8),
-                _buildStatBadge(tr('Erledigt', 'Finalizate'), '${_stats!.done}', Colors.green),
-                const SizedBox(width: 8),
-                _buildStatBadge(tr('Offen', 'Deschise'), '${_stats!.pending}', Colors.orange),
-                const SizedBox(width: 16),
-                // Progress
-                SizedBox(
-                  width: 60,
-                  height: 60,
-                  child: Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      CircularProgressIndicator(
-                        value: _stats != null && _stats!.total > 0
-                            ? _stats!.done / _stats!.total
-                            : 0,
-                        backgroundColor: Colors.grey.shade200,
-                        valueColor: AlwaysStoppedAnimation<Color>(Colors.teal.shade600),
-                        strokeWidth: 5,
-                      ),
-                      Text(
-                        '${_stats?.progressPercent.toStringAsFixed(0) ?? 0}%',
-                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 16),
+          _linksRechts(
+            links: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.repeat, size: 32, color: Colors.teal.shade700),
+                const SizedBox(width: 12),
+                Flexible(child: _titel()),
               ],
-              // New routine button
-              ElevatedButton.icon(
-                onPressed: _showCreateRoutineDialog,
-                icon: const Icon(Icons.add, size: 18),
-                label: Text(tr('Neue Routine', 'Rutină nouă')),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.teal.shade600,
-                  foregroundColor: Colors.white,
+            ),
+            rechts: Wrap(
+              spacing: 16,
+              runSpacing: 8,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                // Stats + Progress
+                if (_stats != null) ...[_statistik(), _fortschritt()],
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [_neueRoutineKnopf(), _verwaltenKnopf(), _aktualisierenKnopf()],
                 ),
-              ),
-              const SizedBox(width: 8),
-              // Manage routines
-              OutlinedButton.icon(
-                onPressed: _showManageRoutinesDialog,
-                icon: const Icon(Icons.settings, size: 18),
-                label: Text(tr('Verwalten', 'Administrează')),
-              ),
-              const SizedBox(width: 8),
-              IconButton(
-                onPressed: _loadData,
-                icon: const Icon(Icons.refresh),
-                tooltip: tr('Aktualisieren', 'Actualizează'),
-              ),
-            ],
+              ],
+            ),
           ),
           const SizedBox(height: 16),
 
           // Filters row
-          Row(
-            children: [
-              // Member filter
-              SizedBox(
-                width: 300,
-                child: DropdownButtonFormField<int?>(
-                  initialValue: _filterUserId,
-                  isExpanded: true,
-                  decoration: InputDecoration(
-                    labelText: tr('Mitglied', 'Membru'),
-                    prefixIcon: const Icon(Icons.person, size: 20),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    isDense: true,
-                  ),
-                  items: [
-                    DropdownMenuItem<int?>(value: null, child: Text(tr('Alle Mitglieder', 'Toți membrii'))),
-                    ...widget.users
-                        .where((u) => !u.isDeleted && !u.isSuspended && !u.isVerstorben && !u.isAusgeschlossen)
-                        .map((u) => DropdownMenuItem<int?>(
-                          value: u.id,
-                          child: Text('${u.name} (${u.mitgliedernummer})', overflow: TextOverflow.ellipsis),
-                        )),
-                  ],
-                  onChanged: (val) {
-                    setState(() => _filterUserId = val);
-                    _loadData();
-                  },
-                ),
-              ),
-              const SizedBox(width: 12),
-              // Category filter
-              if (_categories.isNotEmpty)
-                SizedBox(
-                  width: 200,
-                  child: DropdownButtonFormField<String?>(
-                    initialValue: _filterCategory,
-                    isExpanded: true,
-                    decoration: InputDecoration(
-                      labelText: tr('Kategorie', 'Categorie'),
-                      prefixIcon: const Icon(Icons.category, size: 20),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      isDense: true,
-                    ),
-                    items: [
-                      DropdownMenuItem<String?>(value: null, child: Text(tr('Alle', 'Toate'))),
-                      ..._categories.map((c) => DropdownMenuItem<String?>(value: c, child: Text(c))),
-                    ],
-                    onChanged: (val) {
-                      setState(() => _filterCategory = val);
-                      _loadData();
-                    },
-                  ),
-                ),
-              const Spacer(),
-              // Week navigation
-              IconButton(
-                onPressed: () {
-                  setState(() => _currentWeekStart = _currentWeekStart.subtract(const Duration(days: 7)));
-                  _loadData();
-                },
-                icon: const Icon(Icons.chevron_left),
-                tooltip: tr('Vorherige Woche', 'Săptămâna anterioară'),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                decoration: BoxDecoration(
-                  color: Colors.teal.shade50,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.teal.shade200),
-                ),
-                child: Text(
-                  tr('KW $weekNumber  •  $weekRange', 'Săpt. $weekNumber  •  $weekRange'),
-                  style: TextStyle(fontWeight: FontWeight.w600, color: Colors.teal.shade800),
-                ),
-              ),
-              IconButton(
-                onPressed: () {
-                  setState(() => _currentWeekStart = _currentWeekStart.add(const Duration(days: 7)));
-                  _loadData();
-                },
-                icon: const Icon(Icons.chevron_right),
-                tooltip: tr('Nächste Woche', 'Săptămâna următoare'),
-              ),
-              TextButton(
-                onPressed: () {
-                  final now = DateTime.now();
-                  setState(() {
-                    _currentWeekStart = now.subtract(Duration(days: now.weekday - 1));
-                    _currentWeekStart = DateTime(_currentWeekStart.year, _currentWeekStart.month, _currentWeekStart.day);
-                  });
-                  _loadData();
-                },
-                child: Text(tr('Heute', 'Astăzi')),
-              ),
-            ],
+          _linksRechts(
+            links: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SizedBox(width: 300, child: _mitgliedFilter()),
+                const SizedBox(width: 12),
+                if (_categories.isNotEmpty) SizedBox(width: 200, child: _kategorieFilter()),
+              ],
+            ),
+            rechts: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [_wocheZurueck(), _wochenAnzeige(wochenText), _wocheVor(), _heuteKnopf()],
+            ),
           ),
           const SizedBox(height: 16),
 
@@ -265,11 +159,295 @@ class _RoutinenaufgabenScreenState extends State<RoutinenaufgabenScreen> {
     );
   }
 
+  /// Telefon und Tablet: alles untereinander, die ganze Seite rollt. Die
+  /// fünf Tage stehen als volle Karten untereinander, so hoch wie ihr Inhalt.
+  Widget _buildSchmal(String wochenText, {required bool telefon}) {
+    final mitKategorie = _categories.isNotEmpty;
+    return ListView(
+      padding: EdgeInsets.all(telefon ? 12 : 24),
+      children: [
+        // Header: Titel und Aktualisieren, darunter Zahlen und Knöpfe
+        Row(
+          children: [
+            Icon(Icons.repeat, size: 32, color: Colors.teal.shade700),
+            const SizedBox(width: 12),
+            Expanded(child: _titel(maxLines: 2)),
+            _aktualisierenKnopf(),
+          ],
+        ),
+        if (_stats != null) ...[
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 16,
+            runSpacing: 8,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [_statistik(), _fortschritt()],
+          ),
+        ],
+        const SizedBox(height: 12),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [_neueRoutineKnopf(), _verwaltenKnopf()],
+        ),
+        const SizedBox(height: 16),
+
+        // Filters: Telefon untereinander, Tablet nebeneinander
+        if (!telefon && mitKategorie)
+          Row(
+            children: [
+              Expanded(flex: 3, child: _mitgliedFilter()),
+              const SizedBox(width: 12),
+              Expanded(flex: 2, child: _kategorieFilter()),
+            ],
+          )
+        else ...[
+          _mitgliedFilter(),
+          if (mitKategorie) ...[const SizedBox(height: 12), _kategorieFilter()],
+        ],
+        const SizedBox(height: 12),
+
+        // Week navigation
+        Row(
+          children: [
+            _wocheZurueck(),
+            Expanded(child: _wochenAnzeige(wochenText, zentriert: true)),
+            _wocheVor(),
+            _heuteKnopf(),
+          ],
+        ),
+        const SizedBox(height: 16),
+
+        // Days: beim Nachladen (z. B. nach „Erledigt“) behalten die Karten
+        // ihren Platz, unsichtbar unter der Ladeanzeige — sonst schrumpfte
+        // die Seite kurz, und man stünde danach wieder ganz oben.
+        Stack(
+          children: [
+            Visibility(
+              visible: !_isLoading,
+              maintainSize: true,
+              maintainAnimation: true,
+              maintainState: true,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: _buildTagesListe(),
+              ),
+            ),
+            if (_isLoading)
+              const Positioned(
+                left: 0,
+                right: 0,
+                top: 32,
+                child: Center(child: CircularProgressIndicator()),
+              ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  /// Wie `Row(links, Spacer(), rechts)`, solange beides nebeneinander
+  /// passt; sonst steht `rechts` in der nächsten Zeile.
+  Widget _linksRechts({required Widget links, required Widget rechts}) {
+    return SizedBox(
+      width: double.infinity,
+      child: Wrap(
+        alignment: WrapAlignment.spaceBetween,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        runSpacing: 12,
+        children: [links, rechts],
+      ),
+    );
+  }
+
+  Widget _titel({int maxLines = 1}) {
+    return Text(
+      tr('Routinenaufgaben', 'Sarcini de rutină'),
+      style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+      maxLines: maxLines,
+      overflow: TextOverflow.ellipsis,
+    );
+  }
+
+  Widget _statistik() {
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: [
+        _buildStatBadge(tr('Gesamt', 'Total'), '${_stats!.total}', Colors.blue),
+        _buildStatBadge(tr('Erledigt', 'Finalizate'), '${_stats!.done}', Colors.green),
+        _buildStatBadge(tr('Offen', 'Deschise'), '${_stats!.pending}', Colors.orange),
+      ],
+    );
+  }
+
+  Widget _fortschritt() {
+    return SizedBox(
+      width: 60,
+      height: 60,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          CircularProgressIndicator(
+            value: _stats != null && _stats!.total > 0
+                ? _stats!.done / _stats!.total
+                : 0,
+            backgroundColor: Colors.grey.shade200,
+            valueColor: AlwaysStoppedAnimation<Color>(Colors.teal.shade600),
+            strokeWidth: 5,
+          ),
+          Text(
+            '${_stats?.progressPercent.toStringAsFixed(0) ?? 0}%',
+            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // New routine button
+  Widget _neueRoutineKnopf() {
+    return ElevatedButton.icon(
+      onPressed: _showCreateRoutineDialog,
+      icon: const Icon(Icons.add, size: 18),
+      label: Text(tr('Neue Routine', 'Rutină nouă')),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: Colors.teal.shade600,
+        foregroundColor: Colors.white,
+      ),
+    );
+  }
+
+  // Manage routines
+  Widget _verwaltenKnopf() {
+    return OutlinedButton.icon(
+      onPressed: _showManageRoutinesDialog,
+      icon: const Icon(Icons.settings, size: 18),
+      label: Text(tr('Verwalten', 'Administrează')),
+    );
+  }
+
+  Widget _aktualisierenKnopf() {
+    return IconButton(
+      onPressed: _loadData,
+      icon: const Icon(Icons.refresh),
+      tooltip: tr('Aktualisieren', 'Actualizează'),
+    );
+  }
+
+  // Member filter
+  Widget _mitgliedFilter() {
+    return DropdownButtonFormField<int?>(
+      initialValue: _filterUserId,
+      isExpanded: true,
+      decoration: InputDecoration(
+        labelText: tr('Mitglied', 'Membru'),
+        prefixIcon: const Icon(Icons.person, size: 20),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        isDense: true,
+      ),
+      items: [
+        DropdownMenuItem<int?>(value: null, child: Text(tr('Alle Mitglieder', 'Toți membrii'))),
+        ...widget.users
+            .where((u) => !u.isDeleted && !u.isSuspended && !u.isVerstorben && !u.isAusgeschlossen)
+            .map((u) => DropdownMenuItem<int?>(
+              value: u.id,
+              child: Text('${u.name} (${u.mitgliedernummer})', overflow: TextOverflow.ellipsis),
+            )),
+      ],
+      onChanged: (val) {
+        setState(() => _filterUserId = val);
+        _loadData();
+      },
+    );
+  }
+
+  // Category filter
+  Widget _kategorieFilter() {
+    return DropdownButtonFormField<String?>(
+      initialValue: _filterCategory,
+      isExpanded: true,
+      decoration: InputDecoration(
+        labelText: tr('Kategorie', 'Categorie'),
+        prefixIcon: const Icon(Icons.category, size: 20),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        isDense: true,
+      ),
+      items: [
+        DropdownMenuItem<String?>(value: null, child: Text(tr('Alle', 'Toate'))),
+        ..._categories.map((c) => DropdownMenuItem<String?>(value: c, child: Text(c))),
+      ],
+      onChanged: (val) {
+        setState(() => _filterCategory = val);
+        _loadData();
+      },
+    );
+  }
+
+  // Week navigation
+  Widget _wocheZurueck() {
+    return IconButton(
+      onPressed: () {
+        setState(() => _currentWeekStart = _currentWeekStart.subtract(const Duration(days: 7)));
+        _loadData();
+      },
+      icon: const Icon(Icons.chevron_left),
+      tooltip: tr('Vorherige Woche', 'Săptămâna anterioară'),
+    );
+  }
+
+  /// [zentriert]: auf dem Telefon füllt die Anzeige die Zeile zwischen den
+  /// Pfeilen und bricht bei Bedarf in eine zweite Zeile um.
+  Widget _wochenAnzeige(String wochenText, {bool zentriert = false}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.teal.shade50,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.teal.shade200),
+      ),
+      child: Text(
+        wochenText,
+        textAlign: zentriert ? TextAlign.center : null,
+        style: TextStyle(fontWeight: FontWeight.w600, color: Colors.teal.shade800),
+      ),
+    );
+  }
+
+  Widget _wocheVor() {
+    return IconButton(
+      onPressed: () {
+        setState(() => _currentWeekStart = _currentWeekStart.add(const Duration(days: 7)));
+        _loadData();
+      },
+      icon: const Icon(Icons.chevron_right),
+      tooltip: tr('Nächste Woche', 'Săptămâna următoare'),
+    );
+  }
+
+  Widget _heuteKnopf() {
+    return TextButton(
+      onPressed: () {
+        final now = DateTime.now();
+        setState(() {
+          _currentWeekStart = now.subtract(Duration(days: now.weekday - 1));
+          _currentWeekStart = DateTime(_currentWeekStart.year, _currentWeekStart.month, _currentWeekStart.day);
+        });
+        _loadData();
+      },
+      child: Text(tr('Heute', 'Astăzi')),
+    );
+  }
+
+  List<String> get _tagNamen => [
+    tr('Montag', 'Luni'), tr('Dienstag', 'Marți'), tr('Mittwoch', 'Miercuri'),
+    tr('Donnerstag', 'Joi'), tr('Freitag', 'Vineri'),
+  ];
+
   Widget _buildWeeklyGrid() {
-    final dayNames = [
-      tr('Montag', 'Luni'), tr('Dienstag', 'Marți'), tr('Mittwoch', 'Miercuri'),
-      tr('Donnerstag', 'Joi'), tr('Freitag', 'Vineri'),
-    ];
+    final dayNames = _tagNamen;
     final today = DateTime.now();
 
     return Row(
@@ -282,78 +460,17 @@ class _RoutinenaufgabenScreenState extends State<RoutinenaufgabenScreen> {
         return Expanded(
           child: Container(
             margin: EdgeInsets.only(right: dayIndex < 4 ? 8 : 0),
-            decoration: BoxDecoration(
-              color: isToday ? Colors.teal.shade50 : Colors.grey.shade50,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: isToday ? Colors.teal.shade300 : Colors.grey.shade300,
-                width: isToday ? 2 : 1,
-              ),
-            ),
+            decoration: _tagRahmen(isToday),
             child: Column(
               children: [
                 // Day header
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
-                  decoration: BoxDecoration(
-                    color: isToday ? Colors.teal.shade600 : Colors.grey.shade200,
-                    borderRadius: const BorderRadius.vertical(top: Radius.circular(11)),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        dayNames[dayIndex],
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: isToday ? Colors.white : Colors.grey.shade800,
-                          fontSize: 13,
-                        ),
-                      ),
-                      Text(
-                        DateFormat('dd.MM.').format(day),
-                        style: TextStyle(
-                          color: isToday ? Colors.white70 : Colors.grey.shade600,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+                _tagKopf(dayNames[dayIndex], day, isToday),
                 // Day stats
-                if (dayExecs.isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    child: Row(
-                      children: [
-                        Text(
-                          '${dayExecs.where((e) => e.isDone).length}/${dayExecs.length}',
-                          style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
-                        ),
-                        const SizedBox(width: 4),
-                        Expanded(
-                          child: LinearProgressIndicator(
-                            value: dayExecs.isNotEmpty
-                                ? dayExecs.where((e) => e.isDone).length / dayExecs.length
-                                : 0,
-                            backgroundColor: Colors.grey.shade200,
-                            valueColor: AlwaysStoppedAnimation<Color>(Colors.teal.shade400),
-                            minHeight: 3,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+                if (dayExecs.isNotEmpty) _tagFortschritt(dayExecs),
                 // Execution cards
                 Expanded(
                   child: dayExecs.isEmpty
-                      ? Center(
-                          child: Text(
-                            tr('Keine Aufgaben', 'Nicio sarcină'),
-                            style: TextStyle(color: Colors.grey.shade400, fontSize: 12),
-                          ),
-                        )
+                      ? Center(child: _keineAufgaben())
                       : ListView.builder(
                           padding: const EdgeInsets.all(6),
                           itemCount: dayExecs.length,
@@ -365,6 +482,121 @@ class _RoutinenaufgabenScreenState extends State<RoutinenaufgabenScreen> {
           ),
         );
       }),
+    );
+  }
+
+  /// Telefon/Tablet: die fünf Tage als volle Karten untereinander, jede so
+  /// hoch wie ihr Inhalt (gerollt wird die ganze Seite, nicht der Tag).
+  List<Widget> _buildTagesListe() {
+    final dayNames = _tagNamen;
+    final today = DateTime.now();
+
+    return List.generate(5, (dayIndex) {
+      final day = _currentWeekStart.add(Duration(days: dayIndex));
+      final isToday = day.year == today.year && day.month == today.month && day.day == today.day;
+      final dayExecs = _getExecutionsForDay(day);
+
+      return Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        decoration: _tagRahmen(isToday),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _tagKopf(dayNames[dayIndex], day, isToday),
+            if (dayExecs.isNotEmpty) _tagFortschritt(dayExecs),
+            Padding(
+              padding: const EdgeInsets.all(6),
+              child: dayExecs.isEmpty
+                  ? Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                      child: Center(child: _keineAufgaben()),
+                    )
+                  : Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [for (final exec in dayExecs) _buildExecutionCard(exec)],
+                    ),
+            ),
+          ],
+        ),
+      );
+    });
+  }
+
+  BoxDecoration _tagRahmen(bool isToday) {
+    return BoxDecoration(
+      color: isToday ? Colors.teal.shade50 : Colors.grey.shade50,
+      borderRadius: BorderRadius.circular(12),
+      border: Border.all(
+        color: isToday ? Colors.teal.shade300 : Colors.grey.shade300,
+        width: isToday ? 2 : 1,
+      ),
+    );
+  }
+
+  Widget _tagKopf(String dayName, DateTime day, bool isToday) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+      decoration: BoxDecoration(
+        color: isToday ? Colors.teal.shade600 : Colors.grey.shade200,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(11)),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Flexible(
+            child: Text(
+              dayName,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: isToday ? Colors.white : Colors.grey.shade800,
+                fontSize: 13,
+              ),
+            ),
+          ),
+          Text(
+            DateFormat('dd.MM.').format(day),
+            style: TextStyle(
+              color: isToday ? Colors.white70 : Colors.grey.shade600,
+              fontSize: 12,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _tagFortschritt(List<RoutineExecution> dayExecs) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      child: Row(
+        children: [
+          Text(
+            '${dayExecs.where((e) => e.isDone).length}/${dayExecs.length}',
+            style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+          ),
+          const SizedBox(width: 4),
+          Expanded(
+            child: LinearProgressIndicator(
+              value: dayExecs.isNotEmpty
+                  ? dayExecs.where((e) => e.isDone).length / dayExecs.length
+                  : 0,
+              backgroundColor: Colors.grey.shade200,
+              valueColor: AlwaysStoppedAnimation<Color>(Colors.teal.shade400),
+              minHeight: 3,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _keineAufgaben() {
+    return Text(
+      tr('Keine Aufgaben', 'Nicio sarcină'),
+      style: TextStyle(color: Colors.grey.shade400, fontSize: 12),
     );
   }
 
@@ -528,66 +760,70 @@ class _RoutinenaufgabenScreenState extends State<RoutinenaufgabenScreen> {
   void _showExecutionActions(RoutineExecution exec) {
     showModalBottomSheet(
       context: context,
+      // Darf höher werden als 9/16 des Bildschirms: auf kleinen Telefonen
+      // stehen die Knöpfe untereinander, und erst damit hebt das Polster
+      // unten (viewInsets) das Blatt über die Tastatur.
+      isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
       builder: (ctx) {
         final notesController = TextEditingController(text: exec.notes ?? '');
-        return Padding(
-          padding: EdgeInsets.only(
-            left: 24, right: 24, top: 24,
-            bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      exec.routineTitle ?? tr('Routine', 'Rutină'),
-                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+        return SingleChildScrollView(
+          child: Padding(
+            padding: EdgeInsets.only(
+              left: 24, right: 24, top: 24,
+              bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        exec.routineTitle ?? tr('Routine', 'Rutină'),
+                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      ),
                     ),
-                  ),
-                  IconButton(
-                    onPressed: () {
-                      Navigator.pop(ctx);
-                      // Find the routine for this execution and open edit dialog
-                      final routine = _routines.where((r) => r.id == exec.routineId).firstOrNull;
-                      if (routine != null) {
-                        _showEditRoutineDialog(routine, (_) => setState(() {}));
-                      }
-                    },
-                    icon: Icon(Icons.edit, color: Colors.teal.shade600),
-                    tooltip: tr('Routine bearbeiten', 'Editează rutina'),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 4),
-              Text(
-                '${exec.memberName ?? ''} • ${DateFormat('dd.MM.yyyy').format(exec.scheduledDate)}',
-                style: TextStyle(color: Colors.grey.shade600),
-              ),
-              if (exec.routineCategory != null) ...[
-                const SizedBox(height: 4),
-                Text(tr('Kategorie: ${exec.routineCategory}', 'Categorie: ${exec.routineCategory}'), style: TextStyle(color: Colors.grey.shade600)),
-              ],
-              const SizedBox(height: 16),
-              TextField(
-                controller: notesController,
-                decoration: InputDecoration(
-                  labelText: tr('Notizen', 'Note'),
-                  hintText: tr('Optional: Notizen hinzufügen...', 'Opțional: adăugați note...'),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                    IconButton(
+                      onPressed: () {
+                        Navigator.pop(ctx);
+                        // Find the routine for this execution and open edit dialog
+                        final routine = _routines.where((r) => r.id == exec.routineId).firstOrNull;
+                        if (routine != null) {
+                          _showEditRoutineDialog(routine, (_) => setState(() {}));
+                        }
+                      },
+                      icon: Icon(Icons.edit, color: Colors.teal.shade600),
+                      tooltip: tr('Routine bearbeiten', 'Editează rutina'),
+                    ),
+                  ],
                 ),
-                maxLines: 3,
-              ),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  Expanded(
-                    child: ElevatedButton.icon(
+                const SizedBox(height: 4),
+                Text(
+                  '${exec.memberName ?? ''} • ${DateFormat('dd.MM.yyyy').format(exec.scheduledDate)}',
+                  style: TextStyle(color: Colors.grey.shade600),
+                ),
+                if (exec.routineCategory != null) ...[
+                  const SizedBox(height: 4),
+                  Text(tr('Kategorie: ${exec.routineCategory}', 'Categorie: ${exec.routineCategory}'), style: TextStyle(color: Colors.grey.shade600)),
+                ],
+                const SizedBox(height: 16),
+                TextField(
+                  controller: notesController,
+                  decoration: InputDecoration(
+                    labelText: tr('Notizen', 'Note'),
+                    hintText: tr('Optional: Notizen hinzufügen...', 'Opțional: adăugați note...'),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                  maxLines: 3,
+                ),
+                const SizedBox(height: 16),
+                LayoutBuilder(
+                  builder: (context, constraints) => _knopfReihe(constraints.maxWidth, [
+                    ElevatedButton.icon(
                       onPressed: () async {
                         Navigator.pop(ctx);
                         await _routineService.updateExecution(
@@ -604,10 +840,7 @@ class _RoutinenaufgabenScreenState extends State<RoutinenaufgabenScreen> {
                         foregroundColor: Colors.white,
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: OutlinedButton.icon(
+                    OutlinedButton.icon(
                       onPressed: () async {
                         Navigator.pop(ctx);
                         await _routineService.updateExecution(
@@ -621,11 +854,8 @@ class _RoutinenaufgabenScreenState extends State<RoutinenaufgabenScreen> {
                       label: Text(tr('Überspringen', 'Omite')),
                       style: OutlinedButton.styleFrom(foregroundColor: Colors.orange),
                     ),
-                  ),
-                  if (!exec.isPending) ...[
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: OutlinedButton.icon(
+                    if (!exec.isPending)
+                      OutlinedButton.icon(
                         onPressed: () async {
                           Navigator.pop(ctx);
                           await _routineService.updateExecution(
@@ -638,16 +868,44 @@ class _RoutinenaufgabenScreenState extends State<RoutinenaufgabenScreen> {
                         icon: const Icon(Icons.undo, size: 18),
                         label: Text(tr('Zurücksetzen', 'Resetează')),
                       ),
-                    ),
-                  ],
-                ],
-              ),
-            ],
+                  ]),
+                ),
+              ],
+            ),
           ),
         );
       },
     );
   }
+
+  /// Die Knöpfe des Aufgaben-Blatts gleich breit nebeneinander, wenn jeder
+  /// mindestens [_knopfBreite] bekommt — sonst bräche „Überspringen“ mitten
+  /// im Wort um. Schmaler stehen sie in voller Breite untereinander.
+  Widget _knopfReihe(double breite, List<Widget> knoepfe) {
+    if (breite >= knoepfe.length * _knopfBreite + (knoepfe.length - 1) * 8) {
+      return Row(
+        children: [
+          for (final (i, knopf) in knoepfe.indexed) ...[
+            if (i > 0) const SizedBox(width: 8),
+            Expanded(child: knopf),
+          ],
+        ],
+      );
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        for (final (i, knopf) in knoepfe.indexed) ...[
+          if (i > 0) const SizedBox(height: 8),
+          knopf,
+        ],
+      ],
+    );
+  }
+
+  /// Breite des längsten Knopfs im Aufgaben-Blatt („Überspringen“ mit
+  /// Symbol und Innenabstand), gemessen mit Roboto, aufgerundet.
+  static const double _knopfBreite = 160;
 
   // ─── Create Routine Dialog ──────────────────────────────────────
 
@@ -672,7 +930,7 @@ class _RoutinenaufgabenScreenState extends State<RoutinenaufgabenScreen> {
             children: [
               Icon(Icons.add_task, color: Colors.teal.shade600),
               const SizedBox(width: 8),
-              Text(tr('Neue Routine erstellen', 'Creează rutină nouă')),
+              Flexible(child: Text(tr('Neue Routine erstellen', 'Creează rutină nouă'))),
             ],
           ),
           content: SizedBox(
@@ -781,6 +1039,7 @@ class _RoutinenaufgabenScreenState extends State<RoutinenaufgabenScreen> {
                   // Frequency
                   DropdownButtonFormField<String>(
                     initialValue: frequency,
+                    isExpanded: true,
                     decoration: InputDecoration(
                       labelText: tr('Frequenz *', 'Frecvență *'),
                       prefixIcon: const Icon(Icons.repeat),
@@ -800,6 +1059,7 @@ class _RoutinenaufgabenScreenState extends State<RoutinenaufgabenScreen> {
                   if (frequency == 'weekly')
                     DropdownButtonFormField<int>(
                       initialValue: dayOfWeek,
+                      isExpanded: true,
                       decoration: InputDecoration(
                         labelText: tr('Wochentag *', 'Ziua săptămânii *'),
                         prefixIcon: const Icon(Icons.calendar_today),
@@ -818,6 +1078,7 @@ class _RoutinenaufgabenScreenState extends State<RoutinenaufgabenScreen> {
                   if (frequency == 'monthly' || frequency == 'yearly')
                     DropdownButtonFormField<int>(
                       initialValue: dayOfMonth,
+                      isExpanded: true,
                       decoration: InputDecoration(
                         labelText: tr('Tag des Monats *', 'Ziua lunii *'),
                         prefixIcon: const Icon(Icons.calendar_today),
@@ -834,6 +1095,7 @@ class _RoutinenaufgabenScreenState extends State<RoutinenaufgabenScreen> {
                     const SizedBox(height: 16),
                     DropdownButtonFormField<int>(
                       initialValue: monthOfYear,
+                      isExpanded: true,
                       decoration: InputDecoration(
                         labelText: tr('Monat *', 'Luna *'),
                         prefixIcon: const Icon(Icons.date_range),
@@ -944,7 +1206,7 @@ class _RoutinenaufgabenScreenState extends State<RoutinenaufgabenScreen> {
               children: [
                 Icon(Icons.edit, color: Colors.teal.shade600),
                 const SizedBox(width: 8),
-                Text(tr('Routine bearbeiten', 'Editează rutina')),
+                Flexible(child: Text(tr('Routine bearbeiten', 'Editează rutina'))),
               ],
             ),
             content: SizedBox(
@@ -1051,6 +1313,7 @@ class _RoutinenaufgabenScreenState extends State<RoutinenaufgabenScreen> {
                     // Frequency
                     DropdownButtonFormField<String>(
                       initialValue: frequency,
+                      isExpanded: true,
                       decoration: InputDecoration(
                         labelText: tr('Frequenz *', 'Frecvență *'),
                         prefixIcon: const Icon(Icons.repeat),
@@ -1070,6 +1333,7 @@ class _RoutinenaufgabenScreenState extends State<RoutinenaufgabenScreen> {
                     if (frequency == 'weekly')
                       DropdownButtonFormField<int>(
                         initialValue: dayOfWeek,
+                        isExpanded: true,
                         decoration: InputDecoration(
                           labelText: tr('Wochentag *', 'Ziua săptămânii *'),
                           prefixIcon: const Icon(Icons.calendar_today),
@@ -1088,6 +1352,7 @@ class _RoutinenaufgabenScreenState extends State<RoutinenaufgabenScreen> {
                     if (frequency == 'monthly' || frequency == 'yearly')
                       DropdownButtonFormField<int>(
                         initialValue: dayOfMonth,
+                        isExpanded: true,
                         decoration: InputDecoration(
                           labelText: tr('Tag des Monats *', 'Ziua lunii *'),
                           prefixIcon: const Icon(Icons.calendar_today),
@@ -1104,6 +1369,7 @@ class _RoutinenaufgabenScreenState extends State<RoutinenaufgabenScreen> {
                       const SizedBox(height: 16),
                       DropdownButtonFormField<int>(
                         initialValue: monthOfYear,
+                        isExpanded: true,
                         decoration: InputDecoration(
                           labelText: tr('Monat *', 'Luna *'),
                           prefixIcon: const Icon(Icons.date_range),
@@ -1201,13 +1467,17 @@ class _RoutinenaufgabenScreenState extends State<RoutinenaufgabenScreen> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) {
+          // Telefon: Bearbeiten, Aktiv-Schalter und Löschen (zusammen fast
+          // 150 dp) stehen unter dem Text statt rechts daneben — sonst
+          // bliebe dem Titel eine Spalte von wenigen Buchstaben.
+          final schmal = MediaQuery.sizeOf(ctx).width < 600;
           return AlertDialog(
+            insetPadding: schmal ? const EdgeInsets.symmetric(horizontal: 16, vertical: 24) : null,
             title: Row(
               children: [
                 Icon(Icons.settings, color: Colors.teal.shade600),
                 const SizedBox(width: 8),
-                Text(tr('Routinen verwalten', 'Administrare rutine')),
-                const Spacer(),
+                Expanded(child: Text(tr('Routinen verwalten', 'Administrare rutine'))),
                 Text(tr('${_routines.length} Routinen', 'Rutine: ${_routines.length}'),
                     style: TextStyle(fontSize: 13, color: Colors.grey.shade600, fontWeight: FontWeight.normal)),
               ],
@@ -1222,7 +1492,70 @@ class _RoutinenaufgabenScreenState extends State<RoutinenaufgabenScreen> {
                       separatorBuilder: (_, __) => const Divider(height: 1),
                       itemBuilder: (_, index) {
                         final r = _routines[index];
-                        return ListTile(
+                        final untertitel = Text(
+                          '${r.memberName ?? ''} • ${r.frequencyLabel}'
+                          '${r.frequency == "weekly" ? " (${r.dayOfWeekLabel})" : ""}'
+                          '${r.category != null ? " • ${r.category}" : ""}',
+                        );
+                        final aktionen = Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            // Edit
+                            IconButton(
+                              onPressed: () => _showEditRoutineDialog(r, setDialogState),
+                              icon: Icon(Icons.edit_outlined, color: Colors.teal.shade600),
+                              tooltip: tr('Bearbeiten', 'Editează'),
+                            ),
+                            // Active toggle
+                            Switch(
+                              value: r.isActive,
+                              activeThumbColor: Colors.teal,
+                              onChanged: (val) async {
+                                await _routineService.updateRoutine(r.id, {'is_active': val});
+                                // Refresh routines list
+                                final updated = await _routineService.getRoutines();
+                                setDialogState(() {
+                                  _routines.clear();
+                                  _routines.addAll(updated);
+                                });
+                                _loadData();
+                              },
+                            ),
+                            // Delete
+                            IconButton(
+                              onPressed: () async {
+                                final confirm = await showDialog<bool>(
+                                  context: ctx,
+                                  builder: (c) => AlertDialog(
+                                    title: Text(tr('Routine löschen?', 'Ștergeți rutina?')),
+                                    content: Text(tr('Routine "${r.title}" und alle Ausführungen werden gelöscht.',
+                                        'Rutina "${r.title}" și toate execuțiile ei vor fi șterse.')),
+                                    actions: [
+                                      TextButton(onPressed: () => Navigator.pop(c, false), child: Text(tr('Abbrechen', 'Anulare'))),
+                                      ElevatedButton(
+                                        onPressed: () => Navigator.pop(c, true),
+                                        style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
+                                        child: Text(tr('Löschen', 'Șterge')),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                                if (confirm == true) {
+                                  await _routineService.deleteRoutine(r.id);
+                                  final updated = await _routineService.getRoutines();
+                                  setDialogState(() {
+                                    _routines.clear();
+                                    _routines.addAll(updated);
+                                  });
+                                  _loadData();
+                                }
+                              },
+                              icon: const Icon(Icons.delete_outline, color: Colors.red),
+                              tooltip: tr('Löschen', 'Șterge'),
+                            ),
+                          ],
+                        );
+                        final kachel = ListTile(
                           leading: CircleAvatar(
                             backgroundColor: _getCategoryColor(r.category).withValues(alpha: 0.15),
                             child: Icon(
@@ -1235,70 +1568,16 @@ class _RoutinenaufgabenScreenState extends State<RoutinenaufgabenScreen> {
                             ),
                           ),
                           title: Text(r.title, style: const TextStyle(fontWeight: FontWeight.w600)),
-                          subtitle: Text(
-                            '${r.memberName ?? ''} • ${r.frequencyLabel}'
-                            '${r.frequency == "weekly" ? " (${r.dayOfWeekLabel})" : ""}'
-                            '${r.category != null ? " • ${r.category}" : ""}',
-                          ),
+                          subtitle: untertitel,
                           onTap: () => _showEditRoutineDialog(r, setDialogState),
-                          trailing: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              // Edit
-                              IconButton(
-                                onPressed: () => _showEditRoutineDialog(r, setDialogState),
-                                icon: Icon(Icons.edit_outlined, color: Colors.teal.shade600),
-                                tooltip: tr('Bearbeiten', 'Editează'),
-                              ),
-                              // Active toggle
-                              Switch(
-                                value: r.isActive,
-                                activeThumbColor: Colors.teal,
-                                onChanged: (val) async {
-                                  await _routineService.updateRoutine(r.id, {'is_active': val});
-                                  // Refresh routines list
-                                  final updated = await _routineService.getRoutines();
-                                  setDialogState(() {
-                                    _routines.clear();
-                                    _routines.addAll(updated);
-                                  });
-                                  _loadData();
-                                },
-                              ),
-                              // Delete
-                              IconButton(
-                                onPressed: () async {
-                                  final confirm = await showDialog<bool>(
-                                    context: ctx,
-                                    builder: (c) => AlertDialog(
-                                      title: Text(tr('Routine löschen?', 'Ștergeți rutina?')),
-                                      content: Text(tr('Routine "${r.title}" und alle Ausführungen werden gelöscht.',
-                                          'Rutina "${r.title}" și toate execuțiile ei vor fi șterse.')),
-                                      actions: [
-                                        TextButton(onPressed: () => Navigator.pop(c, false), child: Text(tr('Abbrechen', 'Anulare'))),
-                                        ElevatedButton(
-                                          onPressed: () => Navigator.pop(c, true),
-                                          style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
-                                          child: Text(tr('Löschen', 'Șterge')),
-                                        ),
-                                      ],
-                                    ),
-                                  );
-                                  if (confirm == true) {
-                                    await _routineService.deleteRoutine(r.id);
-                                    final updated = await _routineService.getRoutines();
-                                    setDialogState(() {
-                                      _routines.clear();
-                                      _routines.addAll(updated);
-                                    });
-                                    _loadData();
-                                  }
-                                },
-                                icon: const Icon(Icons.delete_outline, color: Colors.red),
-                                tooltip: tr('Löschen', 'Șterge'),
-                              ),
-                            ],
-                          ),
+                          trailing: schmal ? null : aktionen,
+                        );
+                        if (!schmal) return kachel;
+                        return Column(
+                          children: [
+                            kachel,
+                            Align(alignment: AlignmentDirectional.centerEnd, child: aktionen),
+                          ],
                         );
                       },
                     ),

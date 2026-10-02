@@ -68,7 +68,7 @@ class _LegalFooterState extends State<LegalFooter> with SingleTickerProviderStat
                 ),
               ),
               const SizedBox(width: 12),
-              Text(l.searchingUpdates),
+              Flexible(child: Text(l.searchingUpdates)),
             ],
           ),
           duration: const Duration(seconds: 2),
@@ -106,7 +106,7 @@ class _LegalFooterState extends State<LegalFooter> with SingleTickerProviderStat
               children: [
                 const Icon(Icons.check_circle, color: Colors.white, size: 20),
                 const SizedBox(width: 12),
-                Text(l.appUpToDate),
+                Flexible(child: Text(l.appUpToDate)),
               ],
             ),
             duration: const Duration(seconds: 3),
@@ -130,7 +130,7 @@ class _LegalFooterState extends State<LegalFooter> with SingleTickerProviderStat
               children: [
                 const Icon(Icons.error_outline, color: Colors.white, size: 20),
                 const SizedBox(width: 12),
-                Text(l.updateCheckError),
+                Flexible(child: Text(l.updateCheckError)),
               ],
             ),
             duration: const Duration(seconds: 3),
@@ -154,6 +154,101 @@ class _LegalFooterState extends State<LegalFooter> with SingleTickerProviderStat
     final textColor = widget.darkMode ? Colors.grey.shade400 : Colors.grey.shade600;
     final dividerColor = widget.darkMode ? Colors.grey.shade600 : Colors.grey.shade400;
 
+    final links = [
+      _buildLink(context, l.imprint, 'https://icd360s.de/impressum', textColor),
+      _buildLink(context, l.privacy, 'https://icd360s.de/datenschutz', textColor),
+      _buildLink(context, l.withdrawal, 'https://icd360s.de/widerrufsrecht', textColor),
+      _buildLink(context, l.cancellation, 'https://icd360s.de/kundigung', textColor),
+      _buildLink(context, l.statute, 'https://icd360s.de/satzung360s/', textColor),
+    ];
+    final werkzeuge = <Widget>[
+      InkWell(
+        onTap: () => _showChangelog(context),
+        borderRadius: BorderRadius.circular(4),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+          child: Text(
+            'v${UpdateService.currentVersion}',
+            style: TextStyle(
+              color: textColor,
+              fontSize: 11,
+              decoration: TextDecoration.underline,
+              decorationColor: textColor,
+            ),
+          ),
+        ),
+      ),
+      const SizedBox(width: 8),
+      // Update check button
+      Tooltip(
+        message: l.checkForUpdates,
+        child: InkWell(
+          onTap: _isChecking ? null : () => _checkForUpdates(silent: false),
+          borderRadius: BorderRadius.circular(4),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+            child: AnimatedBuilder(
+              animation: _rotationController,
+              builder: (context, child) {
+                return Transform.rotate(
+                  angle: _rotationController.value * 2 * 3.14159,
+                  child: Icon(
+                    Icons.refresh,
+                    size: 16,
+                    color: _isChecking ? Colors.blue.shade600 : textColor,
+                  ),
+                );
+              },
+            ),
+          ),
+        ),
+      ),
+      const SizedBox(width: 4),
+      InkWell(
+        onTap: () => showDebugConsole(context),
+        borderRadius: BorderRadius.circular(4),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          child: Text(
+            '>_',
+            style: TextStyle(
+              color: textColor,
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+              fontFamily: 'Consolas',
+            ),
+          ),
+        ),
+      ),
+      const SizedBox(width: 4),
+      // Website link
+      Tooltip(
+        message: 'icd360s.de',
+        child: InkWell(
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const WebViewScreen(
+                  title: 'ICD360S e.V.',
+                  url: 'https://icd360s.de',
+                ),
+              ),
+            );
+          },
+          borderRadius: BorderRadius.circular(4),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+            child: Icon(
+              Icons.language,
+              size: 16,
+              color: textColor,
+            ),
+          ),
+        ),
+      ),
+    ];
+
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
       decoration: BoxDecoration(
@@ -164,115 +259,39 @@ class _LegalFooterState extends State<LegalFooter> with SingleTickerProviderStat
           ),
         ),
       ),
-      child: Row(
-        children: [
-          Expanded(
-            child: FittedBox(
-              fit: BoxFit.scaleDown,
-              alignment: Alignment.centerLeft,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  _buildLink(context, l.imprint, 'https://icd360s.de/impressum', textColor),
-                  _buildDivider(dividerColor),
-                  _buildLink(context, l.privacy, 'https://icd360s.de/datenschutz', textColor),
-                  _buildDivider(dividerColor),
-                  _buildLink(context, l.withdrawal, 'https://icd360s.de/widerrufsrecht', textColor),
-                  _buildDivider(dividerColor),
-                  _buildLink(context, l.cancellation, 'https://icd360s.de/kundigung', textColor),
-                  _buildDivider(dividerColor),
-                  _buildLink(context, l.statute, 'https://icd360s.de/satzung360s/', textColor),
-                ],
-              ),
-            ),
-          ),
-          InkWell(
-            onTap: () => _showChangelog(context),
-            borderRadius: BorderRadius.circular(4),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-              child: Text(
-                'v${UpdateService.currentVersion}',
-                style: TextStyle(
-                  color: textColor,
-                  fontSize: 11,
-                  decoration: TextDecoration.underline,
-                  decorationColor: textColor,
+      // Entschieden wird nach der Breite, die die Leiste wirklich bekommt.
+      child: LayoutBuilder(builder: (context, constraints) {
+        // Telefon: die Links in ihrer Schriftgröße umbrechen — die FittedBox
+        // schrumpfte sie auf 393 dp auf rund 5 pt, unlesbar und kaum zu
+        // treffen. Ohne „|": am Zeilenende stünde sonst ein einzelner Strich.
+        if (constraints.maxWidth < 600) {
+          return Wrap(
+            alignment: WrapAlignment.center,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [...links, ...werkzeuge],
+          );
+        }
+        return Row(
+          children: [
+            Expanded(
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    for (var i = 0; i < links.length; i++) ...[
+                      if (i > 0) _buildDivider(dividerColor),
+                      links[i],
+                    ],
+                  ],
                 ),
               ),
             ),
-          ),
-          const SizedBox(width: 8),
-          // Update check button
-          Tooltip(
-            message: l.checkForUpdates,
-            child: InkWell(
-              onTap: _isChecking ? null : () => _checkForUpdates(silent: false),
-              borderRadius: BorderRadius.circular(4),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-                child: AnimatedBuilder(
-                  animation: _rotationController,
-                  builder: (context, child) {
-                    return Transform.rotate(
-                      angle: _rotationController.value * 2 * 3.14159,
-                      child: Icon(
-                        Icons.refresh,
-                        size: 16,
-                        color: _isChecking ? Colors.blue.shade600 : textColor,
-                      ),
-                    );
-                  },
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(width: 4),
-          InkWell(
-            onTap: () => showDebugConsole(context),
-            borderRadius: BorderRadius.circular(4),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              child: Text(
-                '>_',
-                style: TextStyle(
-                  color: textColor,
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                  fontFamily: 'Consolas',
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(width: 4),
-          // Website link
-          Tooltip(
-            message: 'icd360s.de',
-            child: InkWell(
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const WebViewScreen(
-                      title: 'ICD360S e.V.',
-                      url: 'https://icd360s.de',
-                    ),
-                  ),
-                );
-              },
-              borderRadius: BorderRadius.circular(4),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-                child: Icon(
-                  Icons.language,
-                  size: 16,
-                  color: textColor,
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
+            ...werkzeuge,
+          ],
+        );
+      }),
     );
   }
 

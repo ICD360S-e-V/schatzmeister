@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 import 'dart:io';
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:http/http.dart' as http;
 import 'package:http/io_client.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -34,6 +35,12 @@ class ApiService {
     final httpClient = HttpClientFactory.createPinnedHttpClient();
     _client = IOClient(httpClient);
   }
+
+  /// Nur für Tests: Antworten des Servers vorgeben, z. B. um Bildschirme mit
+  /// echten Listen und Tabellen auf Telefonbreite zu prüfen statt nur leer.
+  /// Baugleich mit `TicketService.testClient`.
+  @visibleForTesting
+  set testClient(http.Client client) => _client = client;
 
   /// Inițializează API service - TREBUIE apelat la pornirea aplicației
   Future<bool> initialize() async {

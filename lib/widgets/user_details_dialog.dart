@@ -94,6 +94,12 @@ class _UserDetailsDialogState extends State<UserDetailsDialog> with SingleTicker
   List<Termin> _memberTermine = [];
   bool _isLoadingTermine = false;
 
+  /// Telefonbreite (< 600 dp): der Dialog füllt den ganzen Bildschirm, die
+  /// Reiter stapeln Beschriftung über Wert und brechen Knopfzeilen um.
+  /// Gesetzt in [build] aus der Breite, die der Dialog wirklich bekommt —
+  /// auf dem Schreibtisch bleibt alles, wie es war.
+  bool _schmal = false;
+
   @override
   void initState() {
     super.initState();
@@ -384,7 +390,7 @@ class _UserDetailsDialogState extends State<UserDetailsDialog> with SingleTicker
           children: [
             const Icon(Icons.warning, color: Colors.red),
             const SizedBox(width: 8),
-            Text(l.deleteWarningTitle),
+            Flexible(child: Text(l.deleteWarningTitle)),
           ],
         ),
         content: Text(l.deleteWarningConfirm(v.typDisplay, DateFormat('dd.MM.yyyy').format(v.datum))),
@@ -484,14 +490,24 @@ class _UserDetailsDialogState extends State<UserDetailsDialog> with SingleTicker
 
   @override
   Widget build(BuildContext context) {
+    // Entschieden wird nach der Breite, die der Dialog wirklich bekommt
+    // (Dialog-Route: der ganze Bildschirm ohne Systemleisten).
+    return LayoutBuilder(builder: _baueDialog);
+  }
+
+  Widget _baueDialog(BuildContext context, BoxConstraints constraints) {
     final l = AppLocalizations.of(context);
-    final screenSize = MediaQuery.of(context).size;
+    // Telefon: ganzer Bildschirm statt 24 dp Rand ringsum — sonst bleiben auf
+    // 320 dp nur 272 dp für neun Reiter.
+    _schmal = constraints.maxWidth < 600;
     return Dialog(
-      insetPadding: const EdgeInsets.all(24),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      insetPadding: _schmal ? EdgeInsets.zero : const EdgeInsets.all(24),
+      shape: _schmal
+          ? const RoundedRectangleBorder()
+          : RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: SizedBox(
-        width: screenSize.width - 48,
-        height: screenSize.height - 48,
+        width: _schmal ? constraints.maxWidth : constraints.maxWidth - 48,
+        height: _schmal ? constraints.maxHeight : constraints.maxHeight - 48,
         child: Column(
           children: [
             // Header
@@ -499,10 +515,12 @@ class _UserDetailsDialogState extends State<UserDetailsDialog> with SingleTicker
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 color: Colors.blue.shade700,
-                borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(16),
-                  topRight: Radius.circular(16),
-                ),
+                borderRadius: _schmal
+                    ? null
+                    : const BorderRadius.only(
+                        topLeft: Radius.circular(16),
+                        topRight: Radius.circular(16),
+                      ),
               ),
               child: Row(
                 children: [
@@ -546,6 +564,8 @@ class _UserDetailsDialogState extends State<UserDetailsDialog> with SingleTicker
                 unselectedLabelColor: Colors.grey.shade600,
                 indicatorColor: Colors.blue.shade700,
                 isScrollable: true,
+                // Telefon: ohne den Einzug vorn, der erste Reiter beginnt am Rand
+                tabAlignment: _schmal ? TabAlignment.start : null,
                 tabs: [
                   Tab(icon: const Icon(Icons.account_circle), text: l.accountTab),
                   Tab(icon: const Icon(Icons.devices), text: tr('Geräte', 'Dispozitive')),
@@ -628,12 +648,14 @@ class _UserDetailsDialogState extends State<UserDetailsDialog> with SingleTicker
                   size: 28,
                 ),
                 const SizedBox(width: 12),
-                Text(
-                  isDeactivated ? l.accountDeactivated : l.accountActive,
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: isDeactivated ? Colors.red.shade700 : Colors.green.shade700,
+                Flexible(
+                  child: Text(
+                    isDeactivated ? l.accountDeactivated : l.accountActive,
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: isDeactivated ? Colors.red.shade700 : Colors.green.shade700,
+                    ),
                   ),
                 ),
               ],
@@ -791,29 +813,37 @@ class _UserDetailsDialogState extends State<UserDetailsDialog> with SingleTicker
     Color? valueColor,
     VoidCallback? onEdit,
   }) {
+    final beschriftung = Text(
+      label,
+      style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+    );
+    final wert = Text(
+      value,
+      style: TextStyle(
+        fontSize: 15,
+        fontWeight: FontWeight.w500,
+        color: valueColor,
+      ),
+    );
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 10),
       child: Row(
         children: [
           Icon(icon, size: 20, color: Colors.grey.shade600),
           const SizedBox(width: 12),
-          SizedBox(
-            width: 130,
-            child: Text(
-              label,
-              style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
-            ),
-          ),
-          Expanded(
-            child: Text(
-              value,
-              style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w500,
-                color: valueColor,
+          // Telefon: Beschriftung über dem Wert — neben einer festen
+          // 130-dp-Spalte blieben für die E-Mail-Adresse kaum 80 dp.
+          if (_schmal)
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [beschriftung, const SizedBox(height: 2), wert],
               ),
-            ),
-          ),
+            )
+          else ...[
+            SizedBox(width: 130, child: beschriftung),
+            Expanded(child: wert),
+          ],
           if (onEdit != null)
             IconButton(
               icon: Icon(Icons.edit, size: 18, color: Colors.blue.shade600),
@@ -892,6 +922,9 @@ class _UserDetailsDialogState extends State<UserDetailsDialog> with SingleTicker
         builder: (ctx, setDialogState) => AlertDialog(
           title: Text(l.editRole),
           content: DropdownButtonFormField<String>(
+            // isExpanded: im schmalen Telefon-Dialog bricht ein langer Eintrag um,
+            // statt hinauszulaufen (auf dem Schreibtisch sieht das Feld gleich aus).
+            isExpanded: true,
             initialValue: tempRole,
             decoration: InputDecoration(
               labelText: l.role,
@@ -986,16 +1019,16 @@ class _UserDetailsDialogState extends State<UserDetailsDialog> with SingleTicker
           if (_verwarnungStats != null && _verwarnungStats!.total > 0)
             Padding(
               padding: const EdgeInsets.only(bottom: 12),
-              child: Row(
+              // Wrap statt Row: auf dem Telefon in die nächste Zeile
+              child: Wrap(
+                spacing: 8,
+                runSpacing: 8,
                 children: [
                   _buildStatChip(l.total, _verwarnungStats!.total, Colors.grey),
-                  const SizedBox(width: 8),
                   if (_verwarnungStats!.ermahnung > 0)
                     _buildStatChip(tr('Ermahnung', 'Mustrare'), _verwarnungStats!.ermahnung, Colors.amber),
-                  if (_verwarnungStats!.ermahnung > 0) const SizedBox(width: 8),
                   if (_verwarnungStats!.abmahnung > 0)
                     _buildStatChip(tr('Abmahnung', 'Avertisment'), _verwarnungStats!.abmahnung, Colors.orange),
-                  if (_verwarnungStats!.abmahnung > 0) const SizedBox(width: 8),
                   if (_verwarnungStats!.letzteAbmahnung > 0)
                     _buildStatChip(tr('Letzte', 'Ultima'), _verwarnungStats!.letzteAbmahnung, Colors.red),
                 ],
@@ -1014,7 +1047,9 @@ class _UserDetailsDialogState extends State<UserDetailsDialog> with SingleTicker
                     children: [
                       Icon(Icons.gavel, color: Colors.red.shade700, size: 20),
                       const SizedBox(width: 8),
-                      Text(l.newDisciplinaryMeasure, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                      Flexible(
+                        child: Text(l.newDisciplinaryMeasure, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                      ),
                     ],
                   ),
                   const SizedBox(height: 12),
@@ -1121,36 +1156,43 @@ class _UserDetailsDialogState extends State<UserDetailsDialog> with SingleTicker
                   ],
                   const SizedBox(height: 12),
 
-                  // 4. Date + Submit row
-                  Row(
-                    children: [
-                      OutlinedButton.icon(
-                        onPressed: () async {
-                          final picked = await showDatePicker(
-                            context: context,
-                            initialDate: _selectedDatum,
-                            firstDate: DateTime(2020),
-                            lastDate: DateTime.now().add(const Duration(days: 365)),
-                            locale: LanguageService.instance.isRomanian ? const Locale('ro', 'RO') : const Locale('de', 'DE'),
-                          );
-                          if (picked != null) setState(() => _selectedDatum = picked);
-                        },
-                        icon: const Icon(Icons.calendar_today, size: 16),
-                        label: Text(DateFormat('dd.MM.yyyy').format(_selectedDatum)),
-                      ),
-                      const Spacer(),
-                      ElevatedButton.icon(
-                        onPressed: _isSubmittingWarning ? null : _createVerwarnung,
-                        icon: _isSubmittingWarning
-                            ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                            : const Icon(Icons.gavel),
-                        label: Text(l.issueMeasurePdf),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.red.shade700,
-                          foregroundColor: Colors.white,
+                  // 4. Date + Submit row — Wrap: links Datum, rechts Absenden,
+                  // auf dem Telefon untereinander, wenn beide nicht passen.
+                  SizedBox(
+                    width: double.infinity,
+                    child: Wrap(
+                      alignment: WrapAlignment.spaceBetween,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        OutlinedButton.icon(
+                          onPressed: () async {
+                            final picked = await showDatePicker(
+                              context: context,
+                              initialDate: _selectedDatum,
+                              firstDate: DateTime(2020),
+                              lastDate: DateTime.now().add(const Duration(days: 365)),
+                              locale: LanguageService.instance.isRomanian ? const Locale('ro', 'RO') : const Locale('de', 'DE'),
+                            );
+                            if (picked != null) setState(() => _selectedDatum = picked);
+                          },
+                          icon: const Icon(Icons.calendar_today, size: 16),
+                          label: Text(DateFormat('dd.MM.yyyy').format(_selectedDatum)),
                         ),
-                      ),
-                    ],
+                        ElevatedButton.icon(
+                          onPressed: _isSubmittingWarning ? null : _createVerwarnung,
+                          icon: _isSubmittingWarning
+                              ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                              : const Icon(Icons.gavel),
+                          label: Text(l.issueMeasurePdf),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.red.shade700,
+                            foregroundColor: Colors.white,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),
@@ -1163,11 +1205,12 @@ class _UserDetailsDialogState extends State<UserDetailsDialog> with SingleTicker
             children: [
               Icon(Icons.list_alt, size: 20, color: Colors.grey.shade700),
               const SizedBox(width: 8),
-              Text(
-                l.warningsCount(_verwarnungen.length),
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+              Expanded(
+                child: Text(
+                  l.warningsCount(_verwarnungen.length),
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                ),
               ),
-              const Spacer(),
               if (_isLoadingVerwarnungen)
                 const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)),
             ],
@@ -1182,7 +1225,7 @@ class _UserDetailsDialogState extends State<UserDetailsDialog> with SingleTicker
                   children: [
                     Icon(Icons.check_circle, color: Colors.green.shade600),
                     const SizedBox(width: 12),
-                    Text(l.noWarnings),
+                    Flexible(child: Text(l.noWarnings)),
                   ],
                 ),
               ),
@@ -1190,6 +1233,64 @@ class _UserDetailsDialogState extends State<UserDetailsDialog> with SingleTicker
           else
             ..._verwarnungen.map((v) {
               final color = _getTypColor(v.typ);
+              final symbol = Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: color.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(_getTypIcon(v.typ), color: color.shade800, size: 24),
+              );
+              final inhalt = Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 4,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: color.shade100,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          v.typDisplay,
+                          style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: color.shade900),
+                        ),
+                      ),
+                      Text(
+                        DateFormat('dd.MM.yyyy').format(v.datum),
+                        style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(v.grund, style: const TextStyle(fontWeight: FontWeight.w600)),
+                  if (v.beschreibung != null && v.beschreibung!.isNotEmpty) ...[
+                    const SizedBox(height: 2),
+                    Text(v.beschreibung!, style: TextStyle(fontSize: 12, color: Colors.grey.shade700)),
+                  ],
+                  const SizedBox(height: 4),
+                  Text(
+                    l.createdBy(v.createdByName),
+                    style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+                  ),
+                ],
+              );
+              final aktionen = [
+                IconButton(
+                  icon: Icon(Icons.picture_as_pdf, color: Colors.red.shade700, size: 20),
+                  tooltip: l.createPdf,
+                  onPressed: () => _generateVerwarnungPdf(v),
+                ),
+                IconButton(
+                  icon: Icon(Icons.delete_outline, color: Colors.red.shade400, size: 20),
+                  tooltip: l.deleteWarning,
+                  onPressed: () => _deleteVerwarnung(v),
+                ),
+              ];
               return Card(
                 margin: const EdgeInsets.only(bottom: 8),
                 shape: RoundedRectangleBorder(
@@ -1198,68 +1299,27 @@ class _UserDetailsDialogState extends State<UserDetailsDialog> with SingleTicker
                 ),
                 child: Padding(
                   padding: const EdgeInsets.all(12),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: color.shade50,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Icon(_getTypIcon(v.typ), color: color.shade800, size: 24),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                  // Telefon: die beiden Knöpfe unter den Text — rechts daneben
+                  // blieben dem Grund sonst nur gut 100 dp.
+                  child: _schmal
+                      ? Column(
                           children: [
                             Row(
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                                  decoration: BoxDecoration(
-                                    color: color.shade100,
-                                    borderRadius: BorderRadius.circular(4),
-                                  ),
-                                  child: Text(
-                                    v.typDisplay,
-                                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: color.shade900),
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  DateFormat('dd.MM.yyyy').format(v.datum),
-                                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-                                ),
-                              ],
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [symbol, const SizedBox(width: 12), Expanded(child: inhalt)],
                             ),
-                            const SizedBox(height: 4),
-                            Text(v.grund, style: const TextStyle(fontWeight: FontWeight.w600)),
-                            if (v.beschreibung != null && v.beschreibung!.isNotEmpty) ...[
-                              const SizedBox(height: 2),
-                              Text(v.beschreibung!, style: TextStyle(fontSize: 12, color: Colors.grey.shade700)),
-                            ],
-                            const SizedBox(height: 4),
-                            Text(
-                              l.createdBy(v.createdByName),
-                              style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
-                            ),
+                            Row(mainAxisAlignment: MainAxisAlignment.end, children: aktionen),
+                          ],
+                        )
+                      : Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            symbol,
+                            const SizedBox(width: 12),
+                            Expanded(child: inhalt),
+                            ...aktionen,
                           ],
                         ),
-                      ),
-                      IconButton(
-                        icon: Icon(Icons.picture_as_pdf, color: Colors.red.shade700, size: 20),
-                        tooltip: l.createPdf,
-                        onPressed: () => _generateVerwarnungPdf(v),
-                      ),
-                      IconButton(
-                        icon: Icon(Icons.delete_outline, color: Colors.red.shade400, size: 20),
-                        tooltip: l.deleteWarning,
-                        onPressed: () => _deleteVerwarnung(v),
-                      ),
-                    ],
-                  ),
                 ),
               );
             }),
@@ -1421,6 +1481,9 @@ class _UserDetailsDialogState extends State<UserDetailsDialog> with SingleTicker
                   if (result.files.length == 1) const SizedBox(height: 12),
                   // Document type dropdown
                   DropdownButtonFormField<String>(
+                    // isExpanded: im schmalen Telefon-Dialog bricht ein langer Eintrag um,
+                    // statt hinauszulaufen (auf dem Schreibtisch sieht das Feld gleich aus).
+                    isExpanded: true,
                     key: ValueKey('doctyp_$selectedDokumentTyp'),
                     initialValue: selectedDokumentTyp,
                     decoration: InputDecoration(
@@ -1577,7 +1640,7 @@ class _UserDetailsDialogState extends State<UserDetailsDialog> with SingleTicker
           children: [
             const Icon(Icons.warning, color: Colors.red),
             const SizedBox(width: 8),
-            Text(l.deleteDocumentTitle),
+            Flexible(child: Text(l.deleteDocumentTitle)),
           ],
         ),
         content: Text(l.deleteDocumentConfirm(doc.dokumentName, doc.originalFilename)),
@@ -1629,7 +1692,7 @@ class _UserDetailsDialogState extends State<UserDetailsDialog> with SingleTicker
           children: [
             const CircularProgressIndicator(),
             const SizedBox(width: 16),
-            Text(AppLocalizations.of(ctx).fileLoading),
+            Flexible(child: Text(AppLocalizations.of(ctx).fileLoading)),
           ],
         ),
       ),
@@ -1770,13 +1833,15 @@ class _UserDetailsDialogState extends State<UserDetailsDialog> with SingleTicker
               unselectedLabelColor: Colors.grey.shade600,
               indicatorColor: Colors.blue.shade800,
               tabs: [
+                // Flexible: auf dem Telefon (halbe Breite je Reiter) bricht die
+                // Beschriftung in eine zweite Zeile um, statt hinauszulaufen.
                 Tab(
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       const Icon(Icons.groups, size: 18),
                       const SizedBox(width: 6),
-                      Text(AppLocalizations.of(context).associationDocuments),
+                      Flexible(child: Text(AppLocalizations.of(context).associationDocuments, maxLines: 2)),
                       const SizedBox(width: 4),
                       _buildDocCountBadge(_dokumente.where((d) => d.kategorie == 'vereindokumente').length),
                     ],
@@ -1788,7 +1853,7 @@ class _UserDetailsDialogState extends State<UserDetailsDialog> with SingleTicker
                     children: [
                       const Icon(Icons.account_balance, size: 18),
                       const SizedBox(width: 6),
-                      Text(AppLocalizations.of(context).authorityDocuments),
+                      Flexible(child: Text(AppLocalizations.of(context).authorityDocuments, maxLines: 2)),
                       const SizedBox(width: 4),
                       _buildDocCountBadge(_dokumente.where((d) => d.kategorie == 'behoerde').length),
                     ],
@@ -1902,7 +1967,9 @@ class _UserDetailsDialogState extends State<UserDetailsDialog> with SingleTicker
                   children: [
                     Icon(Icons.folder_off, color: Colors.grey.shade500),
                     const SizedBox(width: 12),
-                    Text(isVerein ? AppLocalizations.of(context).noAssociationDocs : AppLocalizations.of(context).noAuthorityDocs),
+                    Flexible(
+                      child: Text(isVerein ? AppLocalizations.of(context).noAssociationDocs : AppLocalizations.of(context).noAuthorityDocs),
+                    ),
                   ],
                 ),
               ),
@@ -1959,7 +2026,12 @@ class _UserDetailsDialogState extends State<UserDetailsDialog> with SingleTicker
                 children: [
                   Text(doc.dokumentName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                   const SizedBox(height: 2),
-                  Row(
+                  // Wrap statt Row: Endung, Größe, Datum und Typ passen auf dem
+                  // Telefon nicht in eine Zeile.
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 3,
+                    crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
@@ -1969,12 +2041,9 @@ class _UserDetailsDialogState extends State<UserDetailsDialog> with SingleTicker
                         ),
                         child: Text(ext, style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: color)),
                       ),
-                      const SizedBox(width: 6),
                       Text(doc.filesizeFormatted, style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
-                      const SizedBox(width: 6),
                       Text(DateFormat('dd.MM.yyyy').format(doc.createdAt), style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
                       if (doc.dokumentTyp != null) ...[
-                        const SizedBox(width: 6),
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
                           decoration: BoxDecoration(
@@ -2000,16 +2069,18 @@ class _UserDetailsDialogState extends State<UserDetailsDialog> with SingleTicker
                           color: doc.isExpired ? Colors.red : (doc.isExpiringSoon ? Colors.orange : Colors.grey),
                         ),
                         const SizedBox(width: 4),
-                        Text(
-                          doc.isExpired
-                              ? AppLocalizations.of(context).expiredOnDate(DateFormat('dd.MM.yyyy').format(doc.ablaufDatum!))
-                              : doc.isExpiringSoon
-                                  ? AppLocalizations.of(context).validUntilDays(DateFormat('dd.MM.yyyy').format(doc.ablaufDatum!), doc.daysUntilExpiry ?? 0)
-                                  : AppLocalizations.of(context).validUntilDate(DateFormat('dd.MM.yyyy').format(doc.ablaufDatum!)),
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: doc.isExpired ? Colors.red : (doc.isExpiringSoon ? Colors.orange.shade700 : Colors.grey.shade600),
-                            fontWeight: doc.isExpired || doc.isExpiringSoon ? FontWeight.w600 : FontWeight.normal,
+                        Flexible(
+                          child: Text(
+                            doc.isExpired
+                                ? AppLocalizations.of(context).expiredOnDate(DateFormat('dd.MM.yyyy').format(doc.ablaufDatum!))
+                                : doc.isExpiringSoon
+                                    ? AppLocalizations.of(context).validUntilDays(DateFormat('dd.MM.yyyy').format(doc.ablaufDatum!), doc.daysUntilExpiry ?? 0)
+                                    : AppLocalizations.of(context).validUntilDate(DateFormat('dd.MM.yyyy').format(doc.ablaufDatum!)),
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: doc.isExpired ? Colors.red : (doc.isExpiringSoon ? Colors.orange.shade700 : Colors.grey.shade600),
+                              fontWeight: doc.isExpired || doc.isExpiringSoon ? FontWeight.w600 : FontWeight.normal,
+                            ),
                           ),
                         ),
                       ],
@@ -2100,7 +2171,7 @@ class _UserDetailsDialogState extends State<UserDetailsDialog> with SingleTicker
           children: [
             const Icon(Icons.warning, color: Colors.orange),
             const SizedBox(width: 8),
-            Text(l.revokeSessionTitle),
+            Flexible(child: Text(l.revokeSessionTitle)),
           ],
         ),
         content: Text(l.revokeSessionInfo),
@@ -2127,6 +2198,16 @@ class _UserDetailsDialogState extends State<UserDetailsDialog> with SingleTicker
     final l = AppLocalizations.of(context);
     final user = widget.user;
     final dateFormat = DateFormat('dd.MM.yyyy');
+    final hochladenKnopf = ElevatedButton.icon(
+      onPressed: () => _showBefreiungUploadDialog(),
+      icon: const Icon(Icons.upload_file, size: 16),
+      label: Text(l.uploadCertificate, style: const TextStyle(fontSize: 11)),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: Colors.teal,
+        foregroundColor: Colors.white,
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      ),
+    );
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
@@ -2138,7 +2219,11 @@ class _UserDetailsDialogState extends State<UserDetailsDialog> with SingleTicker
             icon: Icons.circle,
             iconColor: getStatusColor(user.status),
             label: l.status,
-            child: Row(
+            // Wrap: auf dem Telefon rückt der Knopf unter den Status
+            child: Wrap(
+              spacing: 12,
+              runSpacing: 8,
+              crossAxisAlignment: WrapCrossAlignment.center,
               children: [
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -2155,7 +2240,6 @@ class _UserDetailsDialogState extends State<UserDetailsDialog> with SingleTicker
                     ),
                   ),
                 ),
-                const SizedBox(width: 12),
                 ElevatedButton.icon(
                   onPressed: () => _showStatusChangeDialog(),
                   icon: const Icon(Icons.edit, size: 16),
@@ -2238,15 +2322,17 @@ class _UserDetailsDialogState extends State<UserDetailsDialog> with SingleTicker
             label: l.memberSince,
             child: Row(
               children: [
-                Text(
-                  user.mitgliedschaftDatum != null
-                      ? dateFormat.format(user.mitgliedschaftDatum!)
-                      : l.notYetActivated,
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                    color: user.mitgliedschaftDatum != null ? Colors.green.shade700 : Colors.grey,
-                    fontStyle: user.mitgliedschaftDatum == null ? FontStyle.italic : FontStyle.normal,
+                Flexible(
+                  child: Text(
+                    user.mitgliedschaftDatum != null
+                        ? dateFormat.format(user.mitgliedschaftDatum!)
+                        : l.notYetActivated,
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: user.mitgliedschaftDatum != null ? Colors.green.shade700 : Colors.grey,
+                      fontStyle: user.mitgliedschaftDatum == null ? FontStyle.italic : FontStyle.normal,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -2307,19 +2393,18 @@ class _UserDetailsDialogState extends State<UserDetailsDialog> with SingleTicker
                       padding: EdgeInsets.zero,
                       onPressed: _loadBefreiungen,
                     ),
-                    const SizedBox(width: 4),
-                    ElevatedButton.icon(
-                      onPressed: () => _showBefreiungUploadDialog(),
-                      icon: const Icon(Icons.upload_file, size: 16),
-                      label: Text(l.uploadCertificate, style: const TextStyle(fontSize: 11)),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.teal,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                      ),
-                    ),
+                    if (!_schmal) ...[
+                      const SizedBox(width: 4),
+                      hochladenKnopf,
+                    ],
                   ],
                 ),
+                // Telefon: der Knopf in eigener Zeile — neben ihm blieben für
+                // die Überschrift nur wenige Buchstaben je Zeile.
+                if (_schmal) ...[
+                  const SizedBox(height: 4),
+                  Align(alignment: Alignment.centerRight, child: hochladenKnopf),
+                ],
                 if (_isLoadingBefreiung) ...[
                   const SizedBox(height: 12),
                   const Center(child: CircularProgressIndicator()),
@@ -2350,21 +2435,35 @@ class _UserDetailsDialogState extends State<UserDetailsDialog> with SingleTicker
     required String label,
     required Widget child,
   }) {
+    final beschriftung = Text(
+      label,
+      style: TextStyle(
+        color: Colors.grey.shade600,
+        fontSize: 13,
+      ),
+    );
+    // Telefon: Beschriftung über dem Inhalt statt fester 140-dp-Spalte
+    if (_schmal) {
+      return Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 20, color: iconColor),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [beschriftung, const SizedBox(height: 4), child],
+            ),
+          ),
+        ],
+      );
+    }
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Icon(icon, size: 20, color: iconColor),
         const SizedBox(width: 12),
-        SizedBox(
-          width: 140,
-          child: Text(
-            label,
-            style: TextStyle(
-              color: Colors.grey.shade600,
-              fontSize: 13,
-            ),
-          ),
-        ),
+        SizedBox(width: 140, child: beschriftung),
         Expanded(child: child),
       ],
     );
@@ -2379,11 +2478,13 @@ class _UserDetailsDialogState extends State<UserDetailsDialog> with SingleTicker
         return StatefulBuilder(
           builder: (ctx, setDialogState) {
             return AlertDialog(
+              // Zehn Status passen auf einem 640-dp-Telefon nicht untereinander.
+              scrollable: true,
               title: Row(
                 children: [
                   Icon(Icons.swap_horiz, color: Colors.blue.shade700),
                   const SizedBox(width: 8),
-                  Text(AppLocalizations.of(ctx).changeStatus),
+                  Flexible(child: Text(AppLocalizations.of(ctx).changeStatus)),
                 ],
               ),
               content: SizedBox(
@@ -2397,7 +2498,8 @@ class _UserDetailsDialogState extends State<UserDetailsDialog> with SingleTicker
                       style: const TextStyle(fontWeight: FontWeight.w600),
                     ),
                     const SizedBox(height: 4),
-                    Row(
+                    Wrap(
+                      crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
                         Text(AppLocalizations.of(ctx).currentStatusLabel, style: const TextStyle(fontSize: 13)),
                         Container(
@@ -2736,11 +2838,13 @@ class _UserDetailsDialogState extends State<UserDetailsDialog> with SingleTicker
                       size: 20,
                     ),
                     const SizedBox(width: 8),
-                    Text(
-                      l.stagesChecked(geprueftCount, totalCount),
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: allDone ? Colors.green.shade700 : Colors.blue.shade700,
+                    Flexible(
+                      child: Text(
+                        l.stagesChecked(geprueftCount, totalCount),
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: allDone ? Colors.green.shade700 : Colors.blue.shade700,
+                        ),
                       ),
                     ),
                   ],
@@ -2792,13 +2896,16 @@ class _UserDetailsDialogState extends State<UserDetailsDialog> with SingleTicker
           ),
           child: Icon(_stufeIcon(stufe), color: color, size: 24),
         ),
-        title: Row(
+        // Wrap: auf dem Telefon rückt der Status unter den Stufennamen
+        title: Wrap(
+          spacing: 8,
+          runSpacing: 4,
+          crossAxisAlignment: WrapCrossAlignment.center,
           children: [
             Text(
               AppLocalizations.of(context).stageLabel(stufe, _stufeName(stufe)),
               style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
             ),
-            const SizedBox(width: 8),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
               decoration: BoxDecoration(
@@ -2856,39 +2963,44 @@ class _UserDetailsDialogState extends State<UserDetailsDialog> with SingleTicker
 
                 const SizedBox(height: 12),
 
-                // Action buttons
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    if (status != 'offen')
-                      TextButton.icon(
-                        onPressed: _isUpdatingVerifizierung ? null : () => _updateVerifizierungStatus(stufe, 'offen'),
-                        icon: const Icon(Icons.restart_alt, size: 18),
-                        label: Text(AppLocalizations.of(context).resetLabel),
-                        style: TextButton.styleFrom(foregroundColor: Colors.grey),
-                      ),
-                    const SizedBox(width: 8),
-                    if (status != 'abgelehnt')
-                      OutlinedButton.icon(
-                        onPressed: _isUpdatingVerifizierung ? null : () => _showAblehnungDialog(stufe),
-                        icon: const Icon(Icons.close, size: 18),
-                        label: Text(AppLocalizations.of(context).rejectLabel),
-                        style: OutlinedButton.styleFrom(foregroundColor: Colors.red),
-                      ),
-                    const SizedBox(width: 8),
-                    if (status != 'geprueft')
-                      ElevatedButton.icon(
-                        onPressed: _isUpdatingVerifizierung ? null : () => _updateVerifizierungStatus(stufe, 'geprueft'),
-                        icon: _isUpdatingVerifizierung
-                            ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                            : const Icon(Icons.check, size: 18),
-                        label: Text(AppLocalizations.of(context).checkedStatus),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.green,
-                          foregroundColor: Colors.white,
+                // Action buttons — Wrap: auf dem Telefon in eine zweite Zeile
+                SizedBox(
+                  width: double.infinity,
+                  child: Wrap(
+                    alignment: WrapAlignment.end,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    runSpacing: 4,
+                    children: [
+                      if (status != 'offen')
+                        TextButton.icon(
+                          onPressed: _isUpdatingVerifizierung ? null : () => _updateVerifizierungStatus(stufe, 'offen'),
+                          icon: const Icon(Icons.restart_alt, size: 18),
+                          label: Text(AppLocalizations.of(context).resetLabel),
+                          style: TextButton.styleFrom(foregroundColor: Colors.grey),
                         ),
-                      ),
-                  ],
+                      const SizedBox(width: 8),
+                      if (status != 'abgelehnt')
+                        OutlinedButton.icon(
+                          onPressed: _isUpdatingVerifizierung ? null : () => _showAblehnungDialog(stufe),
+                          icon: const Icon(Icons.close, size: 18),
+                          label: Text(AppLocalizations.of(context).rejectLabel),
+                          style: OutlinedButton.styleFrom(foregroundColor: Colors.red),
+                        ),
+                      const SizedBox(width: 8),
+                      if (status != 'geprueft')
+                        ElevatedButton.icon(
+                          onPressed: _isUpdatingVerifizierung ? null : () => _updateVerifizierungStatus(stufe, 'geprueft'),
+                          icon: _isUpdatingVerifizierung
+                              ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                              : const Icon(Icons.check, size: 18),
+                          label: Text(AppLocalizations.of(context).checkedStatus),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.green,
+                            foregroundColor: Colors.white,
+                          ),
+                        ),
+                    ],
+                  ),
                 ),
               ],
             ),
@@ -2927,7 +3039,8 @@ class _UserDetailsDialogState extends State<UserDetailsDialog> with SingleTicker
           ),
           const SizedBox(width: 8),
           SizedBox(
-            width: 120,
+            // Telefon: schmalere Beschriftung, damit dem Wert genug Platz bleibt
+            width: _schmal ? 100 : 120,
             child: Text(label, style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
           ),
           Expanded(
@@ -2967,9 +3080,11 @@ class _UserDetailsDialogState extends State<UserDetailsDialog> with SingleTicker
               children: [
                 Icon(Icons.groups, color: Colors.blue.shade700, size: 20),
                 const SizedBox(width: 8),
-                Text(
-                  mitgliedsartLabels[user.mitgliedsart] ?? user.mitgliedsart!,
-                  style: TextStyle(fontWeight: FontWeight.bold, color: Colors.blue.shade700),
+                Flexible(
+                  child: Text(
+                    mitgliedsartLabels[user.mitgliedsart] ?? user.mitgliedsart!,
+                    style: TextStyle(fontWeight: FontWeight.bold, color: Colors.blue.shade700),
+                  ),
                 ),
               ],
             ),
@@ -3029,11 +3144,13 @@ class _UserDetailsDialogState extends State<UserDetailsDialog> with SingleTicker
                   size: 20,
                 ),
                 const SizedBox(width: 8),
-                Text(
-                  finanzLabels[finSituation] ?? finSituation,
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: finSituation == 'nein' ? Colors.green.shade700 : Colors.orange.shade700,
+                Flexible(
+                  child: Text(
+                    finanzLabels[finSituation] ?? finSituation,
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: finSituation == 'nein' ? Colors.green.shade700 : Colors.orange.shade700,
+                    ),
                   ),
                 ),
               ],
@@ -3087,9 +3204,11 @@ class _UserDetailsDialogState extends State<UserDetailsDialog> with SingleTicker
               children: [
                 Icon(Icons.payment, color: Colors.green.shade700, size: 20),
                 const SizedBox(width: 8),
-                Text(
-                  zahlungsLabels[user.zahlungsmethode] ?? user.zahlungsmethode!,
-                  style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green.shade700),
+                Flexible(
+                  child: Text(
+                    zahlungsLabels[user.zahlungsmethode] ?? user.zahlungsmethode!,
+                    style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green.shade700),
+                  ),
                 ),
               ],
             ),
@@ -3098,6 +3217,9 @@ class _UserDetailsDialogState extends State<UserDetailsDialog> with SingleTicker
           Text(AppLocalizations.of(context).noPaymentMethod, style: TextStyle(color: Colors.red.shade400, fontStyle: FontStyle.italic)),
           const SizedBox(height: 8),
           DropdownButtonFormField<String>(
+            // isExpanded: auf dem Telefon bricht ein langer Eintrag um, statt
+            // hinauszulaufen (auf dem Schreibtisch sieht das Feld gleich aus).
+            isExpanded: true,
             decoration: InputDecoration(
               labelText: AppLocalizations.of(context).selectPaymentMethod,
               border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
@@ -3262,7 +3384,7 @@ class _UserDetailsDialogState extends State<UserDetailsDialog> with SingleTicker
           children: [
             const Icon(Icons.cancel, color: Colors.red),
             const SizedBox(width: 8),
-            Text(l.rejectStage(stufe)),
+            Flexible(child: Text(l.rejectStage(stufe))),
           ],
         ),
         content: SizedBox(
@@ -3367,56 +3489,48 @@ class _UserDetailsDialogState extends State<UserDetailsDialog> with SingleTicker
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Top row: Behörde + Status
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: behoerdeColor.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(6),
-                    border: Border.all(color: behoerdeColor.withValues(alpha: 0.3)),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.account_balance, size: 14, color: behoerdeColor),
-                      const SizedBox(width: 4),
-                      Text(behoerdeLabel, style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: behoerdeColor)),
-                    ],
-                  ),
+            // Top row: Behörde + Status — Wrap: links Behörde, rechts Status,
+            // auf dem Telefon untereinander, wenn beide nicht passen.
+            _linksRechts(
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: behoerdeColor.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: behoerdeColor.withValues(alpha: 0.3)),
                 ),
-                const Spacer(),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: statusColor.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(statusIcon, size: 14, color: statusColor),
-                      const SizedBox(width: 4),
-                      Text(statusText, style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: statusColor)),
-                    ],
-                  ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.account_balance, size: 14, color: behoerdeColor),
+                    const SizedBox(width: 4),
+                    Flexible(child: Text(behoerdeLabel, style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: behoerdeColor))),
+                  ],
                 ),
-              ],
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: statusColor.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(statusIcon, size: 14, color: statusColor),
+                    const SizedBox(width: 4),
+                    Text(statusText, style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: statusColor)),
+                  ],
+                ),
+              ),
             ),
             const SizedBox(height: 10),
 
             // Dates
-            Row(
-              children: [
-                Expanded(
-                  child: _befreiungInfoRow(Icons.date_range, AppLocalizations.of(context).validFromLabel, gueltigVon != null ? _formatDate(gueltigVon) : '-'),
-                ),
-                Expanded(
-                  child: _befreiungInfoRow(Icons.event, AppLocalizations.of(context).validUntilLabel, gueltigBis != null ? _formatDate(gueltigBis) : '-'),
-                ),
-              ],
-            ),
+            _nebenOderUnter([
+              _befreiungInfoRow(Icons.date_range, AppLocalizations.of(context).validFromLabel, gueltigVon != null ? _formatDate(gueltigVon) : '-'),
+              _befreiungInfoRow(Icons.event, AppLocalizations.of(context).validUntilLabel, gueltigBis != null ? _formatDate(gueltigBis) : '-'),
+            ]),
             if (bescheidDatum != null) ...[
               const SizedBox(height: 4),
               _befreiungInfoRow(Icons.description, AppLocalizations.of(context).certificateFrom, _formatDate(bescheidDatum)),
@@ -3496,17 +3610,15 @@ class _UserDetailsDialogState extends State<UserDetailsDialog> with SingleTicker
             const SizedBox(height: 8),
 
             // Action buttons
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                // Delete
-                TextButton.icon(
-                  onPressed: () => _deleteBefreiung(id),
-                  icon: const Icon(Icons.delete_outline, size: 16),
-                  label: Text(AppLocalizations.of(context).delete, style: const TextStyle(fontSize: 12)),
-                  style: TextButton.styleFrom(foregroundColor: Colors.red.shade400),
-                ),
-                const Spacer(),
+            _knopfzeile(
+              // Delete
+              TextButton.icon(
+                onPressed: () => _deleteBefreiung(id),
+                icon: const Icon(Icons.delete_outline, size: 16),
+                label: Text(AppLocalizations.of(context).delete, style: const TextStyle(fontSize: 12)),
+                style: TextButton.styleFrom(foregroundColor: Colors.red.shade400),
+              ),
+              [
                 if (status != 'genehmigt' && status != 'abgelaufen')
                   TextButton.icon(
                     onPressed: () => _showBefreiungAblehnungDialog(id),
@@ -3547,8 +3659,68 @@ class _UserDetailsDialogState extends State<UserDetailsDialog> with SingleTicker
       children: [
         Icon(icon, size: 14, color: Colors.grey.shade600),
         const SizedBox(width: 4),
-        Text('$label: ', style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
-        Text(value, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
+        // Ein Absatz statt zweier Texte: wird es eng, bricht er um, statt
+        // hinauszulaufen.
+        Flexible(
+          child: Text.rich(TextSpan(children: [
+            TextSpan(text: '$label: ', style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
+            TextSpan(text: value, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
+          ])),
+        ),
+      ],
+    );
+  }
+
+  /// Datumsangaben („Gültig von" / „Gültig bis") je in halber Breite
+  /// nebeneinander; auf dem Telefon untereinander — in halber Telefonbreite
+  /// bliebe dem Datum neben der Beschriftung kaum Platz.
+  Widget _nebenOderUnter(List<Widget> teile) {
+    if (_schmal) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          for (var i = 0; i < teile.length; i++) ...[
+            if (i > 0) const SizedBox(height: 4),
+            teile[i],
+          ],
+        ],
+      );
+    }
+    return Row(children: [for (final t in teile) Expanded(child: t)]);
+  }
+
+  /// Zwei Plaketten links und rechts in einer Zeile (wie `Row` + `Spacer`);
+  /// reicht die Breite nicht (Telefon), rückt die rechte in die nächste Zeile.
+  Widget _linksRechts(Widget links, Widget rechts) {
+    return SizedBox(
+      width: double.infinity,
+      child: Wrap(
+        alignment: WrapAlignment.spaceBetween,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        spacing: 8,
+        runSpacing: 6,
+        children: [links, rechts],
+      ),
+    );
+  }
+
+  /// Knopfzeile der Bescheid- und Antragskarten: „Löschen" links, die
+  /// übrigen Knöpfe rechtsbündig (wie `Row` + `Spacer`). Auf dem Telefon
+  /// brechen die rechten Knöpfe in eine zweite Zeile um.
+  Widget _knopfzeile(Widget links, List<Widget> rechts) {
+    return Row(
+      // Telefon: „Löschen" bleibt auf Höhe der ersten Knopfzeile
+      crossAxisAlignment: _schmal ? CrossAxisAlignment.start : CrossAxisAlignment.center,
+      children: [
+        links,
+        Expanded(
+          child: Wrap(
+            alignment: WrapAlignment.end,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            runSpacing: 4,
+            children: rechts,
+          ),
+        ),
       ],
     );
   }
@@ -3644,7 +3816,7 @@ class _UserDetailsDialogState extends State<UserDetailsDialog> with SingleTicker
           children: [
             const Icon(Icons.delete_forever, color: Colors.red),
             const SizedBox(width: 8),
-            Text(AppLocalizations.of(context).deleteExemptionTitle),
+            Flexible(child: Text(AppLocalizations.of(context).deleteExemptionTitle)),
           ],
         ),
         content: Text(AppLocalizations.of(context).deleteExemptionConfirm),
@@ -3694,7 +3866,7 @@ class _UserDetailsDialogState extends State<UserDetailsDialog> with SingleTicker
           children: [
             const Icon(Icons.cancel, color: Colors.red),
             const SizedBox(width: 8),
-            Text(AppLocalizations.of(ctx).rejectExemptionTitle),
+            Flexible(child: Text(AppLocalizations.of(ctx).rejectExemptionTitle)),
           ],
         ),
         content: SizedBox(
@@ -3745,7 +3917,7 @@ class _UserDetailsDialogState extends State<UserDetailsDialog> with SingleTicker
             children: [
               const Icon(Icons.upload_file, color: Colors.teal),
               const SizedBox(width: 8),
-              Text(AppLocalizations.of(ctx).approvalCertificate),
+              Flexible(child: Text(AppLocalizations.of(ctx).approvalCertificate)),
             ],
           ),
           content: SizedBox(
@@ -3759,6 +3931,9 @@ class _UserDetailsDialogState extends State<UserDetailsDialog> with SingleTicker
                   Text(AppLocalizations.of(ctx).authorityRequired, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 4),
                   DropdownButtonFormField<String>(
+                    // isExpanded: im schmalen Telefon-Dialog bricht ein langer Eintrag um,
+                    // statt hinauszulaufen (auf dem Schreibtisch sieht das Feld gleich aus).
+                    isExpanded: true,
                     initialValue: selectedBehoerde,
                     decoration: InputDecoration(
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
@@ -4172,42 +4347,40 @@ class _UserDetailsDialogState extends State<UserDetailsDialog> with SingleTicker
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Top row: Leistungsart + Status
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: typColor.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(6),
-                    border: Border.all(color: typColor.withValues(alpha: 0.3)),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.description, size: 14, color: typColor),
-                      const SizedBox(width: 4),
-                      Text(typLabel, style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: typColor)),
-                    ],
-                  ),
+            // Top row: Leistungsart + Status (auf dem Telefon untereinander,
+            // wenn beide nicht in eine Zeile passen)
+            _linksRechts(
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: typColor.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: typColor.withValues(alpha: 0.3)),
                 ),
-                const Spacer(),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: statusColor.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(statusIcon, size: 14, color: statusColor),
-                      const SizedBox(width: 4),
-                      Text(statusText, style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: statusColor)),
-                    ],
-                  ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.description, size: 14, color: typColor),
+                    const SizedBox(width: 4),
+                    Flexible(child: Text(typLabel, style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: typColor))),
+                  ],
                 ),
-              ],
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: statusColor.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(statusIcon, size: 14, color: statusColor),
+                    const SizedBox(width: 4),
+                    Text(statusText, style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: statusColor)),
+                  ],
+                ),
+              ),
             ),
             const SizedBox(height: 10),
 
@@ -4238,14 +4411,12 @@ class _UserDetailsDialogState extends State<UserDetailsDialog> with SingleTicker
             ),
             if (gueltigVon != null || gueltigBis != null) ...[
               const SizedBox(height: 4),
-              Row(
-                children: [
-                  if (gueltigVon != null)
-                    Expanded(child: _befreiungInfoRow(Icons.date_range, AppLocalizations.of(context).validFromLabel, _formatDate(gueltigVon))),
-                  if (gueltigBis != null)
-                    Expanded(child: _befreiungInfoRow(Icons.event, AppLocalizations.of(context).validUntilLabel, _formatDate(gueltigBis))),
-                ],
-              ),
+              _nebenOderUnter([
+                if (gueltigVon != null)
+                  _befreiungInfoRow(Icons.date_range, AppLocalizations.of(context).validFromLabel, _formatDate(gueltigVon)),
+                if (gueltigBis != null)
+                  _befreiungInfoRow(Icons.event, AppLocalizations.of(context).validUntilLabel, _formatDate(gueltigBis)),
+              ]),
             ],
 
             // File info
@@ -4320,19 +4491,24 @@ class _UserDetailsDialogState extends State<UserDetailsDialog> with SingleTicker
             // Show checklist status for processed items
             if (status != 'eingereicht') ...[
               const SizedBox(height: 6),
-              Row(
+              // Wrap: je Kästchen mit seiner Beschriftung, auf dem Telefon umbrechend
+              Wrap(
+                spacing: 8,
+                runSpacing: 2,
                 children: [
-                  Icon(checkDokument ? Icons.check_box : Icons.check_box_outline_blank, size: 14, color: checkDokument ? Colors.green : Colors.grey),
-                  const SizedBox(width: 4),
-                  Text(AppLocalizations.of(context).readableShort, style: TextStyle(fontSize: 10, color: Colors.grey.shade600)),
-                  const SizedBox(width: 8),
-                  Icon(checkLeistungsart ? Icons.check_box : Icons.check_box_outline_blank, size: 14, color: checkLeistungsart ? Colors.green : Colors.grey),
-                  const SizedBox(width: 4),
-                  Text(AppLocalizations.of(context).benefitTypeShort, style: TextStyle(fontSize: 10, color: Colors.grey.shade600)),
-                  const SizedBox(width: 8),
-                  Icon(checkAktuell ? Icons.check_box : Icons.check_box_outline_blank, size: 14, color: checkAktuell ? Colors.green : Colors.grey),
-                  const SizedBox(width: 4),
-                  Text(AppLocalizations.of(context).currentShortLabel, style: TextStyle(fontSize: 10, color: Colors.grey.shade600)),
+                  for (final (ok, text) in [
+                    (checkDokument, AppLocalizations.of(context).readableShort),
+                    (checkLeistungsart, AppLocalizations.of(context).benefitTypeShort),
+                    (checkAktuell, AppLocalizations.of(context).currentShortLabel),
+                  ])
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(ok ? Icons.check_box : Icons.check_box_outline_blank, size: 14, color: ok ? Colors.green : Colors.grey),
+                        const SizedBox(width: 4),
+                        Text(text, style: TextStyle(fontSize: 10, color: Colors.grey.shade600)),
+                      ],
+                    ),
                 ],
               ),
             ],
@@ -4401,17 +4577,15 @@ class _UserDetailsDialogState extends State<UserDetailsDialog> with SingleTicker
             const SizedBox(height: 8),
 
             // Action buttons
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                // Delete
-                TextButton.icon(
-                  onPressed: () => _deleteErmaessigung(id),
-                  icon: const Icon(Icons.delete_outline, size: 16),
-                  label: Text(AppLocalizations.of(context).delete, style: const TextStyle(fontSize: 12)),
-                  style: TextButton.styleFrom(foregroundColor: Colors.red.shade400),
-                ),
-                const Spacer(),
+            _knopfzeile(
+              // Delete
+              TextButton.icon(
+                onPressed: () => _deleteErmaessigung(id),
+                icon: const Icon(Icons.delete_outline, size: 16),
+                label: Text(AppLocalizations.of(context).delete, style: const TextStyle(fontSize: 12)),
+                style: TextButton.styleFrom(foregroundColor: Colors.red.shade400),
+              ),
+              [
                 if (status == 'eingereicht') ...[
                   TextButton.icon(
                     onPressed: () => _showErmaessigungAblehnungDialog(id),
@@ -4460,7 +4634,9 @@ class _UserDetailsDialogState extends State<UserDetailsDialog> with SingleTicker
               color: checked ? Colors.green : Colors.grey,
             ),
             const SizedBox(width: 8),
-            Text(label, style: TextStyle(fontSize: 12, color: checked ? Colors.green.shade700 : Colors.grey.shade700)),
+            Flexible(
+              child: Text(label, style: TextStyle(fontSize: 12, color: checked ? Colors.green.shade700 : Colors.grey.shade700)),
+            ),
           ],
         ),
       ),
@@ -4523,7 +4699,7 @@ class _UserDetailsDialogState extends State<UserDetailsDialog> with SingleTicker
           children: [
             const Icon(Icons.delete_forever, color: Colors.red),
             const SizedBox(width: 8),
-            Text(AppLocalizations.of(ctx).deleteApplicationTitle),
+            Flexible(child: Text(AppLocalizations.of(ctx).deleteApplicationTitle)),
           ],
         ),
         content: Text(AppLocalizations.of(ctx).deleteApplicationConfirm),
@@ -4621,7 +4797,7 @@ class _UserDetailsDialogState extends State<UserDetailsDialog> with SingleTicker
           children: [
             const Icon(Icons.cancel, color: Colors.red),
             const SizedBox(width: 8),
-            Text(AppLocalizations.of(ctx).rejectDiscountTitle),
+            Flexible(child: Text(AppLocalizations.of(ctx).rejectDiscountTitle)),
           ],
         ),
         content: SizedBox(
@@ -4827,6 +5003,48 @@ class _UserDetailsDialogState extends State<UserDetailsDialog> with SingleTicker
 
   Widget _buildNotizenTab() {
     final df = DateFormat('dd.MM.yyyy HH:mm', 'de_DE');
+    final kategorieFeld = DropdownButtonFormField<String>(
+      initialValue: _notizKategorie,
+      decoration: InputDecoration(
+        labelText: AppLocalizations.of(context).categoryLabel,
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        isDense: true,
+      ),
+      items: _getKategorieLabels().entries.map((e) {
+        return DropdownMenuItem(
+          value: e.key,
+          child: Row(
+            children: [
+              Icon(_kategorieIcons[e.key], size: 16, color: _kategorieColors[e.key]),
+              const SizedBox(width: 6),
+              Text(e.value, style: const TextStyle(fontSize: 13)),
+            ],
+          ),
+        );
+      }).toList(),
+      onChanged: (v) => setState(() => _notizKategorie = v ?? 'allgemein'),
+    );
+    final wichtigChip = FilterChip(
+      label: Text(AppLocalizations.of(context).importantLabel, style: const TextStyle(fontSize: 12)),
+      selected: _notizWichtig,
+      onSelected: (v) => setState(() => _notizWichtig = v),
+      selectedColor: Colors.red.shade100,
+      avatar: Icon(
+        _notizWichtig ? Icons.star : Icons.star_border,
+        size: 16,
+        color: _notizWichtig ? Colors.red.shade700 : Colors.grey,
+      ),
+    );
+    final hinzufuegenKnopf = ElevatedButton.icon(
+      onPressed: _createNotiz,
+      icon: const Icon(Icons.add, size: 18),
+      label: Text(AppLocalizations.of(context).add),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: Colors.amber.shade700,
+        foregroundColor: Colors.white,
+      ),
+    );
 
     return Column(
       children: [
@@ -4854,59 +5072,28 @@ class _UserDetailsDialogState extends State<UserDetailsDialog> with SingleTicker
                 ),
               ),
               const SizedBox(height: 8),
-              Row(
-                children: [
-                  // Kategorie dropdown
-                  Expanded(
-                    child: DropdownButtonFormField<String>(
-                      initialValue: _notizKategorie,
-                      decoration: InputDecoration(
-                        labelText: AppLocalizations.of(context).categoryLabel,
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        isDense: true,
-                      ),
-                      items: _getKategorieLabels().entries.map((e) {
-                        return DropdownMenuItem(
-                          value: e.key,
-                          child: Row(
-                            children: [
-                              Icon(_kategorieIcons[e.key], size: 16, color: _kategorieColors[e.key]),
-                              const SizedBox(width: 6),
-                              Text(e.value, style: const TextStyle(fontSize: 13)),
-                            ],
-                          ),
-                        );
-                      }).toList(),
-                      onChanged: (v) => setState(() => _notizKategorie = v ?? 'allgemein'),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  // Wichtig toggle
-                  FilterChip(
-                    label: Text(AppLocalizations.of(context).importantLabel, style: const TextStyle(fontSize: 12)),
-                    selected: _notizWichtig,
-                    onSelected: (v) => setState(() => _notizWichtig = v),
-                    selectedColor: Colors.red.shade100,
-                    avatar: Icon(
-                      _notizWichtig ? Icons.star : Icons.star_border,
-                      size: 16,
-                      color: _notizWichtig ? Colors.red.shade700 : Colors.grey,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  // Submit button
-                  ElevatedButton.icon(
-                    onPressed: _createNotiz,
-                    icon: const Icon(Icons.add, size: 18),
-                    label: Text(AppLocalizations.of(context).add),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.amber.shade700,
-                      foregroundColor: Colors.white,
-                    ),
-                  ),
-                ],
-              ),
+              // Telefon: Kategorie in eigener Zeile, „Wichtig" und „Hinzufügen"
+              // darunter — daneben bliebe dem Auswahlfeld kaum Platz.
+              if (_schmal) ...[
+                kategorieFeld,
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [wichtigChip, const SizedBox(width: 12), hinzufuegenKnopf],
+                ),
+              ] else
+                Row(
+                  children: [
+                    // Kategorie dropdown
+                    Expanded(child: kategorieFeld),
+                    const SizedBox(width: 12),
+                    // Wichtig toggle
+                    wichtigChip,
+                    const SizedBox(width: 12),
+                    // Submit button
+                    hinzufuegenKnopf,
+                  ],
+                ),
             ],
           ),
         ),
@@ -5022,9 +5209,11 @@ class _UserDetailsDialogState extends State<UserDetailsDialog> with SingleTicker
             children: [
               Icon(Icons.info_outline, size: 14, color: Colors.grey.shade500),
               const SizedBox(width: 6),
-              Text(
-                AppLocalizations.of(context).notesCountInfo(_notizen.length),
-                style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+              Flexible(
+                child: Text(
+                  AppLocalizations.of(context).notesCountInfo(_notizen.length),
+                  style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+                ),
               ),
             ],
           ),
@@ -5108,11 +5297,27 @@ class _UserDetailsDialogState extends State<UserDetailsDialog> with SingleTicker
             children: [
               Icon(Icons.calendar_month, size: 18, color: Colors.purple.shade700),
               const SizedBox(width: 8),
-              Text(AppLocalizations.of(context).appointmentsCount(_memberTermine.length), style: TextStyle(fontWeight: FontWeight.w600, color: Colors.purple.shade700)),
-              const Spacer(),
-              _buildTicketStatChip(AppLocalizations.of(context).upcomingShort, upcoming.length, Colors.blue),
-              const SizedBox(width: 8),
-              _buildTicketStatChip(AppLocalizations.of(context).pastShort, past.length, Colors.grey),
+              // Telefon: Anzahl und beide Zähler umbrechend statt in einer Zeile
+              if (_schmal)
+                Expanded(
+                  child: Wrap(
+                    spacing: 8,
+                    runSpacing: 4,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      Text(AppLocalizations.of(context).appointmentsCount(_memberTermine.length), style: TextStyle(fontWeight: FontWeight.w600, color: Colors.purple.shade700)),
+                      _buildTicketStatChip(AppLocalizations.of(context).upcomingShort, upcoming.length, Colors.blue),
+                      _buildTicketStatChip(AppLocalizations.of(context).pastShort, past.length, Colors.grey),
+                    ],
+                  ),
+                )
+              else ...[
+                Text(AppLocalizations.of(context).appointmentsCount(_memberTermine.length), style: TextStyle(fontWeight: FontWeight.w600, color: Colors.purple.shade700)),
+                const Spacer(),
+                _buildTicketStatChip(AppLocalizations.of(context).upcomingShort, upcoming.length, Colors.blue),
+                const SizedBox(width: 8),
+                _buildTicketStatChip(AppLocalizations.of(context).pastShort, past.length, Colors.grey),
+              ],
               const SizedBox(width: 12),
               IconButton(
                 icon: const Icon(Icons.refresh, size: 18),
@@ -5147,6 +5352,19 @@ class _UserDetailsDialogState extends State<UserDetailsDialog> with SingleTicker
             ],
           ),
         ),
+      ],
+    );
+  }
+
+  /// Eine Angabe der Terminkarte (Sinnbild + Text) als eigenständiger
+  /// Baustein für den Umbruch auf dem Telefon; lange Texte brechen um.
+  Widget _terminAngabe(IconData icon, String text, Color farbe) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 13, color: Colors.grey.shade500),
+        const SizedBox(width: 4),
+        Flexible(child: Text(text, style: TextStyle(fontSize: 11, color: farbe))),
       ],
     );
   }
@@ -5198,7 +5416,20 @@ class _UserDetailsDialogState extends State<UserDetailsDialog> with SingleTicker
               Text(termin.description, style: TextStyle(fontSize: 12, color: Colors.grey.shade600), maxLines: 2, overflow: TextOverflow.ellipsis),
             ],
             const SizedBox(height: 8),
-            // Date + Time + Location
+            // Date + Time + Location — Telefon: umbrechend, der Ort bekommt
+            // notfalls eine eigene Zeile statt eines Restes von 40 dp.
+            if (_schmal)
+              Wrap(
+                spacing: 12,
+                runSpacing: 4,
+                children: [
+                  _terminAngabe(Icons.calendar_today, dateOnly.format(termin.terminDate), Colors.grey.shade600),
+                  _terminAngabe(Icons.access_time, '${timeOnly.format(termin.terminDate)} - ${timeOnly.format(termin.terminEndTime)}', Colors.grey.shade600),
+                  if (termin.location.isNotEmpty)
+                    _terminAngabe(Icons.location_on, termin.location, Colors.grey.shade600),
+                ],
+              )
+            else
             Row(
               children: [
                 Icon(Icons.calendar_today, size: 13, color: Colors.grey.shade500),
@@ -5219,6 +5450,18 @@ class _UserDetailsDialogState extends State<UserDetailsDialog> with SingleTicker
             // Participants + linked ticket
             if (termin.totalParticipants != null || termin.ticketSubject != null) ...[
               const SizedBox(height: 6),
+              if (_schmal)
+                Wrap(
+                  spacing: 12,
+                  runSpacing: 4,
+                  children: [
+                    if (termin.totalParticipants != null)
+                      _terminAngabe(Icons.group, AppLocalizations.of(context).confirmedOfTotal(termin.confirmedCount ?? 0, termin.totalParticipants ?? 0), Colors.grey.shade500),
+                    if (termin.ticketSubject != null)
+                      _terminAngabe(Icons.confirmation_number, termin.ticketSubject!, Colors.grey.shade500),
+                  ],
+                )
+              else
               Row(
                 children: [
                   if (termin.totalParticipants != null) ...[

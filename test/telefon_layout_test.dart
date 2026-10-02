@@ -7,9 +7,10 @@
 // Flutter meldet einen Ueberlauf im Test als Ausnahme. `takeException()`
 // holt sie ab; ist sie null, passt das Layout.
 //
-// ⚠️ Nicht jeder Bildschirm laesst sich so pruefen: DashboardScreen baut in
-// initState eine WebSocket-Verbindung auf und scheitert im Test an den
-// fehlenden Plattform-Kanaelen, bevor es zum Layout kommt.
+// Alle uebrigen Bildschirme pruefen bildschirme_telefon_test.dart (ohne
+// Serverdaten) und die test/layout_*_test.dart (mit Daten) — auch das
+// Dashboard: layout_dashboard_test.dart baut es mit falschem Server und einer
+// WebSocket-Adresse, die sofort scheitert.
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';

@@ -182,203 +182,267 @@ class _HandelsregisterScreenState extends State<HandelsregisterScreen> {
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context);
-    return Padding(
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header
-          Row(
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final breite = constraints.maxWidth;
+        final telefon = breite < 600;
+        // Suchmaske (320 dp) und Ergebnisse nebeneinander nur, solange den
+        // Ergebnissen daneben gut 330 dp bleiben; schmaler untereinander, die
+        // Seite scrollt.
+        final nebeneinander = breite >= 720;
+        return Padding(
+          padding: EdgeInsets.all(telefon ? 16 : 24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              IconButton(
-                icon: const Icon(Icons.arrow_back),
-                onPressed: widget.onBack,
-                tooltip: l.back,
+              // Header — auf dem Telefon ohne Zierbild und mit 20er Titel
+              Row(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.arrow_back),
+                    onPressed: widget.onBack,
+                    tooltip: l.back,
+                  ),
+                  const SizedBox(width: 8),
+                  if (!telefon) ...[
+                    Icon(Icons.search, size: 32, color: Colors.green.shade700),
+                    const SizedBox(width: 12),
+                  ],
+                  // Die Quelle steht rechts außen; passt sie nicht mehr neben
+                  // den Titel, rutscht sie darunter.
+                  Expanded(
+                    child: Wrap(
+                      alignment: WrapAlignment.spaceBetween,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      spacing: 12,
+                      children: [
+                        Text(
+                          l.handelsregisterTitle,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(fontSize: telefon ? 20 : 24, fontWeight: FontWeight.bold),
+                        ),
+                        Text(
+                          'handelsregister.de',
+                          style: TextStyle(fontSize: 13, color: Colors.grey.shade500),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(width: 8),
-              Icon(Icons.search, size: 32, color: Colors.green.shade700),
-              const SizedBox(width: 12),
-              Text(
-                l.handelsregisterTitle,
-                style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-              ),
-              const Spacer(),
-              Text(
-                'handelsregister.de',
-                style: TextStyle(fontSize: 13, color: Colors.grey.shade500),
+              SizedBox(height: telefon ? 16 : 20),
+              // Content
+              Expanded(
+                child: nebeneinander
+                    ? Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Left: Search form
+                          SizedBox(
+                            width: 320,
+                            child: _buildSuchKarte(),
+                          ),
+                          const SizedBox(width: 16),
+                          // Right: Results
+                          Expanded(
+                            child: _buildErgebnisKarte(eingebettet: false),
+                          ),
+                        ],
+                      )
+                    : ListView(
+                        children: [
+                          _buildSuchKarte(),
+                          const SizedBox(height: 12),
+                          _buildErgebnisKarte(eingebettet: true),
+                        ],
+                      ),
               ),
             ],
           ),
-          const SizedBox(height: 20),
-          // Content
-          Expanded(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
+        );
+      },
+    );
+  }
+
+  /// Suchmaske (links bzw. oben).
+  Widget _buildSuchKarte() {
+    final l = AppLocalizations.of(context);
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
               children: [
-                // Left: Search form
-                SizedBox(
-                  width: 320,
-                  child: Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(20),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.all(10),
-                                decoration: BoxDecoration(
-                                  color: Colors.green.withValues(alpha: 0.15),
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                child: const Icon(Icons.manage_search, color: Colors.green, size: 24),
-                              ),
-                              const SizedBox(width: 12),
-                              Text(l.searchLabel, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                            ],
-                          ),
-                          const Divider(height: 24),
-                          // Register-Art dropdown
-                          Text(l.registerArt, style: TextStyle(fontSize: 12, color: Colors.grey.shade600, fontWeight: FontWeight.w500)),
-                          const SizedBox(height: 4),
-                          DropdownButtonFormField<String>(
-                            initialValue: _registerArt,
-                            decoration: const InputDecoration(
-                              isDense: true,
-                              contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                              border: OutlineInputBorder(),
-                            ),
-                            items: _registerArten.map((art) => DropdownMenuItem(
-                              value: art,
-                              child: Text(art, style: const TextStyle(fontSize: 14)),
-                            )).toList(),
-                            onChanged: (v) { if (v != null) setState(() => _registerArt = v); },
-                          ),
-                          const SizedBox(height: 14),
-                          // Registernummer
-                          Text(l.registerNummer, style: TextStyle(fontSize: 12, color: Colors.grey.shade600, fontWeight: FontWeight.w500)),
-                          const SizedBox(height: 4),
-                          TextField(
-                            controller: _nummerController,
-                            decoration: InputDecoration(
-                              isDense: true,
-                              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                              border: const OutlineInputBorder(),
-                              hintText: tr('z.B. 201335', 'de ex. 201335'),
-                            ),
-                            style: const TextStyle(fontSize: 14),
-                            onSubmitted: (_) => _search(),
-                          ),
-                          const SizedBox(height: 14),
-                          // Registergericht
-                          Text(l.registerGericht, style: TextStyle(fontSize: 12, color: Colors.grey.shade600, fontWeight: FontWeight.w500)),
-                          const SizedBox(height: 4),
-                          TextField(
-                            controller: _gerichtController,
-                            decoration: InputDecoration(
-                              isDense: true,
-                              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                              border: const OutlineInputBorder(),
-                              hintText: tr('z.B. München', 'de ex. München'),
-                            ),
-                            style: const TextStyle(fontSize: 14),
-                            onSubmitted: (_) => _search(),
-                          ),
-                          const SizedBox(height: 14),
-                          // Schlagwörter
-                          Text(l.schlagwoerter, style: TextStyle(fontSize: 12, color: Colors.grey.shade600, fontWeight: FontWeight.w500)),
-                          const SizedBox(height: 4),
-                          TextField(
-                            controller: _schlagwoerterController,
-                            decoration: InputDecoration(
-                              isDense: true,
-                              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                              border: const OutlineInputBorder(),
-                              hintText: tr('Firmenname...', 'Numele firmei...'),
-                            ),
-                            style: const TextStyle(fontSize: 14),
-                            onSubmitted: (_) => _search(),
-                          ),
-                          const SizedBox(height: 20),
-                          // Search button
-                          SizedBox(
-                            width: double.infinity,
-                            child: ElevatedButton.icon(
-                              icon: _isSearching
-                                  ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                                  : const Icon(Icons.search, size: 18),
-                              label: Text(_isSearching ? l.searchInProgress : l.searchButton),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.green.shade600,
-                                foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(vertical: 12),
-                              ),
-                              onPressed: _isSearching ? null : _search,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.green.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(10),
                   ),
+                  child: const Icon(Icons.manage_search, color: Colors.green, size: 24),
                 ),
-                const SizedBox(width: 16),
-                // Right: Results
-                Expanded(
-                  child: Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(20),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.all(10),
-                                decoration: BoxDecoration(
-                                  color: Colors.blue.withValues(alpha: 0.15),
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                child: const Icon(Icons.list_alt, color: Colors.blue, size: 24),
-                              ),
-                              const SizedBox(width: 12),
-                              Text(l.resultsTitle, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                              if (_hasSearched && _entries.isNotEmpty) ...[
-                                const Spacer(),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                  decoration: BoxDecoration(
-                                    color: Colors.green.shade50,
-                                    borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(color: Colors.green.shade200),
-                                  ),
-                                  child: Text(
-                                    l.hitsCount(_entries.length),
-                                    style: TextStyle(fontSize: 12, color: Colors.green.shade700, fontWeight: FontWeight.w600),
-                                  ),
-                                ),
-                              ],
-                            ],
-                          ),
-                          const Divider(height: 24),
-                          Expanded(child: _buildResults()),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
+                const SizedBox(width: 12),
+                Text(l.searchLabel, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
               ],
             ),
-          ),
-        ],
+            const Divider(height: 24),
+            // Register-Art dropdown
+            Text(l.registerArt, style: TextStyle(fontSize: 12, color: Colors.grey.shade600, fontWeight: FontWeight.w500)),
+            const SizedBox(height: 4),
+            DropdownButtonFormField<String>(
+              initialValue: _registerArt,
+              decoration: const InputDecoration(
+                isDense: true,
+                contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                border: OutlineInputBorder(),
+              ),
+              items: _registerArten.map((art) => DropdownMenuItem(
+                value: art,
+                child: Text(art, style: const TextStyle(fontSize: 14)),
+              )).toList(),
+              onChanged: (v) { if (v != null) setState(() => _registerArt = v); },
+            ),
+            const SizedBox(height: 14),
+            // Registernummer
+            Text(l.registerNummer, style: TextStyle(fontSize: 12, color: Colors.grey.shade600, fontWeight: FontWeight.w500)),
+            const SizedBox(height: 4),
+            TextField(
+              controller: _nummerController,
+              decoration: InputDecoration(
+                isDense: true,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                border: const OutlineInputBorder(),
+                hintText: tr('z.B. 201335', 'de ex. 201335'),
+              ),
+              style: const TextStyle(fontSize: 14),
+              onSubmitted: (_) => _search(),
+            ),
+            const SizedBox(height: 14),
+            // Registergericht
+            Text(l.registerGericht, style: TextStyle(fontSize: 12, color: Colors.grey.shade600, fontWeight: FontWeight.w500)),
+            const SizedBox(height: 4),
+            TextField(
+              controller: _gerichtController,
+              decoration: InputDecoration(
+                isDense: true,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                border: const OutlineInputBorder(),
+                hintText: tr('z.B. München', 'de ex. München'),
+              ),
+              style: const TextStyle(fontSize: 14),
+              onSubmitted: (_) => _search(),
+            ),
+            const SizedBox(height: 14),
+            // Schlagwörter
+            Text(l.schlagwoerter, style: TextStyle(fontSize: 12, color: Colors.grey.shade600, fontWeight: FontWeight.w500)),
+            const SizedBox(height: 4),
+            TextField(
+              controller: _schlagwoerterController,
+              decoration: InputDecoration(
+                isDense: true,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                border: const OutlineInputBorder(),
+                hintText: tr('Firmenname...', 'Numele firmei...'),
+              ),
+              style: const TextStyle(fontSize: 14),
+              onSubmitted: (_) => _search(),
+            ),
+            const SizedBox(height: 20),
+            // Search button
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                icon: _isSearching
+                    ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                    : const Icon(Icons.search, size: 18),
+                label: Text(_isSearching ? l.searchInProgress : l.searchButton),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.green.shade600,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+                onPressed: _isSearching ? null : _search,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildResults() {
+  /// Ergebnisse (rechts bzw. unter der Suchmaske). [eingebettet]: in der
+  /// scrollenden Telefonansicht mit natürlicher Höhe statt eigener Liste.
+  Widget _buildErgebnisKarte({required bool eingebettet}) {
     final l = AppLocalizations.of(context);
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: eingebettet ? MainAxisSize.min : MainAxisSize.max,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(Icons.list_alt, color: Colors.blue, size: 24),
+                ),
+                const SizedBox(width: 12),
+                // Trefferzahl rechts außen; ist es dafür zu schmal, steht sie
+                // unter dem Titel statt hinauszulaufen.
+                Expanded(
+                  child: Wrap(
+                    alignment: WrapAlignment.spaceBetween,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    spacing: 8,
+                    runSpacing: 6,
+                    children: [
+                      Text(l.resultsTitle, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                      if (_hasSearched && _entries.isNotEmpty)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: Colors.green.shade50,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Colors.green.shade200),
+                          ),
+                          child: Text(
+                            l.hitsCount(_entries.length),
+                            style: TextStyle(fontSize: 12, color: Colors.green.shade700, fontWeight: FontWeight.w600),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const Divider(height: 24),
+            if (eingebettet)
+              _buildResults(eingebettet: true)
+            else
+              Expanded(child: _buildResults()),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildResults({bool eingebettet = false}) {
+    final l = AppLocalizations.of(context);
+    // Eingebettet (Telefon) gibt es keine Höhe zum Zentrieren — etwas Luft
+    // über und unter dem Hinweis stattdessen.
+    Widget mitte({required Widget child}) => eingebettet
+        ? Padding(padding: const EdgeInsets.symmetric(vertical: 24), child: Center(child: child))
+        : Center(child: child);
     if (_isSearching) {
-      return Center(
+      return mitte(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -391,7 +455,7 @@ class _HandelsregisterScreenState extends State<HandelsregisterScreen> {
     }
 
     if (!_hasSearched) {
-      return Center(
+      return mitte(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -408,7 +472,7 @@ class _HandelsregisterScreenState extends State<HandelsregisterScreen> {
     }
 
     if (_error != null) {
-      return Center(
+      return mitte(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -425,6 +489,8 @@ class _HandelsregisterScreenState extends State<HandelsregisterScreen> {
     }
 
     return ListView(
+      shrinkWrap: eingebettet,
+      physics: eingebettet ? const NeverScrollableScrollPhysics() : null,
       children: [
         for (final entry in _entries) ...[
           Container(

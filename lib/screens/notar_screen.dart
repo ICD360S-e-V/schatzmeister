@@ -204,8 +204,50 @@ class _NotarScreenState extends State<NotarScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Entschieden wird nach der Breite, die der Bildschirm wirklich bekommt
+    // (auf dem Schreibtisch nimmt die Seitenleiste ihren Teil), nicht nach
+    // MediaQuery.
+    return LayoutBuilder(
+      builder: (context, constraints) => _aufbau(breite: constraints.maxWidth),
+    );
+  }
+
+  Widget _aufbau({required double breite}) {
+    final schmal = breite < 600;
+    final karten = [
+      NotarDataCard(
+        data: _notarData,
+        onEdit: _handleEditNotar,
+      ),
+      NotarRechnungenCard(
+        rechnungen: _notarRechnungen,
+        isLoading: _isLoadingNotarDetails,
+        onAdd: _handleAddRechnung,
+      ),
+      NotarBesucheCard(
+        besuche: _notarBesuche,
+        isLoading: _isLoadingNotarDetails,
+        onAdd: _handleAddBesuch,
+      ),
+      NotarDokumenteCard(
+        dokumente: _notarDokumente,
+        isLoading: _isLoadingNotarDetails,
+        onAdd: _handleAddDokument,
+      ),
+      NotarZahlungenCard(
+        zahlungen: _notarZahlungen,
+        isLoading: _isLoadingNotarDetails,
+        onAdd: _handleAddZahlung,
+      ),
+      NotarAufgabenCard(
+        aufgaben: _notarAufgaben,
+        isLoading: _isLoadingNotarDetails,
+        onAdd: _handleAddAufgabe,
+        onTap: _handleAufgabeTap,
+      ),
+    ];
     return Padding(
-      padding: const EdgeInsets.all(24),
+      padding: EdgeInsets.all(schmal ? 16 : 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -226,83 +268,78 @@ class _NotarScreenState extends State<NotarScreen> {
               ),
             ],
           ),
-          const SizedBox(height: 24),
+          SizedBox(height: schmal ? 16 : 24),
           // Content - 2 rows with 3 cards each
           Expanded(
             child: _isLoadingNotar
                 ? const Center(child: CircularProgressIndicator())
-                : Column(
-                    children: [
-                      // Row 1: Notardaten, Rechnungen, Besuche
-                      Expanded(
-                        flex: 1,
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Expanded(
-                              child: NotarDataCard(
-                                data: _notarData,
-                                onEdit: _handleEditNotar,
-                              ),
+                : breite < 900
+                    ? _kartenRollbar(karten, spalten: schmal ? 1 : 2)
+                    : Column(
+                        children: [
+                          // Row 1: Notardaten, Rechnungen, Besuche
+                          Expanded(
+                            flex: 1,
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Expanded(child: karten[0]),
+                                const SizedBox(width: 16),
+                                Expanded(child: karten[1]),
+                                const SizedBox(width: 16),
+                                Expanded(child: karten[2]),
+                              ],
                             ),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: NotarRechnungenCard(
-                                rechnungen: _notarRechnungen,
-                                isLoading: _isLoadingNotarDetails,
-                                onAdd: _handleAddRechnung,
-                              ),
+                          ),
+                          const SizedBox(height: 16),
+                          // Row 2: Dokumente, Zahlungen
+                          Expanded(
+                            flex: 1,
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Expanded(child: karten[3]),
+                                const SizedBox(width: 16),
+                                Expanded(child: karten[4]),
+                                const SizedBox(width: 16),
+                                Expanded(child: karten[5]),
+                              ],
                             ),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: NotarBesucheCard(
-                                besuche: _notarBesuche,
-                                isLoading: _isLoadingNotarDetails,
-                                onAdd: _handleAddBesuch,
-                              ),
-                            ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(height: 16),
-                      // Row 2: Dokumente, Zahlungen
-                      Expanded(
-                        flex: 1,
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Expanded(
-                              child: NotarDokumenteCard(
-                                dokumente: _notarDokumente,
-                                isLoading: _isLoadingNotarDetails,
-                                onAdd: _handleAddDokument,
-                              ),
-                            ),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: NotarZahlungenCard(
-                                zahlungen: _notarZahlungen,
-                                isLoading: _isLoadingNotarDetails,
-                                onAdd: _handleAddZahlung,
-                              ),
-                            ),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: NotarAufgabenCard(
-                                aufgaben: _notarAufgaben,
-                                isLoading: _isLoadingNotarDetails,
-                                onAdd: _handleAddAufgabe,
-                                onTap: _handleAufgabeTap,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
           ),
         ],
       ),
+    );
+  }
+
+  /// Unter 900 dp: die sechs Karten untereinander (Telefon) oder zu zweit
+  /// (Tablet), jede gleich hoch, und die Seite rollt. Drei Karten
+  /// nebeneinander ließen auf dem Telefon je ~100 dp — Namen, Rechnungen
+  /// und Termine waren nicht mehr zu lesen. Die Karten brauchen eine feste
+  /// Höhe: ihre Listen füllen den Rest der Karte aus.
+  Widget _kartenRollbar(List<Widget> karten, {required int spalten}) {
+    const hoehe = 320.0;
+    return ListView(
+      children: [
+        for (var i = 0; i < karten.length; i += spalten)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: SizedBox(
+              height: hoehe,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  for (var j = i; j < i + spalten && j < karten.length; j++) ...[
+                    if (j > i) const SizedBox(width: 16),
+                    Expanded(child: karten[j]),
+                  ],
+                ],
+              ),
+            ),
+          ),
+      ],
     );
   }
 }

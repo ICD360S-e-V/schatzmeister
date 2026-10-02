@@ -41,6 +41,20 @@ class _DiensteScreenState extends State<DiensteScreen> {
   }
 
   Widget _buildMainView() {
+    // Die Seite scrollt: auf schmalen Telefonen steht jede Karte in einer
+    // eigenen Zeile, vier Karten sind dann höher als der Bildschirm (auf
+    // 320 dp liefen sie unten hinaus).
+    return LayoutBuilder(
+      builder: (context, constraints) => SingleChildScrollView(
+        child: _buildInhalt(constraints.maxWidth - 48),
+      ),
+    );
+  }
+
+  Widget _buildInhalt(double breite) {
+    // Passen keine zwei Karten (je 220 dp) nebeneinander, nimmt jede Karte
+    // die volle Breite ein, statt schmal am linken Rand zu stehen.
+    final kartenBreite = breite < 2 * 220 + 16 ? breite : 220.0;
     return Padding(
       padding: const EdgeInsets.all(24),
       child: Column(
@@ -73,6 +87,7 @@ class _DiensteScreenState extends State<DiensteScreen> {
                     tr('PDF bearbeiten, aufteilen, Text hinzufügen und unterschreiben', 'Editare și împărțire PDF, adăugare de text și semnare'),
                 color: Colors.red.shade700,
                 onTap: () => setState(() => _subview = 'pdf_manager'),
+                breite: kartenBreite,
               ),
               _buildServiceCard(
                 icon: Icons.train,
@@ -81,6 +96,7 @@ class _DiensteScreenState extends State<DiensteScreen> {
                     tr('Unterstützungsbedarf für Bahnreisen anmelden', 'Solicitare de asistență pentru călătorii cu trenul'),
                 color: Colors.blue.shade700,
                 onTap: () => setState(() => _subview = 'db_mobilitat'),
+                breite: kartenBreite,
               ),
               _buildServiceCard(
                 icon: Icons.route,
@@ -89,6 +105,7 @@ class _DiensteScreenState extends State<DiensteScreen> {
                     tr('Verbindungen für Züge, Busse und Trams in ganz Deutschland', 'Conexiuni de tren, autobuz și tramvai în toată Germania'),
                 color: Colors.indigo.shade700,
                 onTap: () => setState(() => _subview = 'reiseplanung'),
+                breite: kartenBreite,
               ),
               _buildServiceCard(
                 icon: Icons.image,
@@ -97,6 +114,7 @@ class _DiensteScreenState extends State<DiensteScreen> {
                     tr('JPG, PNG und andere Bilder in PDF konvertieren', 'Conversie JPG, PNG și alte imagini în PDF'),
                 color: Colors.orange.shade700,
                 onTap: () => setState(() => _subview = 'jpg2pdf'),
+                breite: kartenBreite,
               ),
             ],
           ),
@@ -111,9 +129,10 @@ class _DiensteScreenState extends State<DiensteScreen> {
     required String description,
     required Color color,
     required VoidCallback onTap,
+    double breite = 220,
   }) {
     return SizedBox(
-      width: 220,
+      width: breite,
       height: 160,
       child: Card(
         elevation: 3,

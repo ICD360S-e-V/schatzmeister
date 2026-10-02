@@ -699,41 +699,90 @@ class _OrdnungsmassnahmenScreenState extends State<OrdnungsmassnahmenScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Entschieden wird nach der Breite, die der Bildschirm wirklich bekommt
+    // (auf dem Schreibtisch nimmt die Seitenleiste Platz weg), nicht nach
+    // dem ganzen Fenster.
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final breite = constraints.maxWidth;
+        if (breite >= 900) return _buildBreit();
+        return _buildSchmal(telefon: breite < 600);
+      },
+    );
+  }
+
+  /// Telefon und Tablet (unter 900 dp): nebeneinander blieben dem Formular
+  /// auf 393 dp rund 110 dp. Deshalb Formular und Vorschau untereinander in
+  /// voller Breite, die Karten in natürlicher Höhe, und die Seite scrollt.
+  Widget _buildSchmal({required bool telefon}) {
+    return SingleChildScrollView(
+      padding: EdgeInsets.all(telefon ? 12 : 24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildKopf(telefon: telefon),
+          const SizedBox(height: 8),
+          _buildUntertitel(),
+          SizedBox(height: telefon ? 12 : 20),
+          _buildForm(scrollt: false, innen: telefon ? 16 : 24),
+          SizedBox(height: telefon ? 12 : 20),
+          _buildPreviewPanel(scrollt: false, innen: telefon ? 16 : 20),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildKopf({required bool telefon}) {
+    return Row(
+      children: [
+        IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: widget.onBack,
+          tooltip: tr('Zurück zur Übersicht',
+              'Înapoi la prezentarea generală'),
+        ),
+        const SizedBox(width: 8),
+        Icon(Icons.gavel, size: telefon ? 24 : 32, color: Colors.red.shade700),
+        SizedBox(width: telefon ? 8 : 12),
+        Expanded(
+          child: Text(
+            tr('Ordnungsmaßnahmen', 'Măsuri disciplinare'),
+            // „Ordnungsmaßnahmen" ist ein einziges Wort: auf dem Telefon
+            // etwas kleiner, damit es auch auf 320 dp ganz in eine Zeile
+            // passt, statt mitten im Wort umzubrechen.
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+                fontSize: telefon ? 20 : 24, fontWeight: FontWeight.bold),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildUntertitel() {
+    return Padding(
+      padding: const EdgeInsets.only(left: 56),
+      child: Text(
+        tr('Gemäß §6 Abs. 6 der Satzung des ICD360S e.V.',
+            'Conform §6 alin. 6 din statutul (Satzung) asociației ICD360S e.V.'),
+        style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+      ),
+    );
+  }
+
+  /// Schreibtisch (ab 900 dp): Formular und Vorschau nebeneinander, jede
+  /// Spalte scrollt für sich — so wie bisher.
+  Widget _buildBreit() {
     return Padding(
       padding: const EdgeInsets.all(24.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Header
-          Row(
-            children: [
-              IconButton(
-                icon: const Icon(Icons.arrow_back),
-                onPressed: widget.onBack,
-                tooltip: tr('Zurück zur Übersicht',
-                    'Înapoi la prezentarea generală'),
-              ),
-              const SizedBox(width: 8),
-              Icon(Icons.gavel, size: 32, color: Colors.red.shade700),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  tr('Ordnungsmaßnahmen', 'Măsuri disciplinare'),
-                  style: const TextStyle(
-                      fontSize: 24, fontWeight: FontWeight.bold),
-                ),
-              ),
-            ],
-          ),
+          _buildKopf(telefon: false),
           const SizedBox(height: 8),
-          Padding(
-            padding: const EdgeInsets.only(left: 56),
-            child: Text(
-              tr('Gemäß §6 Abs. 6 der Satzung des ICD360S e.V.',
-                  'Conform §6 alin. 6 din statutul (Satzung) asociației ICD360S e.V.'),
-              style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
-            ),
-          ),
+          _buildUntertitel(),
           const SizedBox(height: 20),
 
           // Content
@@ -760,11 +809,19 @@ class _OrdnungsmassnahmenScreenState extends State<OrdnungsmassnahmenScreen> {
     );
   }
 
-  Widget _buildForm() {
+  /// Auf dem Schreibtisch scrollt jede Spalte für sich ([scrollt]); schmal
+  /// scrollt die ganze Seite, und die Karte nimmt ihre natürliche Höhe.
+  Widget _scrollbar(bool scrollt, {EdgeInsets? padding, required Widget child}) {
+    if (scrollt) return SingleChildScrollView(padding: padding, child: child);
+    return padding == null ? child : Padding(padding: padding, child: child);
+  }
+
+  Widget _buildForm({bool scrollt = true, double innen = 24}) {
     return Card(
       elevation: 2,
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
+      child: _scrollbar(
+        scrollt,
+        padding: EdgeInsets.all(innen),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -866,12 +923,14 @@ class _OrdnungsmassnahmenScreenState extends State<OrdnungsmassnahmenScreen> {
       children: [
         Icon(icon, size: 20, color: color),
         const SizedBox(width: 8),
-        Text(
-          title,
-          style: TextStyle(
-            fontSize: 15,
-            fontWeight: FontWeight.bold,
-            color: Colors.grey.shade800,
+        Flexible(
+          child: Text(
+            title,
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.bold,
+              color: Colors.grey.shade800,
+            ),
           ),
         ),
       ],
@@ -886,6 +945,11 @@ class _OrdnungsmassnahmenScreenState extends State<OrdnungsmassnahmenScreen> {
 
     return DropdownButtonFormField<User>(
       initialValue: _selectedUser,
+      // Ohne isExpanded legt Flutter die Einträge mit unbegrenzter Breite an:
+      // das Expanded in jeder Zeile scheitert daran, sobald es ein Mitglied
+      // gibt, und das ganze Formular blieb leer. So wird ein langer Name
+      // mit „…" gekürzt.
+      isExpanded: true,
       decoration: InputDecoration(
         hintText: tr('Mitglied auswählen...', 'Selectați membrul...'),
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
@@ -951,12 +1015,14 @@ class _OrdnungsmassnahmenScreenState extends State<OrdnungsmassnahmenScreen> {
               children: [
                 Icon(v.icon, size: 18, color: selected ? v.color : Colors.grey),
                 const SizedBox(width: 6),
-                Text(
-                  v.anzeigeTitel,
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: selected ? FontWeight.bold : FontWeight.normal,
-                    color: selected ? v.color : Colors.grey.shade700,
+                Flexible(
+                  child: Text(
+                    v.anzeigeTitel,
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: selected ? FontWeight.bold : FontWeight.normal,
+                      color: selected ? v.color : Colors.grey.shade700,
+                    ),
                   ),
                 ),
               ],
@@ -1017,15 +1083,17 @@ class _OrdnungsmassnahmenScreenState extends State<OrdnungsmassnahmenScreen> {
             Icon(Icons.calendar_today,
                 size: 18, color: Colors.grey.shade600),
             const SizedBox(width: 10),
-            Text(
-              _vorfallDatum != null
-                  ? df.format(_vorfallDatum!)
-                  : tr('Datum auswählen...', 'Selectați data...'),
-              style: TextStyle(
-                fontSize: 14,
-                color: _vorfallDatum != null
-                    ? Colors.black
-                    : Colors.grey.shade500,
+            Flexible(
+              child: Text(
+                _vorfallDatum != null
+                    ? df.format(_vorfallDatum!)
+                    : tr('Datum auswählen...', 'Selectați data...'),
+                style: TextStyle(
+                  fontSize: 14,
+                  color: _vorfallDatum != null
+                      ? Colors.black
+                      : Colors.grey.shade500,
+                ),
               ),
             ),
           ],
@@ -1118,18 +1186,21 @@ class _OrdnungsmassnahmenScreenState extends State<OrdnungsmassnahmenScreen> {
           ),
         ),
         const SizedBox(width: 12),
-        Text('(max. 100 €)',
-            style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+        Flexible(
+          child: Text('(max. 100 €)',
+              style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+        ),
       ],
     );
   }
 
-  Widget _buildPreviewPanel() {
+  Widget _buildPreviewPanel({bool scrollt = true, double innen = 20}) {
     return Card(
       elevation: 2,
       child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: SingleChildScrollView(
+        padding: EdgeInsets.all(innen),
+        child: _scrollbar(
+          scrollt,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -1137,10 +1208,12 @@ class _OrdnungsmassnahmenScreenState extends State<OrdnungsmassnahmenScreen> {
                 children: [
                   Icon(Icons.preview, size: 22, color: Colors.blue.shade700),
                   const SizedBox(width: 8),
-                  Text(
-                    tr('Vorschau', 'Previzualizare'),
-                    style: const TextStyle(
-                        fontSize: 16, fontWeight: FontWeight.bold),
+                  Flexible(
+                    child: Text(
+                      tr('Vorschau', 'Previzualizare'),
+                      style: const TextStyle(
+                          fontSize: 16, fontWeight: FontWeight.bold),
+                    ),
                   ),
                 ],
               ),
@@ -1198,12 +1271,14 @@ class _OrdnungsmassnahmenScreenState extends State<OrdnungsmassnahmenScreen> {
                         Icon(Icons.info_outline,
                             size: 16, color: Colors.amber.shade800),
                         const SizedBox(width: 6),
-                        Text(
-                          tr('Rechtliche Hinweise', 'Note juridice'),
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.amber.shade900,
+                        Flexible(
+                          child: Text(
+                            tr('Rechtliche Hinweise', 'Note juridice'),
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.amber.shade900,
+                            ),
                           ),
                         ),
                       ],
@@ -1265,12 +1340,14 @@ class _OrdnungsmassnahmenScreenState extends State<OrdnungsmassnahmenScreen> {
                         Icon(Icons.list_alt,
                             size: 16, color: Colors.blue.shade800),
                         const SizedBox(width: 6),
-                        Text(
-                          tr('Stufenfolge', 'Gradarea măsurilor'),
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.blue.shade900,
+                        Flexible(
+                          child: Text(
+                            tr('Stufenfolge', 'Gradarea măsurilor'),
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.blue.shade900,
+                            ),
                           ),
                         ),
                       ],

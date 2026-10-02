@@ -140,6 +140,8 @@ class _GoogleNonprofitScreenState extends State<GoogleNonprofitScreen> {
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) => AlertDialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          // Telefon mit offener Tastatur: lieber scrollen als überlaufen.
+          scrollable: true,
           title: Row(
             children: [
               Icon(Icons.add_task, color: Colors.orange.shade700),
@@ -171,54 +173,63 @@ class _GoogleNonprofitScreenState extends State<GoogleNonprofitScreen> {
                   ),
                 ),
                 const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Expanded(
-                      child: InkWell(
-                        onTap: () async {
-                          final picked = await showDatePicker(
-                            context: ctx,
-                            initialDate: selectedDate,
-                            firstDate: DateTime.now(),
-                            lastDate: DateTime.now().add(const Duration(days: 365 * 3)),
-                          );
-                          if (picked != null) {
-                            setDialogState(() => selectedDate = picked);
-                          }
-                        },
-                        child: InputDecorator(
-                          decoration: InputDecoration(
-                            labelText: tr('Fällig am', 'Termen limită'),
-                            border: const OutlineInputBorder(),
-                            suffixIcon: const Icon(Icons.calendar_today, size: 18),
-                          ),
-                          child: Text(DateFormat('dd.MM.yyyy').format(selectedDate)),
+                Builder(
+                  builder: (_) {
+                    final datum = InkWell(
+                      onTap: () async {
+                        final picked = await showDatePicker(
+                          context: ctx,
+                          initialDate: selectedDate,
+                          firstDate: DateTime.now(),
+                          lastDate: DateTime.now().add(const Duration(days: 365 * 3)),
+                        );
+                        if (picked != null) {
+                          setDialogState(() => selectedDate = picked);
+                        }
+                      },
+                      child: InputDecorator(
+                        decoration: InputDecoration(
+                          labelText: tr('Fällig am', 'Termen limită'),
+                          border: const OutlineInputBorder(),
+                          suffixIcon: const Icon(Icons.calendar_today, size: 18),
                         ),
+                        child: Text(DateFormat('dd.MM.yyyy').format(selectedDate)),
                       ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: InkWell(
-                        onTap: () async {
-                          final picked = await showTimePicker(
-                            context: ctx,
-                            initialTime: selectedTime,
-                          );
-                          if (picked != null) {
-                            setDialogState(() => selectedTime = picked);
-                          }
-                        },
-                        child: InputDecorator(
-                          decoration: InputDecoration(
-                            labelText: tr('Uhrzeit', 'Ora'),
-                            border: const OutlineInputBorder(),
-                            suffixIcon: const Icon(Icons.access_time, size: 18),
-                          ),
-                          child: Text('${selectedTime.hour.toString().padLeft(2, '0')}:${selectedTime.minute.toString().padLeft(2, '0')}'),
+                    );
+                    final uhrzeit = InkWell(
+                      onTap: () async {
+                        final picked = await showTimePicker(
+                          context: ctx,
+                          initialTime: selectedTime,
+                        );
+                        if (picked != null) {
+                          setDialogState(() => selectedTime = picked);
+                        }
+                      },
+                      child: InputDecorator(
+                        decoration: InputDecoration(
+                          labelText: tr('Uhrzeit', 'Ora'),
+                          border: const OutlineInputBorder(),
+                          suffixIcon: const Icon(Icons.access_time, size: 18),
                         ),
+                        child: Text('${selectedTime.hour.toString().padLeft(2, '0')}:${selectedTime.minute.toString().padLeft(2, '0')}'),
                       ),
-                    ),
-                  ],
+                    );
+                    // Telefon: nebeneinander bliebe dem Datum neben dem Kalender-
+                    // Symbol kaum Platz („09.10.20“ / „26“) — dort untereinander.
+                    // Maß ist das Fenster, über dem der Dialog liegt; einen
+                    // LayoutBuilder verträgt der scrollbare Dialog nicht.
+                    if (MediaQuery.sizeOf(ctx).width < 600) {
+                      return Column(children: [datum, const SizedBox(height: 12), uhrzeit]);
+                    }
+                    return Row(
+                      children: [
+                        Expanded(child: datum),
+                        const SizedBox(width: 12),
+                        Expanded(child: uhrzeit),
+                      ],
+                    );
+                  },
                 ),
               ],
             ),
@@ -354,6 +365,7 @@ class _GoogleNonprofitScreenState extends State<GoogleNonprofitScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        scrollable: true,
         title: Row(
           children: [
             Icon(Icons.note_add, color: Colors.teal.shade700),
@@ -459,12 +471,56 @@ class _GoogleNonprofitScreenState extends State<GoogleNonprofitScreen> {
     }
   }
 
+  /// Website, E-Mail, Passwort: „Symbol Bezeichnung: Wert [Knöpfe]“. Auf dem
+  /// Schreibtisch eine Zeile wie bisher. Auf dem Telefon bliebe dem Wert neben
+  /// Bezeichnung und Knöpfen kaum Platz (Website und E-Mail wurden Zeichen für
+  /// Zeichen umbrochen) — dort steht er unter der Bezeichnung.
+  Widget _zugangsZeile({
+    required bool schmal,
+    required IconData icon,
+    required String bezeichnung,
+    required Widget wert,
+    List<Widget> knoepfe = const [],
+  }) {
+    final symbol = Icon(icon, size: 20, color: Colors.grey);
+    final titel = Text(bezeichnung, style: const TextStyle(fontWeight: FontWeight.w500));
+    if (!schmal) {
+      return Row(
+        children: [symbol, const SizedBox(width: 12), titel, Expanded(child: wert), ...knoepfe],
+      );
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        ConstrainedBox(
+          // Mit und ohne Knöpfe gleich hoch, sonst springen die Abstände.
+          constraints: const BoxConstraints(minHeight: 48),
+          child: Row(
+            children: [symbol, const SizedBox(width: 12), Expanded(child: titel), ...knoepfe],
+          ),
+        ),
+        Padding(padding: const EdgeInsets.only(left: 32), child: wert),
+      ],
+    );
+  }
+
   // ==================== Build ====================
 
+  /// Telefon (unter 600 dp verfügbarer Breite): engere Ränder, Zugangsdaten
+  /// untereinander, kompaktere Listeneinträge. Mit den Rändern und Abständen
+  /// des Schreibtischs blieben dort für Website, E-Mail, Aufgaben und Notizen
+  /// nur 20–130 dp breite Spalten. Ab 600 dp bleibt alles wie bisher.
   @override
   Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) => _seite(constraints.maxWidth < 600),
+    );
+  }
+
+  Widget _seite(bool schmal) {
+    final rand = schmal ? 16.0 : 24.0;
     return Padding(
-      padding: const EdgeInsets.all(24),
+      padding: EdgeInsets.all(rand),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -516,7 +572,7 @@ class _GoogleNonprofitScreenState extends State<GoogleNonprofitScreen> {
                         // Zugangsdaten Card
                         Card(
                           child: Padding(
-                            padding: const EdgeInsets.all(24),
+                            padding: EdgeInsets.all(rand),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
@@ -527,17 +583,15 @@ class _GoogleNonprofitScreenState extends State<GoogleNonprofitScreen> {
                                 const SizedBox(height: 24),
 
                                 // Website
-                                Row(
-                                  children: [
-                                    const Icon(Icons.link, size: 20, color: Colors.grey),
-                                    const SizedBox(width: 12),
-                                    const Text('Website: ', style: TextStyle(fontWeight: FontWeight.w500)),
-                                    Expanded(
-                                      child: SelectableText(
-                                        _website,
-                                        style: const TextStyle(color: Colors.blue),
-                                      ),
-                                    ),
+                                _zugangsZeile(
+                                  schmal: schmal,
+                                  icon: Icons.link,
+                                  bezeichnung: 'Website: ',
+                                  wert: SelectableText(
+                                    _website,
+                                    style: const TextStyle(color: Colors.blue),
+                                  ),
+                                  knoepfe: [
                                     IconButton(
                                       icon: const Icon(Icons.copy, size: 18),
                                       onPressed: () => _copyToClipboard(_website, 'Website'),
@@ -553,28 +607,26 @@ class _GoogleNonprofitScreenState extends State<GoogleNonprofitScreen> {
                                 const SizedBox(height: 16),
 
                                 // Email
-                                Row(
-                                  children: [
-                                    const Icon(Icons.email, size: 20, color: Colors.grey),
-                                    const SizedBox(width: 12),
-                                    Text(tr('E-Mail: ', 'E-mail: '), style: const TextStyle(fontWeight: FontWeight.w500)),
-                                    Expanded(
-                                      child: _isEditing
-                                          ? TextField(
-                                              controller: _emailController,
-                                              decoration: const InputDecoration(
-                                                isDense: true,
-                                                border: OutlineInputBorder(),
-                                              ),
-                                            )
-                                          : SelectableText(
-                                              _emailController.text.isEmpty ? tr('(nicht gesetzt)', '(nesetat)') : _emailController.text,
-                                              style: TextStyle(
-                                                color: _emailController.text.isEmpty ? Colors.grey : null,
-                                                fontStyle: _emailController.text.isEmpty ? FontStyle.italic : null,
-                                              ),
-                                            ),
-                                    ),
+                                _zugangsZeile(
+                                  schmal: schmal,
+                                  icon: Icons.email,
+                                  bezeichnung: tr('E-Mail: ', 'E-mail: '),
+                                  wert: _isEditing
+                                      ? TextField(
+                                          controller: _emailController,
+                                          decoration: const InputDecoration(
+                                            isDense: true,
+                                            border: OutlineInputBorder(),
+                                          ),
+                                        )
+                                      : SelectableText(
+                                          _emailController.text.isEmpty ? tr('(nicht gesetzt)', '(nesetat)') : _emailController.text,
+                                          style: TextStyle(
+                                            color: _emailController.text.isEmpty ? Colors.grey : null,
+                                            fontStyle: _emailController.text.isEmpty ? FontStyle.italic : null,
+                                          ),
+                                        ),
+                                  knoepfe: [
                                     if (_emailController.text.isNotEmpty)
                                       IconButton(
                                         icon: const Icon(Icons.copy, size: 18),
@@ -586,37 +638,35 @@ class _GoogleNonprofitScreenState extends State<GoogleNonprofitScreen> {
                                 const SizedBox(height: 16),
 
                                 // Password
-                                Row(
-                                  children: [
-                                    const Icon(Icons.lock, size: 20, color: Colors.grey),
-                                    const SizedBox(width: 12),
-                                    Text(tr('Passwort: ', 'Parolă: '), style: const TextStyle(fontWeight: FontWeight.w500)),
-                                    Expanded(
-                                      child: _isEditing
-                                          ? TextField(
-                                              controller: _passwordController,
-                                              obscureText: !_passwordVisible,
-                                              decoration: InputDecoration(
-                                                isDense: true,
-                                                border: const OutlineInputBorder(),
-                                                suffixIcon: IconButton(
-                                                  icon: Icon(_passwordVisible ? Icons.visibility_off : Icons.visibility, size: 18),
-                                                  onPressed: () => setState(() => _passwordVisible = !_passwordVisible),
-                                                ),
-                                              ),
-                                            )
-                                          : SelectableText(
-                                              _passwordController.text.isEmpty
-                                                  ? tr('(nicht gesetzt)', '(nesetat)')
-                                                  : _passwordVisible
-                                                      ? _passwordController.text
-                                                      : '\u2022' * 12,
-                                              style: TextStyle(
-                                                color: _passwordController.text.isEmpty ? Colors.grey : null,
-                                                fontStyle: _passwordController.text.isEmpty ? FontStyle.italic : null,
-                                              ),
+                                _zugangsZeile(
+                                  schmal: schmal,
+                                  icon: Icons.lock,
+                                  bezeichnung: tr('Passwort: ', 'Parolă: '),
+                                  wert: _isEditing
+                                      ? TextField(
+                                          controller: _passwordController,
+                                          obscureText: !_passwordVisible,
+                                          decoration: InputDecoration(
+                                            isDense: true,
+                                            border: const OutlineInputBorder(),
+                                            suffixIcon: IconButton(
+                                              icon: Icon(_passwordVisible ? Icons.visibility_off : Icons.visibility, size: 18),
+                                              onPressed: () => setState(() => _passwordVisible = !_passwordVisible),
                                             ),
-                                    ),
+                                          ),
+                                        )
+                                      : SelectableText(
+                                          _passwordController.text.isEmpty
+                                              ? tr('(nicht gesetzt)', '(nesetat)')
+                                              : _passwordVisible
+                                                  ? _passwordController.text
+                                                  : '\u2022' * 12,
+                                          style: TextStyle(
+                                            color: _passwordController.text.isEmpty ? Colors.grey : null,
+                                            fontStyle: _passwordController.text.isEmpty ? FontStyle.italic : null,
+                                          ),
+                                        ),
+                                  knoepfe: [
                                     if (!_isEditing && _passwordController.text.isNotEmpty)
                                       IconButton(
                                         icon: Icon(_passwordVisible ? Icons.visibility_off : Icons.visibility, size: 18),
@@ -645,9 +695,11 @@ class _GoogleNonprofitScreenState extends State<GoogleNonprofitScreen> {
                                     children: [
                                       Icon(Icons.shield, size: 16, color: Colors.green.shade700),
                                       const SizedBox(width: 8),
-                                      Text(
-                                        tr('Zugangsdaten werden AES-256 verschlüsselt in der Datenbank gespeichert', 'Datele de acces sunt stocate criptat AES-256 în baza de date'),
-                                        style: TextStyle(fontSize: 11, color: Colors.green.shade800),
+                                      Expanded(
+                                        child: Text(
+                                          tr('Zugangsdaten werden AES-256 verschlüsselt in der Datenbank gespeichert', 'Datele de acces sunt stocate criptat AES-256 în baza de date'),
+                                          style: TextStyle(fontSize: 11, color: Colors.green.shade800),
+                                        ),
                                       ),
                                     ],
                                   ),
@@ -662,7 +714,7 @@ class _GoogleNonprofitScreenState extends State<GoogleNonprofitScreen> {
                         // ==================== Aufgaben Card ====================
                         Card(
                           child: Padding(
-                            padding: const EdgeInsets.all(24),
+                            padding: EdgeInsets.all(rand),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
@@ -742,6 +794,11 @@ class _GoogleNonprofitScreenState extends State<GoogleNonprofitScreen> {
                                         ),
                                       ),
                                       child: ListTile(
+                                        // Telefon: die Ränder der ListTile (16 + 24 + 2 × 16 dp)
+                                        // nähmen dem Titel ein Drittel seiner Breite; Abstand
+                                        // geben dort die Innenränder der beiden Knöpfe.
+                                        contentPadding: schmal ? EdgeInsets.zero : null,
+                                        horizontalTitleGap: schmal ? 0 : null,
                                         leading: IconButton(
                                           icon: Icon(
                                             erledigt ? Icons.check_circle : Icons.radio_button_unchecked,
@@ -771,7 +828,10 @@ class _GoogleNonprofitScreenState extends State<GoogleNonprofitScreen> {
                                                 ),
                                               ),
                                             const SizedBox(height: 4),
-                                            Row(
+                                            // Passt auf dem Telefon nicht in eine Zeile.
+                                            Wrap(
+                                              crossAxisAlignment: WrapCrossAlignment.center,
+                                              runSpacing: 4,
                                               children: [
                                                 Icon(
                                                   Icons.schedule,
@@ -830,7 +890,7 @@ class _GoogleNonprofitScreenState extends State<GoogleNonprofitScreen> {
                         // ==================== Notizen Card ====================
                         Card(
                           child: Padding(
-                            padding: const EdgeInsets.all(24),
+                            padding: EdgeInsets.all(rand),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
@@ -897,6 +957,8 @@ class _GoogleNonprofitScreenState extends State<GoogleNonprofitScreen> {
                                         border: Border.all(color: Colors.teal.shade200),
                                       ),
                                       child: ListTile(
+                                        contentPadding: schmal ? const EdgeInsetsDirectional.only(start: 12) : null,
+                                        horizontalTitleGap: schmal ? 8 : null,
                                         leading: Icon(Icons.note, color: Colors.teal.shade600, size: 24),
                                         title: Text(
                                           notiz['inhalt'],
@@ -927,7 +989,7 @@ class _GoogleNonprofitScreenState extends State<GoogleNonprofitScreen> {
                         // Benefits Card
                         Card(
                           child: Padding(
-                            padding: const EdgeInsets.all(24),
+                            padding: EdgeInsets.all(rand),
                             child: Container(
                               padding: const EdgeInsets.all(16),
                               decoration: BoxDecoration(
@@ -942,9 +1004,11 @@ class _GoogleNonprofitScreenState extends State<GoogleNonprofitScreen> {
                                     children: [
                                       Icon(Icons.card_giftcard, color: Colors.blue.shade700, size: 20),
                                       const SizedBox(width: 8),
-                                      Text(
-                                        tr('Vorteile für Vereine', 'Avantaje pentru asociații'),
-                                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                                      Expanded(
+                                        child: Text(
+                                          tr('Vorteile für Vereine', 'Avantaje pentru asociații'),
+                                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                                        ),
                                       ),
                                     ],
                                   ),

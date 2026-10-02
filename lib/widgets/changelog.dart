@@ -63,7 +63,7 @@ class _ChangelogDialogState extends State<ChangelogDialog> {
         children: [
           Icon(Icons.history, color: Colors.blue.shade700),
           const SizedBox(width: 12),
-          Text(l.changelog),
+          Flexible(child: Text(l.changelog)),
         ],
       ),
       content: SizedBox(
@@ -153,32 +153,42 @@ class _ChangelogDialogState extends State<ChangelogDialog> {
         children: [
           Row(
             children: [
-              Text(
-                version,
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: isLatest ? Colors.blue.shade800 : Colors.black87,
+              // Expanded + Wrap statt Spacer: auf dem Telefon (192 dp Inhalt)
+              // rückt die Plakette unter die Version, statt das Datum
+              // hinauszuschieben.
+              Expanded(
+                child: Wrap(
+                  spacing: 8,
+                  runSpacing: 4,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    Text(
+                      version,
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: isLatest ? Colors.blue.shade800 : Colors.black87,
+                      ),
+                    ),
+                    if (isLatest)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: Colors.green,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          l.currentLabel,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
               ),
-              const SizedBox(width: 8),
-              if (isLatest)
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: Colors.green,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    l.currentLabel,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              const Spacer(),
               Text(
                 date,
                 style: TextStyle(

@@ -266,119 +266,205 @@ class _ArchivScreenState extends State<ArchivScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Entschieden wird nach der Breite, die der Bildschirm wirklich bekommt
+    // (auf dem Schreibtisch nimmt die Seitenleiste ihren Teil), nicht nach
+    // MediaQuery. Unter 600 dp: Telefon.
+    return LayoutBuilder(
+      builder: (context, constraints) => _aufbau(schmal: constraints.maxWidth < 600),
+    );
+  }
+
+  Widget _aufbau({required bool schmal}) {
     final df = DateFormat('dd.MM.yyyy HH:mm', 'de_DE');
+    final titel = Row(
+      children: [
+        Icon(Icons.archive, color: Colors.indigo.shade700, size: 28),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(tr('Archiv', 'Arhivă'), style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+              Text(
+                tr('Verschlüsselte Aufbewahrung von WhatsApp-Chats und Dokumenten',
+                    'Păstrare criptată a conversațiilor WhatsApp și a documentelor'),
+                style: const TextStyle(color: Colors.grey, fontSize: 13),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+    final hochladen = ElevatedButton.icon(
+      onPressed: _uploadArchive,
+      icon: const Icon(Icons.upload_file),
+      label: Text(tr('Hochladen', 'Încarcă')),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: Colors.indigo.shade700,
+        foregroundColor: Colors.white,
+      ),
+    );
+
+    // Content: Laden, Fehler oder leer — sonst die Liste.
+    final Widget? zustand = _isLoading
+        ? const Center(child: CircularProgressIndicator())
+        : _error != null
+            ? Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.error_outline, size: 48, color: Colors.red.shade300),
+                    const SizedBox(height: 12),
+                    Text(_error!, style: const TextStyle(color: Colors.red)),
+                    const SizedBox(height: 12),
+                    ElevatedButton(onPressed: _loadArchives, child: Text(tr('Erneut versuchen', 'Încearcă din nou'))),
+                  ],
+                ),
+              )
+            : _filteredArchives.isEmpty
+                ? Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.archive_outlined, size: 64, color: Colors.grey.shade300),
+                        const SizedBox(height: 16),
+                        Text(
+                          _searchQuery.isEmpty
+                              ? tr('Noch keine Archive vorhanden', 'Încă nu există arhive')
+                              : tr('Keine Ergebnisse', 'Niciun rezultat'),
+                          style: TextStyle(fontSize: 16, color: Colors.grey.shade500),
+                        ),
+                        if (_searchQuery.isEmpty) ...[
+                          const SizedBox(height: 8),
+                          Text(
+                            tr('Laden Sie WhatsApp-Chats oder Dokumente hoch', 'Încărcați conversații WhatsApp sau documente'),
+                            style: TextStyle(fontSize: 13, color: Colors.grey.shade400),
+                          ),
+                        ],
+                      ],
+                    ),
+                  )
+                : null;
+    Widget karte(BuildContext context, int index) =>
+        _buildArchiveCard(_filteredArchives[index], df, schmal: schmal);
+
+    final kopf = <Widget>[
+      // Header — auf dem Telefon steht „Hochladen“ unter dem Titel:
+      // daneben blieben der Unterzeile keine 80 dp, und
+      // „conversațiilor“ brach mitten im Wort.
+      if (schmal) ...[
+        titel,
+        const SizedBox(height: 12),
+        SizedBox(width: double.infinity, child: hochladen),
+      ] else
+        Row(
+          children: [
+            Expanded(child: titel),
+            hochladen,
+          ],
+        ),
+      const SizedBox(height: 16),
+
+      // Stats bar
+      _buildStatsBar(schmal: schmal),
+      const SizedBox(height: 16),
+
+      // Search
+      TextField(
+        decoration: InputDecoration(
+          hintText: tr('Suchen nach Person, Titel...', 'Căutare după persoană, titlu...'),
+          prefixIcon: const Icon(Icons.search),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+          contentPadding: const EdgeInsets.symmetric(vertical: 12),
+        ),
+        onChanged: (v) => setState(() => _searchQuery = v),
+      ),
+      const SizedBox(height: 16),
+    ];
+
+    if (schmal) {
+      // Telefon: Kopf, Kennzahlen und Suche rollen mit der Liste. Fest
+      // stehend ließen sie auf 320×640 dp kaum Platz für eine Karte.
+      return CustomScrollView(
+        slivers: [
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+            sliver: SliverList.list(children: kopf),
+          ),
+          if (zustand != null)
+            SliverFillRemaining(hasScrollBody: false, child: zustand)
+          else
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              sliver: SliverList.builder(
+                itemCount: _filteredArchives.length,
+                itemBuilder: karte,
+              ),
+            ),
+        ],
+      );
+    }
 
     return Padding(
       padding: const EdgeInsets.all(24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header
-          Row(
-            children: [
-              Icon(Icons.archive, color: Colors.indigo.shade700, size: 28),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(tr('Archiv', 'Arhivă'), style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-                    Text(
-                      tr('Verschlüsselte Aufbewahrung von WhatsApp-Chats und Dokumenten',
-                          'Păstrare criptată a conversațiilor WhatsApp și a documentelor'),
-                      style: const TextStyle(color: Colors.grey, fontSize: 13),
-                    ),
-                  ],
-                ),
-              ),
-              ElevatedButton.icon(
-                onPressed: _uploadArchive,
-                icon: const Icon(Icons.upload_file),
-                label: Text(tr('Hochladen', 'Încarcă')),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.indigo.shade700,
-                  foregroundColor: Colors.white,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-
-          // Stats bar
-          _buildStatsBar(),
-          const SizedBox(height: 16),
-
-          // Search
-          TextField(
-            decoration: InputDecoration(
-              hintText: tr('Suchen nach Person, Titel...', 'Căutare după persoană, titlu...'),
-              prefixIcon: const Icon(Icons.search),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-              contentPadding: const EdgeInsets.symmetric(vertical: 12),
-            ),
-            onChanged: (v) => setState(() => _searchQuery = v),
-          ),
-          const SizedBox(height: 16),
+          ...kopf,
 
           // Content
           Expanded(
-            child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : _error != null
-                    ? Center(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.error_outline, size: 48, color: Colors.red.shade300),
-                            const SizedBox(height: 12),
-                            Text(_error!, style: const TextStyle(color: Colors.red)),
-                            const SizedBox(height: 12),
-                            ElevatedButton(onPressed: _loadArchives, child: Text(tr('Erneut versuchen', 'Încearcă din nou'))),
-                          ],
-                        ),
-                      )
-                    : _filteredArchives.isEmpty
-                        ? Center(
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(Icons.archive_outlined, size: 64, color: Colors.grey.shade300),
-                                const SizedBox(height: 16),
-                                Text(
-                                  _searchQuery.isEmpty
-                                      ? tr('Noch keine Archive vorhanden', 'Încă nu există arhive')
-                                      : tr('Keine Ergebnisse', 'Niciun rezultat'),
-                                  style: TextStyle(fontSize: 16, color: Colors.grey.shade500),
-                                ),
-                                if (_searchQuery.isEmpty) ...[
-                                  const SizedBox(height: 8),
-                                  Text(
-                                    tr('Laden Sie WhatsApp-Chats oder Dokumente hoch', 'Încărcați conversații WhatsApp sau documente'),
-                                    style: TextStyle(fontSize: 13, color: Colors.grey.shade400),
-                                  ),
-                                ],
-                              ],
-                            ),
-                          )
-                        : ListView.builder(
-                            itemCount: _filteredArchives.length,
-                            itemBuilder: (context, index) {
-                              final archive = _filteredArchives[index];
-                              return _buildArchiveCard(archive, df);
-                            },
-                          ),
+            child: zustand ??
+                ListView.builder(
+                  itemCount: _filteredArchives.length,
+                  itemBuilder: karte,
+                ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildStatsBar() {
+  Widget _buildStatsBar({required bool schmal}) {
     final total = _archives.length;
     final whatsapp = _archives.where((a) => a['kategorie'] == 'whatsapp').length;
     final dokumente = _archives.where((a) => a['kategorie'] == 'dokument').length;
     final sonstige = total - whatsapp - dokumente;
     final totalSize = _archives.fold<int>(0, (sum, a) => sum + (int.tryParse(a['filesize']?.toString() ?? '0') ?? 0));
+
+    if (schmal) {
+      // Fünf Kennzahlen nebeneinander ließen auf dem Telefon je ~50 dp:
+      // „Verschlüsselt“ und „Dokumente“ brachen mitten im Wort. Hier drei
+      // je Zeile, darunter die übrigen zwei.
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+        decoration: BoxDecoration(
+          color: Colors.indigo.shade50,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.indigo.shade100),
+        ),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final breite = (constraints.maxWidth - 2 * 8) / 3;
+            Widget feld(IconData icon, String value, String label) =>
+                SizedBox(width: breite, child: _statInhalt(icon, value, label));
+            return Wrap(
+              alignment: WrapAlignment.center,
+              spacing: 8,
+              runSpacing: 12,
+              children: [
+                feld(Icons.archive, '$total', tr('Gesamt', 'Total')),
+                feld(Icons.chat, '$whatsapp', 'WhatsApp'),
+                feld(Icons.description, '$dokumente', tr('Dokumente', 'Documente')),
+                feld(Icons.folder, '$sonstige', tr('Sonstiges', 'Altele')),
+                feld(Icons.lock, _formatSize(totalSize), tr('Verschlüsselt', 'Criptat')),
+              ],
+            );
+          },
+        ),
+      );
+    }
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -405,14 +491,18 @@ class _ArchivScreenState extends State<ArchivScreen> {
 
   Widget _statItem(IconData icon, String value, String label) {
     return Expanded(
-      child: Column(
-        children: [
-          Icon(icon, color: Colors.indigo.shade700, size: 20),
-          const SizedBox(height: 4),
-          Text(value, style: TextStyle(fontWeight: FontWeight.bold, color: Colors.indigo.shade700)),
-          Text(label, style: const TextStyle(fontSize: 11, color: Colors.grey)),
-        ],
-      ),
+      child: _statInhalt(icon, value, label),
+    );
+  }
+
+  Widget _statInhalt(IconData icon, String value, String label) {
+    return Column(
+      children: [
+        Icon(icon, color: Colors.indigo.shade700, size: 20),
+        const SizedBox(height: 4),
+        Text(value, style: TextStyle(fontWeight: FontWeight.bold, color: Colors.indigo.shade700)),
+        Text(label, style: const TextStyle(fontSize: 11, color: Colors.grey)),
+      ],
     );
   }
 
@@ -426,7 +516,7 @@ class _ArchivScreenState extends State<ArchivScreen> {
     return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
   }
 
-  Widget _buildArchiveCard(Map<String, dynamic> archive, DateFormat df) {
+  Widget _buildArchiveCard(Map<String, dynamic> archive, DateFormat df, {required bool schmal}) {
     final kategorie = archive['kategorie']?.toString() ?? 'sonstiges';
     final isEncrypted = archive['is_encrypted'] == 1 || archive['is_encrypted'] == true;
 
@@ -451,6 +541,175 @@ class _ArchivScreenState extends State<ArchivScreen> {
       createdAt = DateTime.parse(archive['created_at']?.toString() ?? '');
     } catch (_) {}
 
+    // Category icon
+    final symbol = Container(
+      width: 44,
+      height: 44,
+      decoration: BoxDecoration(
+        color: catColor.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Stack(
+        children: [
+          Center(child: Icon(catIcon, color: catColor, size: 24)),
+          if (isEncrypted)
+            Positioned(
+              right: 0,
+              bottom: 0,
+              child: Icon(Icons.lock, size: 12, color: Colors.green.shade700),
+            ),
+        ],
+      ),
+    );
+    final titel = Text(
+      archive['titel']?.toString() ?? tr('Kein Titel', 'Fără titlu'),
+      style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+      overflow: TextOverflow.ellipsis,
+      maxLines: schmal ? 2 : null,
+    );
+    final katChip = Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: catColor.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Text(
+        kategorie == 'whatsapp'
+            ? 'WhatsApp'
+            : kategorie == 'dokument'
+                ? tr('Dokument', 'Document')
+                : tr('Sonstiges', 'Altele'),
+        style: TextStyle(fontSize: 11, color: catColor, fontWeight: FontWeight.w500),
+      ),
+    );
+    final hatNummer = archive['mitgliedernummer'] != null && archive['mitgliedernummer'].toString().isNotEmpty;
+    // Name und Dateiname sind Flexible: mit langen Werten lief die Zeile auf
+    // dem Tablet (800 dp) um 167 dp hinaus. Passt alles, ändert das nichts.
+    final person = [
+      Icon(Icons.person_outline, size: 14, color: Colors.grey.shade600),
+      const SizedBox(width: 4),
+      Flexible(
+        child: Text(
+          archive['person_name']?.toString() ?? '-',
+          style: TextStyle(fontSize: 13, color: Colors.grey.shade700),
+          overflow: TextOverflow.ellipsis,
+        ),
+      ),
+      if (hatNummer) ...[
+        const SizedBox(width: 6),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+          decoration: BoxDecoration(
+            color: Colors.blue.shade50,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Text(
+            archive['mitgliedernummer'].toString(),
+            style: TextStyle(fontSize: 11, color: Colors.blue.shade700, fontWeight: FontWeight.w500),
+          ),
+        ),
+      ],
+    ];
+    final datei = [
+      Icon(Icons.attach_file, size: 14, color: Colors.grey.shade600),
+      const SizedBox(width: 4),
+      Flexible(
+        child: Text(
+          archive['original_filename']?.toString() ?? '-',
+          style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+          overflow: TextOverflow.ellipsis,
+        ),
+      ),
+      const SizedBox(width: 8),
+      Text(
+        _formatSize(int.tryParse(archive['filesize']?.toString() ?? '0') ?? 0),
+        style: TextStyle(fontSize: 12, color: Colors.grey.shade400),
+      ),
+    ];
+    final beschreibung = archive['beschreibung'] != null && archive['beschreibung'].toString().isNotEmpty
+        ? Text(
+            archive['beschreibung'].toString(),
+            style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          )
+        : null;
+    final datum = Text(
+      createdAt != null ? df.format(createdAt) : '-',
+      style: TextStyle(fontSize: 11, color: Colors.grey.shade400),
+    );
+    final knoepfe = [
+      IconButton(
+        icon: const Icon(Icons.visibility, size: 20),
+        tooltip: tr('Anzeigen (nur im Speicher)', 'Afișează (doar în memorie)'),
+        onPressed: () => _viewArchive(archive),
+        color: Colors.green.shade700,
+      ),
+      IconButton(
+        icon: const Icon(Icons.download, size: 20),
+        tooltip: tr('Herunterladen', 'Descarcă'),
+        onPressed: () => _downloadArchive(archive),
+        color: Colors.indigo,
+      ),
+      IconButton(
+        icon: const Icon(Icons.delete_outline, size: 20),
+        tooltip: tr('Löschen', 'Șterge'),
+        onPressed: () => _deleteArchive(archive),
+        color: Colors.red.shade400,
+      ),
+    ];
+
+    if (schmal) {
+      // Telefon: Person und Datei je in eigener Zeile, die Knöpfe unten
+      // neben dem Datum. In einer Zeile mit Mitgliedsnummer, Dateiname und
+      // Größe lief die Karte auf 320 dp um über 600 dp hinaus.
+      return Card(
+        margin: const EdgeInsets.only(bottom: 8),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 16, 8, 4),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    symbol,
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [titel, const SizedBox(height: 4), katChip],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 8),
+              Row(children: person),
+              const SizedBox(height: 4),
+              Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: Row(children: datei),
+              ),
+              if (beschreibung != null) ...[
+                const SizedBox(height: 4),
+                beschreibung,
+              ],
+              Row(
+                children: [
+                  Expanded(child: datum),
+                  ...knoepfe,
+                ],
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
@@ -459,26 +718,7 @@ class _ArchivScreenState extends State<ArchivScreen> {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Category icon
-            Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                color: catColor.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Stack(
-                children: [
-                  Center(child: Icon(catIcon, color: catColor, size: 24)),
-                  if (isEncrypted)
-                    Positioned(
-                      right: 0,
-                      bottom: 0,
-                      child: Icon(Icons.lock, size: 12, color: Colors.green.shade700),
-                    ),
-                ],
-              ),
-            ),
+            symbol,
             const SizedBox(width: 14),
             // Content
             Expanded(
@@ -487,106 +727,30 @@ class _ArchivScreenState extends State<ArchivScreen> {
                 children: [
                   Row(
                     children: [
-                      Expanded(
-                        child: Text(
-                          archive['titel']?.toString() ?? tr('Kein Titel', 'Fără titlu'),
-                          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: catColor.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Text(
-                          kategorie == 'whatsapp'
-                              ? 'WhatsApp'
-                              : kategorie == 'dokument'
-                                  ? tr('Dokument', 'Document')
-                                  : tr('Sonstiges', 'Altele'),
-                          style: TextStyle(fontSize: 11, color: catColor, fontWeight: FontWeight.w500),
-                        ),
-                      ),
+                      Expanded(child: titel),
+                      katChip,
                     ],
                   ),
                   const SizedBox(height: 4),
                   Row(
                     children: [
-                      Icon(Icons.person_outline, size: 14, color: Colors.grey.shade600),
-                      const SizedBox(width: 4),
-                      Text(
-                        archive['person_name']?.toString() ?? '-',
-                        style: TextStyle(fontSize: 13, color: Colors.grey.shade700),
-                      ),
-                      if (archive['mitgliedernummer'] != null && archive['mitgliedernummer'].toString().isNotEmpty) ...[
-                        const SizedBox(width: 6),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-                          decoration: BoxDecoration(
-                            color: Colors.blue.shade50,
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text(
-                            archive['mitgliedernummer'].toString(),
-                            style: TextStyle(fontSize: 11, color: Colors.blue.shade700, fontWeight: FontWeight.w500),
-                          ),
-                        ),
-                      ],
+                      ...person,
                       const SizedBox(width: 16),
-                      Icon(Icons.attach_file, size: 14, color: Colors.grey.shade600),
-                      const SizedBox(width: 4),
-                      Text(
-                        archive['original_filename']?.toString() ?? '-',
-                        style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        _formatSize(int.tryParse(archive['filesize']?.toString() ?? '0') ?? 0),
-                        style: TextStyle(fontSize: 12, color: Colors.grey.shade400),
-                      ),
+                      ...datei,
                     ],
                   ),
-                  if (archive['beschreibung'] != null && archive['beschreibung'].toString().isNotEmpty) ...[
+                  if (beschreibung != null) ...[
                     const SizedBox(height: 4),
-                    Text(
-                      archive['beschreibung'].toString(),
-                      style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
+                    beschreibung,
                   ],
                   const SizedBox(height: 6),
-                  Text(
-                    createdAt != null ? df.format(createdAt) : '-',
-                    style: TextStyle(fontSize: 11, color: Colors.grey.shade400),
-                  ),
+                  datum,
                 ],
               ),
             ),
             // Actions
             Column(
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.visibility, size: 20),
-                  tooltip: tr('Anzeigen (nur im Speicher)', 'Afișează (doar în memorie)'),
-                  onPressed: () => _viewArchive(archive),
-                  color: Colors.green.shade700,
-                ),
-                IconButton(
-                  icon: const Icon(Icons.download, size: 20),
-                  tooltip: tr('Herunterladen', 'Descarcă'),
-                  onPressed: () => _downloadArchive(archive),
-                  color: Colors.indigo,
-                ),
-                IconButton(
-                  icon: const Icon(Icons.delete_outline, size: 20),
-                  tooltip: tr('Löschen', 'Șterge'),
-                  onPressed: () => _deleteArchive(archive),
-                  color: Colors.red.shade400,
-                ),
-              ],
+              children: knoepfe,
             ),
           ],
         ),
@@ -647,168 +811,177 @@ class _UploadDialogState extends State<_UploadDialog> {
 
   @override
   Widget build(BuildContext context) {
+    // Telefon: 16 statt 40 dp Rand. Mit 40 dp blieben dem Formular auf
+    // 320 dp nur 192 dp — Titel und Kategorie liefen hinaus, und von den
+    // Namen in der Mitgliederliste blieben drei Buchstaben.
+    final schmal = MediaQuery.sizeOf(context).width < 600;
     return AlertDialog(
+      insetPadding: schmal ? const EdgeInsets.symmetric(horizontal: 16, vertical: 24) : null,
       title: Row(
         children: [
           Icon(Icons.upload_file, color: Colors.indigo.shade700),
           const SizedBox(width: 8),
-          Text(tr('Archiv hochladen', 'Încarcă arhivă')),
+          Expanded(child: Text(tr('Archiv hochladen', 'Încarcă arhivă'))),
         ],
       ),
       content: SizedBox(
         width: 480,
         height: 520,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Info box
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.amber.shade50,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.amber.shade200),
-              ),
-              child: Row(
-                children: [
-                  Icon(Icons.lock, color: Colors.green.shade700, size: 20),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      tr('Dateien werden AES-256 verschlüsselt auf dem Server gespeichert.',
-                          'Fișierele sunt stocate pe server, criptate cu AES-256.'),
-                      style: const TextStyle(fontSize: 12),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            // Member selector
-            Align(
-              alignment: Alignment.centerLeft,
-              child: Text(tr('Mitglied auswählen *', 'Selectați membrul *'),
-                  style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
-            ),
-            const SizedBox(height: 6),
-            TextField(
-              controller: _searchCtrl,
-              decoration: InputDecoration(
-                hintText: tr('Suchen nach Name, Nummer...', 'Căutare după nume, număr...'),
-                prefixIcon: const Icon(Icons.search, size: 20),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
-                isDense: true,
-              ),
-              onChanged: _filterUsers,
-            ),
-            const SizedBox(height: 6),
-            Container(
-              height: 130,
-              decoration: BoxDecoration(
-                border: Border.all(color: _selectedUser == null ? Colors.grey.shade300 : Colors.indigo.shade300),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: ListView.builder(
-                itemCount: _filteredUsers.length,
-                itemBuilder: (ctx, i) {
-                  final user = _filteredUsers[i];
-                  final isSelected = _selectedUser?.id == user.id;
-                  return InkWell(
-                    onTap: () => setState(() => _selectedUser = user),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                      color: isSelected ? Colors.indigo.shade50 : null,
-                      child: Row(
-                        children: [
-                          Icon(
-                            isSelected ? Icons.check_circle : Icons.radio_button_unchecked,
-                            size: 18,
-                            color: isSelected ? Colors.indigo.shade700 : Colors.grey.shade400,
-                          ),
-                          const SizedBox(width: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-                            decoration: BoxDecoration(
-                              color: Colors.blue.shade50,
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: Text(
-                              user.mitgliedernummer,
-                              style: TextStyle(fontSize: 11, color: Colors.blue.shade700, fontWeight: FontWeight.w600),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              user.name,
-                              style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                              ),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                          Text(
-                            user.role,
-                            style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
-                          ),
-                        ],
+        // Rollbar: auf 320×640 dp ist der Dialog niedriger als die 520 dp
+        // des Formulars, unten lief es um 154 dp hinaus.
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Info box
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.amber.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.amber.shade200),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.lock, color: Colors.green.shade700, size: 20),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        tr('Dateien werden AES-256 verschlüsselt auf dem Server gespeichert.',
+                            'Fișierele sunt stocate pe server, criptate cu AES-256.'),
+                        style: const TextStyle(fontSize: 12),
                       ),
                     ),
-                  );
-                },
+                  ],
+                ),
               ),
-            ),
-            if (_selectedUser != null) ...[
-              const SizedBox(height: 4),
+              const SizedBox(height: 16),
+
+              // Member selector
               Align(
                 alignment: Alignment.centerLeft,
-                child: Text(
-                  '${_selectedUser!.name} (${_selectedUser!.mitgliedernummer})',
-                  style: TextStyle(fontSize: 12, color: Colors.indigo.shade700, fontWeight: FontWeight.w500),
+                child: Text(tr('Mitglied auswählen *', 'Selectați membrul *'),
+                    style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+              ),
+              const SizedBox(height: 6),
+              TextField(
+                controller: _searchCtrl,
+                decoration: InputDecoration(
+                  hintText: tr('Suchen nach Name, Nummer...', 'Căutare după nume, număr...'),
+                  prefixIcon: const Icon(Icons.search, size: 20),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                  contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+                  isDense: true,
+                ),
+                onChanged: _filterUsers,
+              ),
+              const SizedBox(height: 6),
+              Container(
+                height: 130,
+                decoration: BoxDecoration(
+                  border: Border.all(color: _selectedUser == null ? Colors.grey.shade300 : Colors.indigo.shade300),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: ListView.builder(
+                  itemCount: _filteredUsers.length,
+                  itemBuilder: (ctx, i) {
+                    final user = _filteredUsers[i];
+                    final isSelected = _selectedUser?.id == user.id;
+                    return InkWell(
+                      onTap: () => setState(() => _selectedUser = user),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        color: isSelected ? Colors.indigo.shade50 : null,
+                        child: Row(
+                          children: [
+                            Icon(
+                              isSelected ? Icons.check_circle : Icons.radio_button_unchecked,
+                              size: 18,
+                              color: isSelected ? Colors.indigo.shade700 : Colors.grey.shade400,
+                            ),
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                              decoration: BoxDecoration(
+                                color: Colors.blue.shade50,
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                user.mitgliedernummer,
+                                style: TextStyle(fontSize: 11, color: Colors.blue.shade700, fontWeight: FontWeight.w600),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                user.name,
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            Text(
+                              user.role,
+                              style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+              if (_selectedUser != null) ...[
+                const SizedBox(height: 4),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    '${_selectedUser!.name} (${_selectedUser!.mitgliedernummer})',
+                    style: TextStyle(fontSize: 12, color: Colors.indigo.shade700, fontWeight: FontWeight.w500),
+                  ),
+                ),
+              ],
+              const SizedBox(height: 12),
+
+              TextField(
+                controller: _titelCtrl,
+                decoration: InputDecoration(
+                  labelText: tr('Titel *', 'Titlu *'),
+                  hintText: tr('z.B. WhatsApp Chat mit Max Mustermann', 'de ex. Chat WhatsApp cu Ion Popescu'),
+                  border: const OutlineInputBorder(),
+                  prefixIcon: const Icon(Icons.title),
+                ),
+              ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                initialValue: _kategorie,
+                decoration: InputDecoration(
+                  labelText: tr('Kategorie', 'Categorie'),
+                  border: const OutlineInputBorder(),
+                  prefixIcon: const Icon(Icons.category),
+                ),
+                items: [
+                  DropdownMenuItem(value: 'whatsapp', child: Text(tr('WhatsApp Chat', 'Chat WhatsApp'))),
+                  DropdownMenuItem(value: 'dokument', child: Text(tr('Dokument', 'Document'))),
+                  DropdownMenuItem(value: 'sonstiges', child: Text(tr('Sonstiges', 'Altele'))),
+                ],
+                onChanged: (v) => setState(() => _kategorie = v ?? 'whatsapp'),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _beschreibungCtrl,
+                maxLines: 2,
+                decoration: InputDecoration(
+                  labelText: tr('Beschreibung', 'Descriere'),
+                  hintText: tr('Warum wird dieses Archiv aufbewahrt?', 'De ce este păstrată această arhivă?'),
+                  border: const OutlineInputBorder(),
+                  prefixIcon: const Icon(Icons.notes),
                 ),
               ),
             ],
-            const SizedBox(height: 12),
-
-            TextField(
-              controller: _titelCtrl,
-              decoration: InputDecoration(
-                labelText: tr('Titel *', 'Titlu *'),
-                hintText: tr('z.B. WhatsApp Chat mit Max Mustermann', 'de ex. Chat WhatsApp cu Ion Popescu'),
-                border: const OutlineInputBorder(),
-                prefixIcon: const Icon(Icons.title),
-              ),
-            ),
-            const SizedBox(height: 12),
-            DropdownButtonFormField<String>(
-              initialValue: _kategorie,
-              decoration: InputDecoration(
-                labelText: tr('Kategorie', 'Categorie'),
-                border: const OutlineInputBorder(),
-                prefixIcon: const Icon(Icons.category),
-              ),
-              items: [
-                DropdownMenuItem(value: 'whatsapp', child: Text(tr('WhatsApp Chat', 'Chat WhatsApp'))),
-                DropdownMenuItem(value: 'dokument', child: Text(tr('Dokument', 'Document'))),
-                DropdownMenuItem(value: 'sonstiges', child: Text(tr('Sonstiges', 'Altele'))),
-              ],
-              onChanged: (v) => setState(() => _kategorie = v ?? 'whatsapp'),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _beschreibungCtrl,
-              maxLines: 2,
-              decoration: InputDecoration(
-                labelText: tr('Beschreibung', 'Descriere'),
-                hintText: tr('Warum wird dieses Archiv aufbewahrt?', 'De ce este păstrată această arhivă?'),
-                border: const OutlineInputBorder(),
-                prefixIcon: const Icon(Icons.notes),
-              ),
-            ),
-          ],
+          ),
         ),
       ),
       actions: [
@@ -1079,76 +1252,105 @@ class _SecureFileViewerState extends State<_SecureFileViewer> {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           color: Colors.grey.shade50,
-          child: Row(
-            children: [
-              Icon(Icons.folder_zip, color: Colors.orange.shade700, size: 20),
-              const SizedBox(width: 8),
-              Text(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final symbol = Icon(Icons.folder_zip, color: Colors.orange.shade700, size: 20);
+              final anzahl = Text(
                 tr('${files.length} Dateien — ${_formatSize(totalSize)}',
                     'Fișiere: ${files.length} — ${_formatSize(totalSize)}'),
                 style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.grey.shade700),
-              ),
-              const Spacer(),
-              SizedBox(
-                width: 250,
-                height: 34,
-                child: TextField(
-                  onChanged: (v) => setState(() => _zipSearchQuery = v),
-                  decoration: InputDecoration(
-                    hintText: tr('Datei suchen...', 'Caută fișier...'),
-                    hintStyle: const TextStyle(fontSize: 12),
-                    prefixIcon: const Icon(Icons.search, size: 18),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 12),
-                    isDense: true,
-                  ),
-                  style: const TextStyle(fontSize: 12),
+              );
+              final suche = TextField(
+                onChanged: (v) => setState(() => _zipSearchQuery = v),
+                decoration: InputDecoration(
+                  hintText: tr('Datei suchen...', 'Caută fișier...'),
+                  hintStyle: const TextStyle(fontSize: 12),
+                  prefixIcon: const Icon(Icons.search, size: 18),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+                  isDense: true,
                 ),
-              ),
-            ],
+                style: const TextStyle(fontSize: 12),
+              );
+              // Telefon: das 250 dp breite Suchfeld steht unter der Anzahl —
+              // daneben lief die Leiste im Betrachter hinaus.
+              if (constraints.maxWidth < 500) {
+                return Column(
+                  children: [
+                    Row(
+                      children: [
+                        symbol,
+                        const SizedBox(width: 8),
+                        Expanded(child: anzahl),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    SizedBox(height: 34, child: suche),
+                  ],
+                );
+              }
+              return Row(
+                children: [
+                  symbol,
+                  const SizedBox(width: 8),
+                  anzahl,
+                  const Spacer(),
+                  SizedBox(
+                    width: 250,
+                    height: 34,
+                    child: suche,
+                  ),
+                ],
+              );
+            },
           ),
         ),
         const Divider(height: 1),
-        // File list
+        // File list — mit eigenem Material: sonst zeichnete der weiße Kasten
+        // des Betrachters über die Tintenwelle der Einträge (Flutter meldet
+        // das als Fehler).
         Expanded(
-          child: ListView.builder(
-            itemCount: filtered.length,
-            itemBuilder: (ctx, i) {
-              final file = filtered[i];
-              final name = file.name;
-              final ext = name.split('.').last.toLowerCase();
-              final isDir = !file.isFile;
-              final icon = isDir
-                  ? Icons.folder
-                  : _fileIcon(ext);
-              final color = isDir
-                  ? Colors.amber.shade700
-                  : _fileColor(ext);
+          child: Material(
+            type: MaterialType.transparency,
+            child: ListView.builder(
+              itemCount: filtered.length,
+              itemBuilder: (ctx, i) {
+                final file = filtered[i];
+                final name = file.name;
+                final ext = name.split('.').last.toLowerCase();
+                final isDir = !file.isFile;
+                final icon = isDir
+                    ? Icons.folder
+                    : _fileIcon(ext);
+                final color = isDir
+                    ? Colors.amber.shade700
+                    : _fileColor(ext);
 
-              return ListTile(
-                dense: true,
-                leading: Icon(icon, size: 22, color: color),
-                title: Text(
-                  name.split('/').last.isEmpty ? name : name.split('/').last,
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: isDir ? FontWeight.w600 : FontWeight.normal,
+                return ListTile(
+                  dense: true,
+                  leading: Icon(icon, size: 22, color: color),
+                  title: Text(
+                    name.split('/').last.isEmpty ? name : name.split('/').last,
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: isDir ? FontWeight.w600 : FontWeight.normal,
+                    ),
+                    overflow: TextOverflow.ellipsis,
                   ),
-                  overflow: TextOverflow.ellipsis,
-                ),
-                subtitle: isDir
-                    ? null
-                    : Text(
-                        _formatSize(file.size),
-                        style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
-                      ),
-                trailing: file.isFile
-                    ? Icon(Icons.open_in_new, size: 16, color: Colors.grey.shade400)
-                    : null,
-                onTap: file.isFile ? () => _openZipFile(file) : null,
-                hoverColor: Colors.indigo.shade50,
-              );
-            },
+                  subtitle: isDir
+                      ? null
+                      : Text(
+                          _formatSize(file.size),
+                          style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+                        ),
+                  trailing: file.isFile
+                      ? Icon(Icons.open_in_new, size: 16, color: Colors.grey.shade400)
+                      : null,
+                  onTap: file.isFile ? () => _openZipFile(file) : null,
+                  hoverColor: Colors.indigo.shade50,
+                );
+              },
+            ),
           ),
         ),
       ],

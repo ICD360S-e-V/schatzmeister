@@ -6,6 +6,25 @@ import '../services/termin_service.dart';
 import '../services/ticket_service.dart';
 import '../models/user.dart';
 
+/// Zwei Felder nebeneinander (Schreibtisch, wie bisher) oder auf dem Telefon
+/// untereinander in voller Breite — nebeneinander blieben auf 320 dp je gut
+/// 130 dp: das Datum bräche im Knopf um, „Durata (min.)" würde abgeschnitten.
+Widget _feldPaar(bool schmal, Widget links, Widget rechts, {int rechtsFlex = 1}) {
+  if (schmal) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [links, const SizedBox(height: 16), rechts],
+    );
+  }
+  return Row(
+    children: [
+      Expanded(child: links),
+      const SizedBox(width: 12),
+      Expanded(flex: rechtsFlex, child: rechts),
+    ],
+  );
+}
+
 // Create Termin Dialog
 class CreateTerminDialog extends StatefulWidget {
   final TerminService terminService;
@@ -38,6 +57,9 @@ class _CreateTerminDialogState extends State<CreateTerminDialog> {
   Set<int> _selectedParticipants = {};
   int? _selectedTicketId;
   bool _isCreating = false;
+
+  /// Telefonbreite (< 600 dp): ganzer Bildschirm, Felder untereinander.
+  bool _schmal = false;
 
   @override
   void dispose() {
@@ -137,12 +159,22 @@ class _CreateTerminDialogState extends State<CreateTerminDialog> {
 
   @override
   Widget build(BuildContext context) {
+    // Entschieden wird nach der Breite, die der Dialog wirklich bekommt.
+    return LayoutBuilder(builder: _baueDialog);
+  }
+
+  Widget _baueDialog(BuildContext context, BoxConstraints constraints) {
     final l = AppLocalizations.of(context);
+    // Telefon: ganzer Bildschirm statt 700 × 700 dp mit 40 dp Rand
+    _schmal = constraints.maxWidth < 600;
     return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      insetPadding: _schmal ? EdgeInsets.zero : null,
+      shape: _schmal
+          ? const RoundedRectangleBorder()
+          : RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: SizedBox(
-        width: 700,
-        height: 700,
+        width: _schmal ? constraints.maxWidth : 700,
+        height: _schmal ? constraints.maxHeight : 700,
         child: Column(
           children: [
             // Header
@@ -150,24 +182,27 @@ class _CreateTerminDialogState extends State<CreateTerminDialog> {
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 color: Colors.green.shade700,
-                borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(16),
-                  topRight: Radius.circular(16),
-                ),
+                borderRadius: _schmal
+                    ? null
+                    : const BorderRadius.only(
+                        topLeft: Radius.circular(16),
+                        topRight: Radius.circular(16),
+                      ),
               ),
               child: Row(
                 children: [
                   const Icon(Icons.event, color: Colors.white),
                   const SizedBox(width: 12),
-                  Text(
-                    l.newTermin,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
+                  Expanded(
+                    child: Text(
+                      l.newTermin,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
-                  const Spacer(),
                   IconButton(
                     icon: const Icon(Icons.close, color: Colors.white),
                     onPressed: () => Navigator.pop(context),
@@ -178,7 +213,7 @@ class _CreateTerminDialogState extends State<CreateTerminDialog> {
             // Form
             Expanded(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.all(24),
+                padding: EdgeInsets.all(_schmal ? 16 : 24),
                 child: Form(
                   key: _formKey,
                   child: Column(
@@ -187,6 +222,8 @@ class _CreateTerminDialogState extends State<CreateTerminDialog> {
                       // Category
                       DropdownButtonFormField<String>(
                         initialValue: _category,
+                        // Telefon: lange Kategorien brechen um statt hinauszulaufen
+                        isExpanded: true,
                         decoration: InputDecoration(
                           labelText: l.categoryRequired,
                           border: const OutlineInputBorder(),
@@ -225,87 +262,76 @@ class _CreateTerminDialogState extends State<CreateTerminDialog> {
                       ),
                       const SizedBox(height: 16),
                       // Date and Time
-                      Row(
-                        children: [
-                          Expanded(
-                            child: OutlinedButton.icon(
+                      _feldPaar(
+                        _schmal,
+                        OutlinedButton.icon(
+                          onPressed: () async {
+                            final date = await showDatePicker(
+                              context: context,
+                              initialDate: _selectedDate,
+                              firstDate: DateTime.now(),
+                              lastDate: DateTime.now().add(const Duration(days: 365)),
+                              locale: LanguageService.instance.isRomanian ? const Locale('ro', 'RO') : const Locale('de', 'DE'),
+                            );
+                            if (date != null) setState(() => _selectedDate = date);
+                          },
+                          icon: const Icon(Icons.calendar_today),
+                          label: Text(DateFormat('dd.MM.yyyy').format(_selectedDate)),
+                        ),
+                        Column(
+                          // Telefon: Uhrzeit-Knopf in voller Breite wie das Datum
+                          crossAxisAlignment: _schmal ? CrossAxisAlignment.stretch : CrossAxisAlignment.start,
+                          children: [
+                            OutlinedButton.icon(
                               onPressed: () async {
-                                final date = await showDatePicker(
+                                final time = await showTimePicker(
                                   context: context,
-                                  initialDate: _selectedDate,
-                                  firstDate: DateTime.now(),
-                                  lastDate: DateTime.now().add(const Duration(days: 365)),
-                                  locale: LanguageService.instance.isRomanian ? const Locale('ro', 'RO') : const Locale('de', 'DE'),
+                                  initialTime: _selectedTime,
                                 );
-                                if (date != null) setState(() => _selectedDate = date);
+                                if (time != null) setState(() => _selectedTime = time);
                               },
-                              icon: const Icon(Icons.calendar_today),
-                              label: Text(DateFormat('dd.MM.yyyy').format(_selectedDate)),
+                              icon: const Icon(Icons.access_time),
+                              label: Text(_selectedTime.format(context)),
                             ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                OutlinedButton.icon(
-                                  onPressed: () async {
-                                    final time = await showTimePicker(
-                                      context: context,
-                                      initialTime: _selectedTime,
-                                    );
-                                    if (time != null) setState(() => _selectedTime = time);
-                                  },
-                                  icon: const Icon(Icons.access_time),
-                                  label: Text(_selectedTime.format(context)),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  '08:00-12:00 & 14:00-18:00',
-                                  style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
-                                ),
-                              ],
+                            const SizedBox(height: 4),
+                            Text(
+                              '08:00-12:00 & 14:00-18:00',
+                              style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                       const SizedBox(height: 16),
                       // Duration and Location
-                      Row(
-                        children: [
-                          Expanded(
-                            child: TextFormField(
-                              controller: _durationController,
-                              decoration: InputDecoration(
-                                labelText: l.durationMinutes,
-                                border: const OutlineInputBorder(),
-                                prefixIcon: const Icon(Icons.timer),
-                              ),
-                              keyboardType: TextInputType.number,
-                              validator: (v) {
-                                if (v == null || v.isEmpty) return l.required;
-                                final num = int.tryParse(v);
-                                if (num == null || num < 15 || num > 480) {
-                                  return tr('15-480 Min.', '15-480 min.');
-                                }
-                                return null;
-                              },
-                            ),
+                      _feldPaar(
+                        _schmal,
+                        TextFormField(
+                          controller: _durationController,
+                          decoration: InputDecoration(
+                            labelText: l.durationMinutes,
+                            border: const OutlineInputBorder(),
+                            prefixIcon: const Icon(Icons.timer),
                           ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            flex: 2,
-                            child: TextFormField(
-                              controller: _locationController,
-                              decoration: InputDecoration(
-                                labelText: l.locationRequired,
-                                border: const OutlineInputBorder(),
-                                prefixIcon: const Icon(Icons.location_on),
-                              ),
-                              validator: (v) => v == null || v.trim().isEmpty ? l.locationIsRequired : null,
-                            ),
+                          keyboardType: TextInputType.number,
+                          validator: (v) {
+                            if (v == null || v.isEmpty) return l.required;
+                            final num = int.tryParse(v);
+                            if (num == null || num < 15 || num > 480) {
+                              return tr('15-480 Min.', '15-480 min.');
+                            }
+                            return null;
+                          },
+                        ),
+                        TextFormField(
+                          controller: _locationController,
+                          decoration: InputDecoration(
+                            labelText: l.locationRequired,
+                            border: const OutlineInputBorder(),
+                            prefixIcon: const Icon(Icons.location_on),
                           ),
-                        ],
+                          validator: (v) => v == null || v.trim().isEmpty ? l.locationIsRequired : null,
+                        ),
+                        rechtsFlex: 2,
                       ),
                       const SizedBox(height: 16),
                       // Participants
@@ -314,7 +340,8 @@ class _CreateTerminDialogState extends State<CreateTerminDialog> {
                         style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                       ),
                       const SizedBox(height: 8),
-                      Row(
+                      // Wrap: auf dem Telefon untereinander statt hinauszulaufen
+                      Wrap(
                         children: [
                           TextButton.icon(
                             onPressed: () {
@@ -393,31 +420,38 @@ class _CreateTerminDialogState extends State<CreateTerminDialog> {
               decoration: BoxDecoration(
                 border: Border(top: BorderSide(color: Colors.grey.shade300)),
               ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  TextButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: Text(l.cancel),
-                  ),
-                  const SizedBox(width: 12),
-                  ElevatedButton.icon(
-                    onPressed: _isCreating ? null : _createTermin,
-                    icon: _isCreating
-                        ? const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                          )
-                        : const Icon(Icons.check),
-                    label: Text(l.createTermin),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green.shade700,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              // Wrap statt Row: auf dem Telefon rückt „Termin erstellen" unter
+              // „Abbrechen", statt hinauszulaufen.
+              child: SizedBox(
+                width: double.infinity,
+                child: Wrap(
+                  alignment: WrapAlignment.end,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  runSpacing: 8,
+                  children: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: Text(l.cancel),
                     ),
-                  ),
-                ],
+                    const SizedBox(width: 12),
+                    ElevatedButton.icon(
+                      onPressed: _isCreating ? null : _createTermin,
+                      icon: _isCreating
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                            )
+                          : const Icon(Icons.check),
+                      label: Text(l.createTermin),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green.shade700,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ],
@@ -461,6 +495,9 @@ class _EditTerminDialogState extends State<EditTerminDialog> {
   late int? _selectedTicketId;
   bool _isUpdating = false;
   bool _isDeleting = false;
+
+  /// Telefonbreite (< 600 dp): ganzer Bildschirm, Felder untereinander.
+  bool _schmal = false;
 
   @override
   void initState() {
@@ -583,39 +620,48 @@ class _EditTerminDialogState extends State<EditTerminDialog> {
 
   @override
   Widget build(BuildContext context) {
+    // Entschieden wird nach der Breite, die der Dialog wirklich bekommt.
+    return LayoutBuilder(builder: _baueDialog);
+  }
+
+  Widget _baueDialog(BuildContext context, BoxConstraints constraints) {
     final l = AppLocalizations.of(context);
+    // Telefon: ganzer Bildschirm statt 650 × 550 dp mit 40 dp Rand
+    _schmal = constraints.maxWidth < 600;
     return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      insetPadding: _schmal ? EdgeInsets.zero : null,
+      shape: _schmal ? const RoundedRectangleBorder() : RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: SizedBox(
-        width: 650,
-        height: 550,
+        width: _schmal ? constraints.maxWidth : 650,
+        height: _schmal ? constraints.maxHeight : 550,
         child: Column(
           children: [
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 color: widget.termin.categoryColor,
-                borderRadius: const BorderRadius.only(topLeft: Radius.circular(16), topRight: Radius.circular(16)),
+                borderRadius: _schmal ? null : const BorderRadius.only(topLeft: Radius.circular(16), topRight: Radius.circular(16)),
               ),
               child: Row(
                 children: [
                   const Icon(Icons.edit, color: Colors.white),
                   const SizedBox(width: 12),
-                  Text(l.editTermin, style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
-                  const Spacer(),
+                  Expanded(child: Text(l.editTermin, style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold))),
                   IconButton(icon: const Icon(Icons.close, color: Colors.white), onPressed: () => Navigator.pop(context)),
                 ],
               ),
             ),
             Expanded(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.all(24),
+                padding: EdgeInsets.all(_schmal ? 16 : 24),
                 child: Form(
                   key: _formKey,
                   child: Column(
                     children: [
                       DropdownButtonFormField<String>(
                         initialValue: _category,
+                        // Telefon: lange Kategorien brechen um statt hinauszulaufen
+                        isExpanded: true,
                         decoration: InputDecoration(labelText: l.category, border: const OutlineInputBorder()),
                         items: [
                           DropdownMenuItem(value: 'vorstandssitzung', child: Text(l.boardMeeting)),
@@ -630,20 +676,17 @@ class _EditTerminDialogState extends State<EditTerminDialog> {
                       const SizedBox(height: 16),
                       TextFormField(controller: _descriptionController, decoration: InputDecoration(labelText: l.description, border: const OutlineInputBorder()), maxLines: 2),
                       const SizedBox(height: 16),
-                      Row(
-                        children: [
-                          Expanded(child: OutlinedButton.icon(onPressed: () async { final d = await showDatePicker(context: context, initialDate: _selectedDate, firstDate: DateTime.now(), lastDate: DateTime.now().add(const Duration(days: 365))); if (d != null) setState(() => _selectedDate = d); }, icon: const Icon(Icons.calendar_today), label: Text(DateFormat('dd.MM.yyyy').format(_selectedDate)))),
-                          const SizedBox(width: 12),
-                          Expanded(child: OutlinedButton.icon(onPressed: () async { final t = await showTimePicker(context: context, initialTime: _selectedTime); if (t != null) setState(() => _selectedTime = t); }, icon: const Icon(Icons.access_time), label: Text(_selectedTime.format(context)))),
-                        ],
+                      _feldPaar(
+                        _schmal,
+                        OutlinedButton.icon(onPressed: () async { final d = await showDatePicker(context: context, initialDate: _selectedDate, firstDate: DateTime.now(), lastDate: DateTime.now().add(const Duration(days: 365))); if (d != null) setState(() => _selectedDate = d); }, icon: const Icon(Icons.calendar_today), label: Text(DateFormat('dd.MM.yyyy').format(_selectedDate))),
+                        OutlinedButton.icon(onPressed: () async { final t = await showTimePicker(context: context, initialTime: _selectedTime); if (t != null) setState(() => _selectedTime = t); }, icon: const Icon(Icons.access_time), label: Text(_selectedTime.format(context))),
                       ),
                       const SizedBox(height: 16),
-                      Row(
-                        children: [
-                          Expanded(child: TextFormField(controller: _durationController, decoration: InputDecoration(labelText: l.durationMinutes, border: const OutlineInputBorder()), keyboardType: TextInputType.number)),
-                          const SizedBox(width: 12),
-                          Expanded(flex: 2, child: TextFormField(controller: _locationController, decoration: InputDecoration(labelText: l.locationRequired, border: const OutlineInputBorder()))),
-                        ],
+                      _feldPaar(
+                        _schmal,
+                        TextFormField(controller: _durationController, decoration: InputDecoration(labelText: l.durationMinutes, border: const OutlineInputBorder()), keyboardType: TextInputType.number),
+                        TextFormField(controller: _locationController, decoration: InputDecoration(labelText: l.locationRequired, border: const OutlineInputBorder())),
+                        rechtsFlex: 2,
                       ),
                     ],
                   ),
@@ -654,12 +697,24 @@ class _EditTerminDialogState extends State<EditTerminDialog> {
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(border: Border(top: BorderSide(color: Colors.grey.shade300))),
               child: Row(
+                // Telefon: „Löschen" auf einer Linie mit „Speichern" (untere Zeile)
+                crossAxisAlignment: _schmal ? CrossAxisAlignment.end : CrossAxisAlignment.center,
                 children: [
                   ElevatedButton.icon(onPressed: _isDeleting || _isUpdating ? null : _deleteTermin, icon: const Icon(Icons.delete), label: Text(l.delete), style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white)),
-                  const Spacer(),
-                  TextButton(onPressed: () => Navigator.pop(context), child: Text(l.cancel)),
-                  const SizedBox(width: 12),
-                  ElevatedButton.icon(onPressed: _isUpdating || _isDeleting ? null : _updateTermin, icon: _isUpdating ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)) : const Icon(Icons.check), label: Text(l.save), style: ElevatedButton.styleFrom(backgroundColor: Colors.green.shade700, foregroundColor: Colors.white)),
+                  // Expanded + Wrap statt Spacer: auf dem Telefon rückt „Speichern"
+                  // unter „Abbrechen", statt hinauszulaufen.
+                  Expanded(
+                    child: Wrap(
+                      alignment: WrapAlignment.end,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      runSpacing: 8,
+                      children: [
+                        TextButton(onPressed: () => Navigator.pop(context), child: Text(l.cancel)),
+                        const SizedBox(width: 12),
+                        ElevatedButton.icon(onPressed: _isUpdating || _isDeleting ? null : _updateTermin, icon: _isUpdating ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)) : const Icon(Icons.check), label: Text(l.save), style: ElevatedButton.styleFrom(backgroundColor: Colors.green.shade700, foregroundColor: Colors.white)),
+                      ],
+                    ),
+                  ),
                 ],
               ),
             ),

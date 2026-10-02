@@ -96,119 +96,185 @@ class _NetzwerkScreenState extends State<NetzwerkScreen> {
       return _buildModuleDetailView(_subview!);
     }
 
-    return Padding(
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header
-          Row(
+    // Erst ab 900 dp (Schreibtisch) stehen je drei Karten nebeneinander und
+    // füllen die Höhe — wie bisher. Schmaler (Telefon: gut 60 dp je Karte,
+    // die Kopfzeile jeder Karte lief rechts hinaus) stehen die sechs Karten
+    // untereinander, in natürlicher Höhe, und die Seite scrollt.
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth < 900) {
+          return _buildUebersichtSchmal(telefon: constraints.maxWidth < 600);
+        }
+        final karten = _buildHauptKarten(fuellen: true);
+        return Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(Icons.location_city, size: 32, color: Colors.indigo.shade700),
-              const SizedBox(width: 12),
-              Text(
-                tr('Netzwerk', 'Rețea'),
-                style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+              _buildUebersichtKopf(),
+              const SizedBox(height: 24),
+              // Rândul 1: 3 carduri (Behörden, Krankenhäuser, Praxen)
+              Expanded(
+                flex: 1,
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(child: karten[0]),
+                    const SizedBox(width: 16),
+                    Expanded(child: karten[1]),
+                    const SizedBox(width: 16),
+                    Expanded(child: karten[2]),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              // Rândul 2: 3 carduri (Drogerie, Märkte, Krankenkasse)
+              Expanded(
+                flex: 1,
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(child: karten[3]),
+                    const SizedBox(width: 16),
+                    Expanded(child: karten[4]),
+                    const SizedBox(width: 16),
+                    Expanded(child: karten[5]),
+                  ],
+                ),
               ),
             ],
           ),
-          const SizedBox(height: 24),
-          // Rândul 1: 3 carduri (Behörden, Krankenhäuser, Praxen)
-          Expanded(
-            flex: 1,
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: _buildMainCard(
-                    key: 'behoerden',
-                    icon: Icons.account_balance,
-                    title: tr('Behörden', 'Autorități'),
-                    subtitle: tr('Ämter, Verwaltung, Bürgerservice',
-                        'Oficii, administrație, servicii pentru cetățeni'),
-                    color: Colors.blue.shade700,
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: _buildMainCard(
-                    key: 'krankenhaeuser',
-                    icon: Icons.local_hospital,
-                    title: tr('Krankenhäuser', 'Spitale'),
-                    subtitle: tr('Kliniken, Notaufnahme, Stationen',
-                        'Clinici, urgențe, secții'),
-                    color: Colors.red.shade700,
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: _buildMainCard(
-                    key: 'praxen',
-                    icon: Icons.medical_services,
-                    title: tr('Praxen', 'Cabinete medicale'),
-                    subtitle: tr('Ärzte, Zahnärzte, Fachärzte',
-                        'Medici, stomatologi, medici specialiști'),
-                    color: Colors.teal.shade700,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-          // Rândul 2: 3 carduri (Drogerie, Märkte, Krankenkasse)
-          Expanded(
-            flex: 1,
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: _buildMainCard(
-                    key: 'drogerie',
-                    icon: Icons.local_pharmacy,
-                    title: tr('Drogerie', 'Drogherie'),
-                    subtitle: tr('Apotheken, Drogerien, Gesundheit',
-                        'Farmacii, drogherii, sănătate'),
-                    color: Colors.pink.shade700,
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: _buildMainCard(
-                    key: 'maerkte',
-                    icon: Icons.store,
-                    title: tr('Märkte', 'Magazine'),
-                    subtitle: tr('Supermärkte, Wochenmärkte, Einzelhandel',
-                        'Supermarketuri, piețe săptămânale, comerț cu amănuntul'),
-                    color: Colors.orange.shade700,
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: _buildMainCard(
-                    key: 'krankenkasse',
-                    icon: Icons.health_and_safety,
-                    title: tr('Krankenkasse', 'Casa de sănătate'),
-                    subtitle: tr('Gesetzliche, Private Krankenversicherung',
-                        'Asigurare de sănătate publică, privată'),
-                    color: Colors.green.shade700,
-                  ),
-                ),
-              ],
-            ),
-          ),
+        );
+      },
+    );
+  }
+
+  /// Telefon und Tablet: die sechs Karten untereinander, volle Breite.
+  Widget _buildUebersichtSchmal({required bool telefon}) {
+    final karten = _buildHauptKarten(fuellen: false);
+    return SingleChildScrollView(
+      padding: EdgeInsets.all(telefon ? 16 : 24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _buildUebersichtKopf(),
+          SizedBox(height: telefon ? 16 : 24),
+          for (var i = 0; i < karten.length; i++) ...[
+            if (i > 0) const SizedBox(height: 8),
+            karten[i],
+          ],
         ],
       ),
     );
   }
 
+  // Header
+  Widget _buildUebersichtKopf() {
+    return Row(
+      children: [
+        Icon(Icons.location_city, size: 32, color: Colors.indigo.shade700),
+        const SizedBox(width: 12),
+        Flexible(
+          child: Text(
+            tr('Netzwerk', 'Rețea'),
+            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Die sechs Modulkarten: Behörden, Krankenhäuser, Praxen (Rândul 1) und
+  /// Drogerie, Märkte, Krankenkasse (Rândul 2).
+  List<Widget> _buildHauptKarten({required bool fuellen}) {
+    return [
+      _buildMainCard(
+        key: 'behoerden',
+        icon: Icons.account_balance,
+        title: tr('Behörden', 'Autorități'),
+        subtitle: tr('Ämter, Verwaltung, Bürgerservice',
+            'Oficii, administrație, servicii pentru cetățeni'),
+        color: Colors.blue.shade700,
+        fuellen: fuellen,
+      ),
+      _buildMainCard(
+        key: 'krankenhaeuser',
+        icon: Icons.local_hospital,
+        title: tr('Krankenhäuser', 'Spitale'),
+        subtitle: tr('Kliniken, Notaufnahme, Stationen',
+            'Clinici, urgențe, secții'),
+        color: Colors.red.shade700,
+        fuellen: fuellen,
+      ),
+      _buildMainCard(
+        key: 'praxen',
+        icon: Icons.medical_services,
+        title: tr('Praxen', 'Cabinete medicale'),
+        subtitle: tr('Ärzte, Zahnärzte, Fachärzte',
+            'Medici, stomatologi, medici specialiști'),
+        color: Colors.teal.shade700,
+        fuellen: fuellen,
+      ),
+      _buildMainCard(
+        key: 'drogerie',
+        icon: Icons.local_pharmacy,
+        title: tr('Drogerie', 'Drogherie'),
+        subtitle: tr('Apotheken, Drogerien, Gesundheit',
+            'Farmacii, drogherii, sănătate'),
+        color: Colors.pink.shade700,
+        fuellen: fuellen,
+      ),
+      _buildMainCard(
+        key: 'maerkte',
+        icon: Icons.store,
+        title: tr('Märkte', 'Magazine'),
+        subtitle: tr('Supermärkte, Wochenmärkte, Einzelhandel',
+            'Supermarketuri, piețe săptămânale, comerț cu amănuntul'),
+        color: Colors.orange.shade700,
+        fuellen: fuellen,
+      ),
+      _buildMainCard(
+        key: 'krankenkasse',
+        icon: Icons.health_and_safety,
+        title: tr('Krankenkasse', 'Casa de sănătate'),
+        subtitle: tr('Gesetzliche, Private Krankenversicherung',
+            'Asigurare de sănătate publică, privată'),
+        color: Colors.green.shade700,
+        fuellen: fuellen,
+      ),
+    ];
+  }
+
   /// Card clickabil pentru fiecare modul pe pagina principală
+  ///
+  /// [fuellen]: die Karte füllt die Höhe ihrer Zeile (Schreibtisch); sonst
+  /// natürliche Höhe (Telefon/Tablet, untereinander in einer scrollenden Seite).
   Widget _buildMainCard({
     required String key,
     required IconData icon,
     required String title,
     required String subtitle,
     required Color color,
+    bool fuellen = true,
   }) {
+    final inhalt = Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 40, color: Colors.grey.shade300),
+          const SizedBox(height: 8),
+          Text(
+            subtitle,
+            style: TextStyle(color: Colors.grey.shade400, fontSize: 13),
+            textAlign: TextAlign.center,
+            maxLines: 3,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
+      ),
+    );
     return Card(
       clipBehavior: Clip.antiAlias,
       child: InkWell(
@@ -217,6 +283,7 @@ class _NetzwerkScreenState extends State<NetzwerkScreen> {
           padding: const EdgeInsets.all(16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: fuellen ? MainAxisSize.max : MainAxisSize.min,
             children: [
               Row(
                 children: [
@@ -229,8 +296,9 @@ class _NetzwerkScreenState extends State<NetzwerkScreen> {
                     child: Icon(icon, color: color, size: 24),
                   ),
                   const SizedBox(width: 12),
-                  // Zeilen begrenzt: auf dem Telefon stehen drei Karten
-                  // nebeneinander, längere (rumänische) Texte liefen unten hinaus.
+                  // Zeilen begrenzt: auf dem Schreibtisch stehen drei Karten
+                  // nebeneinander und füllen die Höhe, längere (rumänische)
+                  // Texte liefen dort unten hinaus.
                   Expanded(
                     child: Text(
                       title,
@@ -243,24 +311,7 @@ class _NetzwerkScreenState extends State<NetzwerkScreen> {
                 ],
               ),
               const Divider(height: 24),
-              Expanded(
-                child: Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(icon, size: 40, color: Colors.grey.shade300),
-                      const SizedBox(height: 8),
-                      Text(
-                        subtitle,
-                        style: TextStyle(color: Colors.grey.shade400, fontSize: 13),
-                        textAlign: TextAlign.center,
-                        maxLines: 3,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
+              if (fuellen) Expanded(child: inhalt) else inhalt,
             ],
           ),
         ),
@@ -275,6 +326,18 @@ class _NetzwerkScreenState extends State<NetzwerkScreen> {
       return _buildBehoerdenDetailView();
     }
 
+    return LayoutBuilder(
+      builder: (context, constraints) =>
+          _buildModuleDetailInhalt(moduleKey, constraints.maxWidth),
+    );
+  }
+
+  /// [breite]: verfügbare Breite. Telefon (< 600 dp): schmalerer Rand, die
+  /// Anzahl wandert unter den Titel, eine Karte je Zeile; Tablet zwei,
+  /// Schreibtisch (ab 900 dp) drei Karten je Zeile wie bisher.
+  Widget _buildModuleDetailInhalt(String moduleKey, double breite) {
+    final telefon = breite < 600;
+    final spalten = breite >= 900 ? 3 : (telefon ? 1 : 2);
     final config = _moduleConfigs[moduleKey]!;
     final data = _moduleData[moduleKey] ?? [];
     final stats = _moduleStats[moduleKey] ?? [];
@@ -286,8 +349,28 @@ class _NetzwerkScreenState extends State<NetzwerkScreen> {
       WidgetsBinding.instance.addPostFrameCallback((_) => _loadModuleData(moduleKey));
     }
 
+    // Total badge
+    final badge = (!isLoading && data.isNotEmpty)
+        ? Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: config.color.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Text(
+              tr('${data.length} Einträge', '${data.length} intrări'),
+              style: TextStyle(
+                color: config.color,
+                fontWeight: FontWeight.w600,
+                fontSize: 13,
+              ),
+            ),
+          )
+        : null;
+    const titelStil = TextStyle(fontSize: 24, fontWeight: FontWeight.bold);
+
     return Padding(
-      padding: const EdgeInsets.all(24),
+      padding: EdgeInsets.all(telefon ? 16 : 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -305,30 +388,21 @@ class _NetzwerkScreenState extends State<NetzwerkScreen> {
               const SizedBox(width: 8),
               Icon(config.icon, size: 32, color: config.color),
               const SizedBox(width: 12),
-              Text(
-                config.title,
-                style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-              ),
-              const Spacer(),
-              // Total badge
-              if (!isLoading && data.isNotEmpty)
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: config.color.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Text(
-                    tr('${data.length} Einträge', '${data.length} intrări'),
-                    style: TextStyle(
-                      color: config.color,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 13,
-                    ),
-                  ),
-                ),
+              // Telefon: Titel und Anzahl passen nicht nebeneinander
+              // („Asigurări de sănătate" allein ist 230 px breit).
+              if (telefon)
+                Expanded(
+                  child: Text(config.title, style: titelStil, maxLines: 2, overflow: TextOverflow.ellipsis),
+                )
+              else ...[
+                Text(config.title, style: titelStil),
+                const Spacer(),
+                if (badge != null) badge,
+              ],
             ],
           ),
+          if (telefon && badge != null)
+            Align(alignment: Alignment.centerRight, child: badge),
           const SizedBox(height: 16),
           // Filter chips pe categorii/tipuri
           if (!isLoading && stats.isNotEmpty)
@@ -373,7 +447,7 @@ class _NetzwerkScreenState extends State<NetzwerkScreen> {
                           ],
                         ),
                       )
-                    : _buildDataGrid(moduleKey, data, config),
+                    : _buildDataGrid(moduleKey, data, config, spalten),
           ),
         ],
       ),
@@ -398,9 +472,13 @@ class _NetzwerkScreenState extends State<NetzwerkScreen> {
               const SizedBox(width: 8),
               Icon(Icons.account_balance, size: 32, color: Colors.blue.shade700),
               const SizedBox(width: 12),
-              Text(
-                tr('Behörden', 'Autorități'),
-                style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+              Flexible(
+                child: Text(
+                  tr('Behörden', 'Autorități'),
+                  style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
             ],
           ),
@@ -477,21 +555,21 @@ class _NetzwerkScreenState extends State<NetzwerkScreen> {
     );
   }
 
-  /// Grid de carduri generic (3 per rând, scrollabil)
-  Widget _buildDataGrid(String moduleKey, List<Map<String, dynamic>> data, _ModuleConfig config) {
+  /// Grid de carduri generic ([spalten] per rând — 3 pe desktop, scrollabil)
+  Widget _buildDataGrid(String moduleKey, List<Map<String, dynamic>> data, _ModuleConfig config, int spalten) {
     // Grupare pe categorie/tip dacă nu e filtrat
     final currentFilter = _moduleFilter[moduleKey];
     if (currentFilter == null && data.length > 6) {
-      return _buildGroupedGrid(moduleKey, data, config);
+      return _buildGroupedGrid(moduleKey, data, config, spalten);
     }
 
     return SingleChildScrollView(
-      child: _buildSimpleGrid(data, config),
+      child: _buildSimpleGrid(data, config, spalten),
     );
   }
 
   /// Grid grupat pe categorie/tip
-  Widget _buildGroupedGrid(String moduleKey, List<Map<String, dynamic>> data, _ModuleConfig config) {
+  Widget _buildGroupedGrid(String moduleKey, List<Map<String, dynamic>> data, _ModuleConfig config, int spalten) {
     final grouped = <String, List<Map<String, dynamic>>>{};
     for (final item in data) {
       final group = item[config.filterField] as String? ?? 'Sonstige';
@@ -511,20 +589,32 @@ class _NetzwerkScreenState extends State<NetzwerkScreen> {
               // Grup header
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 8),
-                child: Row(
-                  children: [
-                    Icon(Icons.label, size: 18, color: config.color),
-                    const SizedBox(width: 8),
-                    Text(
-                      '$groupLabel (${entry.value.length})',
-                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: config.color),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(child: Divider(color: config.color.withValues(alpha: 0.3))),
-                  ],
+                // Ein langer Gruppenname darf die Zeile nicht sprengen: er
+                // bricht um (höchstens drei Zeilen, damit die Anzahl am Ende
+                // auf dem Telefon meist sichtbar bleibt), die Linie bleibt.
+                child: LayoutBuilder(
+                  builder: (context, constraints) => Row(
+                    children: [
+                      Icon(Icons.label, size: 18, color: config.color),
+                      const SizedBox(width: 8),
+                      ConstrainedBox(
+                        constraints: BoxConstraints(
+                          maxWidth: (constraints.maxWidth - 18 - 8 - 12 - 24).clamp(0, double.infinity),
+                        ),
+                        child: Text(
+                          '$groupLabel (${entry.value.length})',
+                          style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: config.color),
+                          maxLines: 3,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(child: Divider(color: config.color.withValues(alpha: 0.3))),
+                    ],
+                  ),
                 ),
               ),
-              _buildSimpleGrid(entry.value, config),
+              _buildSimpleGrid(entry.value, config, spalten),
               const SizedBox(height: 12),
             ],
           );
@@ -533,25 +623,30 @@ class _NetzwerkScreenState extends State<NetzwerkScreen> {
     );
   }
 
-  /// Grid simplu de carduri (3 per rând)
-  Widget _buildSimpleGrid(List<Map<String, dynamic>> items, _ModuleConfig config) {
+  /// Grid simplu de carduri ([spalten] per rând: 3 pe desktop, 2 pe tabletă,
+  /// 1 pe telefon — trei carduri pe 393 dp ar avea ~100 dp fiecare)
+  Widget _buildSimpleGrid(List<Map<String, dynamic>> items, _ModuleConfig config, int spalten) {
     final rows = <Widget>[];
-    for (var i = 0; i < items.length; i += 3) {
-      final rowItems = items.sublist(i, i + 3 > items.length ? items.length : i + 3);
+    for (var i = 0; i < items.length; i += spalten) {
+      final rowItems = items.sublist(i, i + spalten > items.length ? items.length : i + spalten);
       rows.add(
         SizedBox(
-          height: 110,
+          // 112 statt 110: ein Eintrag mit allen vier Zeilen (Name, Zusatz,
+          // zweizeilige Beschreibung, Webadresse) braucht mit der Material-3-
+          // Zeilenhöhe 111,7 dp — mit 110 lief er 1 px unten hinaus (auch auf
+          // dem Schreibtisch, im Test mit Daten gemessen).
+          height: 112,
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               ...rowItems.map((item) => Expanded(child: _buildItemCard(item, config))),
-              for (var j = rowItems.length; j < 3; j++)
+              for (var j = rowItems.length; j < spalten; j++)
                 const Expanded(child: SizedBox()),
             ],
           ),
         ),
       );
-      if (i + 3 < items.length) rows.add(const SizedBox(height: 8));
+      if (i + spalten < items.length) rows.add(const SizedBox(height: 8));
     }
     return Column(children: rows);
   }

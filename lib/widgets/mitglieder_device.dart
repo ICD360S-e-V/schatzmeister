@@ -62,8 +62,11 @@ class MitgliederDeviceWidget extends StatelessWidget {
       children: [
         Icon(icon, size: 24, color: color.shade700),
         const SizedBox(width: 8),
-        Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-        const Spacer(),
+        // Expanded statt Spacer: auf dem Telefon bricht die Überschrift um,
+        // statt die Zähl-Plakette hinauszuschieben.
+        Expanded(
+          child: Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+        ),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
           decoration: BoxDecoration(
@@ -286,14 +289,24 @@ class MitgliederDeviceWidget extends StatelessWidget {
             ),
             const Divider(height: 16),
 
-            // IP + Blacklist
-            Row(
+            // IP + Blacklist — Wrap: eine IPv6-Adresse und die Plakette
+            // passen auf dem Telefon nicht nebeneinander.
+            Wrap(
+              spacing: 6,
+              runSpacing: 4,
+              crossAxisAlignment: WrapCrossAlignment.center,
               children: [
-                const Icon(Icons.public, size: 14, color: Colors.grey),
-                const SizedBox(width: 6),
-                Text('IP: ${session['ip_address'] ?? '?'}',
-                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
-                const SizedBox(width: 6),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.public, size: 14, color: Colors.grey),
+                    const SizedBox(width: 6),
+                    Flexible(
+                      child: Text('IP: ${session['ip_address'] ?? '?'}',
+                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
+                    ),
+                  ],
+                ),
                 _buildIpReputationBadge(ipReputation),
               ],
             ),
@@ -306,10 +319,12 @@ class MitgliederDeviceWidget extends StatelessWidget {
                   Icon(_getConnectionTypeIcon(ipProvider['connection_type']),
                       size: 14, color: _getConnectionTypeColor(ipProvider['connection_type'])),
                   const SizedBox(width: 6),
-                  Text(
-                    _buildConnectionLabel(ipProvider),
-                    style: TextStyle(fontSize: 12, color: _getConnectionTypeColor(ipProvider['connection_type']),
-                        fontWeight: FontWeight.w500),
+                  Flexible(
+                    child: Text(
+                      _buildConnectionLabel(ipProvider),
+                      style: TextStyle(fontSize: 12, color: _getConnectionTypeColor(ipProvider['connection_type']),
+                          fontWeight: FontWeight.w500),
+                    ),
                   ),
                 ],
               ),
@@ -344,16 +359,27 @@ class MitgliederDeviceWidget extends StatelessWidget {
 
             const SizedBox(height: 8),
 
-            // Angemeldet + Läuft ab
-            Row(
+            // Angemeldet + Läuft ab — Wrap: auf dem Telefon untereinander
+            Wrap(
+              spacing: 16,
+              runSpacing: 4,
               children: [
-                const Icon(Icons.login, size: 13, color: Colors.grey),
-                const SizedBox(width: 4),
-                Text(tr('Angemeldet: ${_formatDate(session['created_at'])}', 'Autentificat: ${_formatDate(session['created_at'])}'), style: const TextStyle(fontSize: 12)),
-                const SizedBox(width: 16),
-                const Icon(Icons.timer_off, size: 13, color: Colors.grey),
-                const SizedBox(width: 4),
-                Text(tr('Läuft ab: ${_formatDate(session['expires_at'])}', 'Expiră: ${_formatDate(session['expires_at'])}'), style: const TextStyle(fontSize: 12)),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.login, size: 13, color: Colors.grey),
+                    const SizedBox(width: 4),
+                    Text(tr('Angemeldet: ${_formatDate(session['created_at'])}', 'Autentificat: ${_formatDate(session['created_at'])}'), style: const TextStyle(fontSize: 12)),
+                  ],
+                ),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.timer_off, size: 13, color: Colors.grey),
+                    const SizedBox(width: 4),
+                    Text(tr('Läuft ab: ${_formatDate(session['expires_at'])}', 'Expiră: ${_formatDate(session['expires_at'])}'), style: const TextStyle(fontSize: 12)),
+                  ],
+                ),
               ],
             ),
           ],
@@ -403,7 +429,7 @@ class MitgliederDeviceWidget extends StatelessWidget {
           children: [
             Icon(icon, color: Colors.grey.shade400),
             const SizedBox(width: 12),
-            Text(text, style: TextStyle(color: Colors.grey.shade500)),
+            Flexible(child: Text(text, style: TextStyle(color: Colors.grey.shade500))),
           ],
         ),
       ),

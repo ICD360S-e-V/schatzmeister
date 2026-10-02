@@ -49,6 +49,14 @@ IconData getZahlungsartIcon(String art) {
   }
 }
 
+/// Inhalt einer Notar-Karte unter der Kopfzeile: füllt bei vorgegebener Höhe
+/// (Schreibtisch, je drei Karten nebeneinander in einer Zeile fester Höhe)
+/// den Rest der Karte; ohne Höhenvorgabe (Telefon, Karten untereinander in
+/// einer scrollenden Seite) nimmt er seine natürliche Höhe — `Expanded`
+/// bräche dort mit „unbounded height" ab.
+Widget _kartenInhalt(BoxConstraints c, Widget kind) =>
+    c.hasBoundedHeight ? Expanded(child: kind) : kind;
+
 /// Info row widget for notar data
 class NotarInfoRow extends StatelessWidget {
   final IconData icon;
@@ -107,7 +115,8 @@ class NotarDataCard extends StatelessWidget {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
-        child: Column(
+        // Mit und ohne Höhenvorgabe, siehe [_kartenInhalt]
+        child: LayoutBuilder(builder: (context, c) => Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Header with title
@@ -138,8 +147,9 @@ class NotarDataCard extends StatelessWidget {
             ),
             const Divider(height: 24),
             // Content
-            Expanded(
-              child: data == null
+            _kartenInhalt(
+              c,
+              data == null
                   ? Center(
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
@@ -207,7 +217,7 @@ class NotarDataCard extends StatelessWidget {
                     ),
             ),
           ],
-        ),
+        )),
       ),
     );
   }
@@ -237,7 +247,8 @@ class NotarRechnungenCard extends StatelessWidget {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
-        child: Column(
+        // Mit und ohne Höhenvorgabe, siehe [_kartenInhalt]
+        child: LayoutBuilder(builder: (context, c) => Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Header
@@ -278,8 +289,9 @@ class NotarRechnungenCard extends StatelessWidget {
             ),
             const Divider(height: 24),
             // Content
-            Expanded(
-              child: isLoading
+            _kartenInhalt(
+              c,
+              isLoading
                   ? const Center(child: CircularProgressIndicator(strokeWidth: 2))
                   : rechnungen.isEmpty
                       ? Center(
@@ -296,6 +308,8 @@ class NotarRechnungenCard extends StatelessWidget {
                           ),
                         )
                       : ListView.builder(
+                          shrinkWrap: !c.hasBoundedHeight,
+                          physics: c.hasBoundedHeight ? null : const NeverScrollableScrollPhysics(),
                           itemCount: rechnungen.length,
                           itemBuilder: (context, index) {
                             final r = rechnungen[index];
@@ -329,7 +343,7 @@ class NotarRechnungenCard extends StatelessWidget {
                         ),
             ),
           ],
-        ),
+        )),
       ),
     );
   }
@@ -356,7 +370,8 @@ class NotarBesucheCard extends StatelessWidget {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
-        child: Column(
+        // Mit und ohne Höhenvorgabe, siehe [_kartenInhalt]
+        child: LayoutBuilder(builder: (context, c) => Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Header
@@ -397,8 +412,9 @@ class NotarBesucheCard extends StatelessWidget {
             ),
             const Divider(height: 24),
             // Content
-            Expanded(
-              child: isLoading
+            _kartenInhalt(
+              c,
+              isLoading
                   ? const Center(child: CircularProgressIndicator(strokeWidth: 2))
                   : besuche.isEmpty
                       ? Center(
@@ -415,6 +431,8 @@ class NotarBesucheCard extends StatelessWidget {
                           ),
                         )
                       : ListView.builder(
+                          shrinkWrap: !c.hasBoundedHeight,
+                          physics: c.hasBoundedHeight ? null : const NeverScrollableScrollPhysics(),
                           itemCount: besuche.length,
                           itemBuilder: (context, index) {
                             final b = besuche[index];
@@ -450,7 +468,7 @@ class NotarBesucheCard extends StatelessWidget {
                         ),
             ),
           ],
-        ),
+        )),
       ),
     );
   }
@@ -475,7 +493,8 @@ class NotarDokumenteCard extends StatelessWidget {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
-        child: Column(
+        // Mit und ohne Höhenvorgabe, siehe [_kartenInhalt]
+        child: LayoutBuilder(builder: (context, c) => Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Header
@@ -516,8 +535,9 @@ class NotarDokumenteCard extends StatelessWidget {
             ),
             const Divider(height: 24),
             // Content
-            Expanded(
-              child: isLoading
+            _kartenInhalt(
+              c,
+              isLoading
                   ? const Center(child: CircularProgressIndicator(strokeWidth: 2))
                   : dokumente.isEmpty
                       ? Center(
@@ -534,6 +554,8 @@ class NotarDokumenteCard extends StatelessWidget {
                           ),
                         )
                       : ListView.builder(
+                          shrinkWrap: !c.hasBoundedHeight,
+                          physics: c.hasBoundedHeight ? null : const NeverScrollableScrollPhysics(),
                           itemCount: dokumente.length,
                           itemBuilder: (context, index) {
                             final d = dokumente[index];
@@ -560,7 +582,7 @@ class NotarDokumenteCard extends StatelessWidget {
                         ),
             ),
           ],
-        ),
+        )),
       ),
     );
   }
@@ -589,7 +611,8 @@ class NotarAufgabenCard extends StatelessWidget {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
-        child: Column(
+        // Mit und ohne Höhenvorgabe, siehe [_kartenInhalt]
+        child: LayoutBuilder(builder: (context, c) => Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Header
@@ -630,8 +653,9 @@ class NotarAufgabenCard extends StatelessWidget {
             ),
             const Divider(height: 24),
             // Content
-            Expanded(
-              child: isLoading
+            _kartenInhalt(
+              c,
+              isLoading
                   ? const Center(child: CircularProgressIndicator(strokeWidth: 2))
                   : aufgaben.isEmpty
                       ? Center(
@@ -648,6 +672,8 @@ class NotarAufgabenCard extends StatelessWidget {
                           ),
                         )
                       : ListView.builder(
+                          shrinkWrap: !c.hasBoundedHeight,
+                          physics: c.hasBoundedHeight ? null : const NeverScrollableScrollPhysics(),
                           itemCount: aufgaben.length,
                           itemBuilder: (context, index) {
                             final a = aufgaben[index];
@@ -681,7 +707,7 @@ class NotarAufgabenCard extends StatelessWidget {
                         ),
             ),
           ],
-        ),
+        )),
       ),
     );
   }
@@ -709,7 +735,8 @@ class NotarZahlungenCard extends StatelessWidget {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
-        child: Column(
+        // Mit und ohne Höhenvorgabe, siehe [_kartenInhalt]
+        child: LayoutBuilder(builder: (context, c) => Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Header
@@ -750,8 +777,9 @@ class NotarZahlungenCard extends StatelessWidget {
             ),
             const Divider(height: 24),
             // Content
-            Expanded(
-              child: isLoading
+            _kartenInhalt(
+              c,
+              isLoading
                   ? const Center(child: CircularProgressIndicator(strokeWidth: 2))
                   : zahlungen.isEmpty
                       ? Center(
@@ -768,6 +796,8 @@ class NotarZahlungenCard extends StatelessWidget {
                           ),
                         )
                       : ListView.builder(
+                          shrinkWrap: !c.hasBoundedHeight,
+                          physics: c.hasBoundedHeight ? null : const NeverScrollableScrollPhysics(),
                           itemCount: zahlungen.length,
                           itemBuilder: (context, index) {
                             final z = zahlungen[index];
@@ -802,7 +832,7 @@ class NotarZahlungenCard extends StatelessWidget {
                         ),
             ),
           ],
-        ),
+        )),
       ),
     );
   }

@@ -48,62 +48,81 @@ class _PostcardViewState extends State<PostcardView> {
 
   @override
   Widget build(BuildContext context) {
+    // Entschieden wird nach der Breite, die die Liste wirklich bekommt — sie
+    // steht in der Deutschen Post noch in einem Rand.
+    return LayoutBuilder(
+      builder: (context, constraints) => _aufbau(schmal: constraints.maxWidth < 450),
+    );
+  }
+
+  Widget _aufbau({required bool schmal}) {
     final color = Colors.deepPurple.shade700;
+    final symbol = Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Icon(Icons.credit_card, color: color, size: 24),
+    );
+    final titel = Expanded(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            tr('POSTCARD Karten', 'Carduri POSTCARD'),
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
+          Text(
+            tr('Geschäftskundenkarten', 'Carduri clienți business'),
+            style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+          ),
+        ],
+      ),
+    );
+    final aktionen = [
+      Text(
+        '${_postcards.length}',
+        style: TextStyle(color: Colors.grey.shade500, fontSize: 13),
+      ),
+      const SizedBox(width: 8),
+      IconButton(
+        icon: Icon(Icons.add_circle_outline, color: color),
+        onPressed: _showAddPostcardDialog,
+        tooltip: tr('Karte hinzufügen', 'Adaugă card'),
+        constraints: const BoxConstraints(),
+        padding: const EdgeInsets.all(4),
+      ),
+      const SizedBox(width: 4),
+      IconButton(
+        icon: Icon(Icons.settings, color: Colors.grey.shade600, size: 20),
+        onPressed: _showPostcardAccountDialog,
+        tooltip: tr('Konto-Einstellungen', 'Setări cont'),
+        constraints: const BoxConstraints(),
+        padding: const EdgeInsets.all(4),
+      ),
+    ];
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: color.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Icon(Icons.credit_card, color: color, size: 24),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        tr('POSTCARD Karten', 'Carduri POSTCARD'),
-                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                      ),
-                      Text(
-                        tr('Geschäftskundenkarten', 'Carduri clienți business'),
-                        style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
-                      ),
-                    ],
-                  ),
-                ),
-                Text(
-                  '${_postcards.length}',
-                  style: TextStyle(color: Colors.grey.shade500, fontSize: 13),
-                ),
-                const SizedBox(width: 8),
-                IconButton(
-                  icon: Icon(Icons.add_circle_outline, color: color),
-                  onPressed: _showAddPostcardDialog,
-                  tooltip: tr('Karte hinzufügen', 'Adaugă card'),
-                  constraints: const BoxConstraints(),
-                  padding: const EdgeInsets.all(4),
-                ),
-                const SizedBox(width: 4),
-                IconButton(
-                  icon: Icon(Icons.settings, color: Colors.grey.shade600, size: 20),
-                  onPressed: _showPostcardAccountDialog,
-                  tooltip: tr('Konto-Einstellungen', 'Setări cont'),
-                  constraints: const BoxConstraints(),
-                  padding: const EdgeInsets.all(4),
-                ),
-              ],
-            ),
+            // Header — schmal in zwei Zeilen: neben Anzahl und Knöpfen (je
+            // 48 dp Tippfläche) blieben dem Titel auf 320 dp keine 60 dp,
+            // „POSTCARD“ und „Geschäftskundenkarten“ brachen mitten im Wort.
+            if (schmal) ...[
+              Row(children: [symbol, const SizedBox(width: 12), titel]),
+              Row(mainAxisAlignment: MainAxisAlignment.end, children: aktionen),
+            ] else
+              Row(
+                children: [
+                  symbol,
+                  const SizedBox(width: 12),
+                  titel,
+                  ...aktionen,
+                ],
+              ),
             const Divider(height: 24),
             // POSTCARD Service Info
             Container(
@@ -272,11 +291,12 @@ class _PostcardViewState extends State<PostcardView> {
     final result = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
+        insetPadding: _dialogRand(ctx),
         title: Row(
           children: [
             Icon(Icons.credit_card, color: Colors.deepPurple.shade700),
             const SizedBox(width: 8),
-            Text(tr('Karte hinzufügen', 'Adaugă card'), style: const TextStyle(fontSize: 16)),
+            Expanded(child: Text(tr('Karte hinzufügen', 'Adaugă card'), style: const TextStyle(fontSize: 16))),
           ],
         ),
         content: SizedBox(
@@ -389,7 +409,28 @@ class _PostcardViewState extends State<PostcardView> {
                 ? '${rawNumber.substring(0, 4)} ${rawNumber.substring(4, 8)} ${rawNumber.substring(8, 10)} ${rawNumber.length > 10 ? rawNumber.substring(10) : ''}'.trim()
                 : nummerCtrl.text;
 
+            // Telefon: schmaler Rand, 16 statt 20 dp Innenrand der Karte,
+            // Bezeichnung über dem Wert und die Knöpfe einzeln — sonst lief
+            // auf 320 dp die Kopfzeile der Karte um 35 dp hinaus, die
+            // Kartennummer brach neben der 110-dp-Spalte mitten durch, und
+            // die Knopfreihe passte nicht.
+            final schmal = _schmalerDialog(ctx);
+            final schliessenKnopf = TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text(tr('Schließen', 'Închide')),
+            );
+            final bearbeitenKnopf = ElevatedButton.icon(
+              icon: const Icon(Icons.edit, size: 16),
+              label: Text(tr('Bearbeiten', 'Editează'), style: const TextStyle(color: Colors.white)),
+              style: ElevatedButton.styleFrom(backgroundColor: color),
+              onPressed: () => setDialogState(() => isEditing = true),
+            );
             return AlertDialog(
+              insetPadding: _dialogRand(ctx),
+              // Auf 320×640 dp sind Karte, Angaben und die untereinander
+              // stehenden Knöpfe höher als der Bildschirm — dort rollt der
+              // Inhalt.
+              scrollable: schmal,
               titlePadding: EdgeInsets.zero,
               contentPadding: EdgeInsets.zero,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -428,7 +469,7 @@ class _PostcardViewState extends State<PostcardView> {
                           ),
                           // Card content
                           Padding(
-                            padding: const EdgeInsets.all(20),
+                            padding: EdgeInsets.all(schmal ? 16 : 20),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
@@ -576,6 +617,7 @@ class _PostcardViewState extends State<PostcardView> {
                           _cardDetailRow(
                             'PIN',
                             obscurePin ? (pin.isNotEmpty ? '****' : '-') : (pin.isNotEmpty ? pin : '-'),
+                            schmal: schmal,
                             trailing: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
@@ -609,6 +651,7 @@ class _PostcardViewState extends State<PostcardView> {
                           _cardDetailRow(
                             tr('Kartennummer', 'Număr card'),
                             nummerCtrl.text,
+                            schmal: schmal,
                             trailing: IconButton(
                               icon: Icon(Icons.copy, size: 16, color: Colors.grey.shade500),
                               onPressed: () {
@@ -635,33 +678,32 @@ class _PostcardViewState extends State<PostcardView> {
                   style: TextButton.styleFrom(foregroundColor: Colors.red),
                   child: Text(tr('Löschen', 'Șterge')),
                 ),
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(ctx),
-                      child: Text(tr('Schließen', 'Închide')),
-                    ),
-                    const SizedBox(width: 8),
-                    ElevatedButton.icon(
-                      icon: const Icon(Icons.edit, size: 16),
-                      label: Text(tr('Bearbeiten', 'Editează'), style: const TextStyle(color: Colors.white)),
-                      style: ElevatedButton.styleFrom(backgroundColor: color),
-                      onPressed: () => setDialogState(() => isEditing = true),
-                    ),
-                  ],
-                ),
+                // Schmal einzeln, damit die Leiste umbrechen kann; breit wie
+                // bisher als Gruppe rechts.
+                if (schmal) ...[
+                  schliessenKnopf,
+                  bearbeitenKnopf,
+                ] else
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      schliessenKnopf,
+                      const SizedBox(width: 8),
+                      bearbeitenKnopf,
+                    ],
+                  ),
               ],
             );
           }
 
           // EDIT MODE
           return AlertDialog(
+            insetPadding: _dialogRand(ctx),
             title: Row(
               children: [
                 Icon(Icons.edit, color: color),
                 const SizedBox(width: 8),
-                Text(tr('Karte bearbeiten', 'Editare card'), style: const TextStyle(fontSize: 16)),
+                Expanded(child: Text(tr('Karte bearbeiten', 'Editare card'), style: const TextStyle(fontSize: 16))),
               ],
             ),
             content: SizedBox(
@@ -766,15 +808,33 @@ class _PostcardViewState extends State<PostcardView> {
     limitCtrl.dispose();
   }
 
-  Widget _cardDetailRow(String label, String value, {Widget? trailing}) {
+  Widget _cardDetailRow(String label, String value, {Widget? trailing, bool schmal = false}) {
+    final beschriftung = Text(label, style: TextStyle(fontSize: 12, color: Colors.grey.shade600));
+    final wert = Text(value, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500));
+    if (schmal) {
+      // Telefon: Bezeichnung über dem Wert — neben der 110-dp-Spalte und
+      // den Knöpfen (je 48 dp) brach die 17-stellige Kartennummer.
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          beschriftung,
+          Row(
+            children: [
+              Expanded(child: wert),
+              if (trailing != null) trailing,
+            ],
+          ),
+        ],
+      );
+    }
     return Row(
       children: [
         SizedBox(
           width: 110,
-          child: Text(label, style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+          child: beschriftung,
         ),
         Expanded(
-          child: Text(value, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
+          child: wert,
         ),
         if (trailing != null) trailing,
       ],
@@ -808,11 +868,12 @@ class _PostcardViewState extends State<PostcardView> {
           }
 
           return AlertDialog(
+            insetPadding: _dialogRand(ctx),
             title: Row(
               children: [
                 Icon(Icons.settings, color: Colors.deepPurple.shade700),
                 const SizedBox(width: 8),
-                Text(tr('Deutsche Post Konto', 'Cont Deutsche Post'), style: const TextStyle(fontSize: 16)),
+                Expanded(child: Text(tr('Deutsche Post Konto', 'Cont Deutsche Post'), style: const TextStyle(fontSize: 16))),
               ],
             ),
             content: SizedBox(
@@ -954,6 +1015,17 @@ class _PostcardViewState extends State<PostcardView> {
     passwordCtrl.dispose();
   }
 }
+
+/// Ein Dialog liegt über dem ganzen Fenster — hier zählt die Bildschirm-
+/// breite selbst. Unter 600 dp: Telefon.
+bool _schmalerDialog(BuildContext context) => MediaQuery.sizeOf(context).width < 600;
+
+/// Seitlicher Rand der Dialoge: auf dem Telefon 16 statt 40 dp — mit 40 dp
+/// blieben den Kartendetails auf 320 dp nur 240 dp. Breit bleibt es beim
+/// Standard (null).
+EdgeInsets? _dialogRand(BuildContext context) => _schmalerDialog(context)
+    ? const EdgeInsets.symmetric(horizontal: 16, vertical: 24)
+    : null;
 
 /// Subtle diagonal line pattern for the card background
 class _CardPatternPainter extends CustomPainter {

@@ -25,7 +25,7 @@ class _UpdateDialogState extends State<UpdateDialog> {
         children: [
           Icon(Icons.system_update, color: Colors.blue.shade700),
           const SizedBox(width: 12),
-          Text(l.updateAvailable),
+          Flexible(child: Text(l.updateAvailable)),
         ],
       ),
       content: SizedBox(

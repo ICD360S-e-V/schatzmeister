@@ -172,82 +172,146 @@ class _Jpg2PdfScreenState extends State<Jpg2PdfScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        // Header
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            boxShadow: [
-              BoxShadow(
-                color: Colors.grey.shade200,
-                blurRadius: 4,
-                offset: const Offset(0, 2),
+    final zurueck = IconButton(
+      onPressed: widget.onBack,
+      icon: const Icon(Icons.arrow_back),
+      tooltip: tr('Zurück', 'Înapoi'),
+    );
+    final titel = Text(
+      tr('Bilder zu PDF', 'Imagini în PDF'),
+      maxLines: 2,
+      overflow: TextOverflow.ellipsis,
+      style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+    );
+    // Actions
+    final entfernen = OutlinedButton.icon(
+      onPressed: _images.isEmpty ? null : _clearAll,
+      icon: const Icon(Icons.delete_sweep, size: 18),
+      label: Text(tr('Alle entfernen', 'Elimină toate')),
+      style: OutlinedButton.styleFrom(foregroundColor: Colors.red),
+    );
+    final hinzufuegen = ElevatedButton.icon(
+      onPressed: _pickImages,
+      icon: const Icon(Icons.add_photo_alternate, size: 18),
+      label: Text(tr('Bilder hinzufügen', 'Adaugă imagini')),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: Colors.orange.shade700,
+        foregroundColor: Colors.white,
+      ),
+    );
+    final speichern = ElevatedButton.icon(
+      onPressed:
+          _images.isEmpty || _isConverting ? null : _convertToPdf,
+      icon: Icon(
+        _isConverting ? Icons.hourglass_empty : Icons.picture_as_pdf,
+        size: 18,
+      ),
+      label: Text(_isConverting
+          ? tr('Konvertiert...', 'Se convertește...')
+          : tr('Als PDF speichern (${_images.length})', 'Salvează ca PDF (${_images.length})')),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: Colors.green.shade700,
+        foregroundColor: Colors.white,
+      ),
+    );
+
+    // Entscheidend ist die Breite, die der Bildschirm wirklich bekommt
+    // (auf dem Schreibtisch nimmt die Seitenleiste Platz weg).
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final telefon = constraints.maxWidth < 600;
+        return Column(
+          children: [
+            // Header — volle Breite wie bisher (die Zeile gab sie vor, ein
+            // Wrap allein wäre nur so breit wie sein Inhalt).
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.grey.shade200,
+                    blurRadius: 4,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
               ),
-            ],
-          ),
-          child: Row(
-            children: [
-              IconButton(
-                onPressed: widget.onBack,
-                icon: const Icon(Icons.arrow_back),
-                tooltip: tr('Zurück', 'Înapoi'),
-              ),
-              const SizedBox(width: 8),
-              Icon(Icons.image, color: Colors.orange.shade700, size: 24),
-              const SizedBox(width: 8),
-              Text(
-                tr('Bilder zu PDF', 'Imagini în PDF'),
-                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-              ),
-              const Spacer(),
-              // Settings
-              _buildOrientationChip(),
-              const SizedBox(width: 8),
-              _buildMarginChip(),
-              const SizedBox(width: 16),
-              // Actions
-              OutlinedButton.icon(
-                onPressed: _images.isEmpty ? null : _clearAll,
-                icon: const Icon(Icons.delete_sweep, size: 18),
-                label: Text(tr('Alle entfernen', 'Elimină toate')),
-                style: OutlinedButton.styleFrom(foregroundColor: Colors.red),
-              ),
-              const SizedBox(width: 8),
-              ElevatedButton.icon(
-                onPressed: _pickImages,
-                icon: const Icon(Icons.add_photo_alternate, size: 18),
-                label: Text(tr('Bilder hinzufügen', 'Adaugă imagini')),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.orange.shade700,
-                  foregroundColor: Colors.white,
-                ),
-              ),
-              const SizedBox(width: 8),
-              ElevatedButton.icon(
-                onPressed:
-                    _images.isEmpty || _isConverting ? null : _convertToPdf,
-                icon: Icon(
-                  _isConverting ? Icons.hourglass_empty : Icons.picture_as_pdf,
-                  size: 18,
-                ),
-                label: Text(_isConverting
-                    ? tr('Konvertiert...', 'Se convertește...')
-                    : tr('Als PDF speichern (${_images.length})', 'Salvează ca PDF (${_images.length})')),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.green.shade700,
-                  foregroundColor: Colors.white,
-                ),
-              ),
-            ],
-          ),
-        ),
-        // Content
-        Expanded(
-          child: _images.isEmpty ? _buildEmptyState() : _buildImageGrid(),
-        ),
-      ],
+              child: telefon
+                  // Telefon: Titel, darunter die Einstellungen, darunter die
+                  // beiden Hauptknöpfe in voller Breite.
+                  ? Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Row(
+                          children: [
+                            zurueck,
+                            const SizedBox(width: 8),
+                            Expanded(child: titel),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        // Settings
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          children: [_buildOrientationChip(), _buildMarginChip(), entfernen],
+                        ),
+                        const SizedBox(height: 8),
+                        hinzufuegen,
+                        const SizedBox(height: 8),
+                        speichern,
+                      ],
+                    )
+                  // Breit: eine Zeile wie bisher (Titel links, Einstellungen
+                  // und Knöpfe rechts). Passt sie nicht, rutschen Einstellungen
+                  // und Knöpfe in die nächste Zeile, statt hinauszulaufen.
+                  : Wrap(
+                      alignment: WrapAlignment.spaceBetween,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      runSpacing: 8,
+                      children: [
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            zurueck,
+                            const SizedBox(width: 8),
+                            Icon(Icons.image, color: Colors.orange.shade700, size: 24),
+                            const SizedBox(width: 8),
+                            Flexible(child: titel),
+                          ],
+                        ),
+                        Wrap(
+                          spacing: 16,
+                          runSpacing: 8,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          children: [
+                            // Settings
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              crossAxisAlignment: WrapCrossAlignment.center,
+                              children: [_buildOrientationChip(), _buildMarginChip()],
+                            ),
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              crossAxisAlignment: WrapCrossAlignment.center,
+                              children: [entfernen, hinzufuegen, speichern],
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+            ),
+            // Content
+            Expanded(
+              child: _images.isEmpty ? _buildEmptyState(telefon) : _buildImageGrid(telefon),
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -313,7 +377,7 @@ class _Jpg2PdfScreenState extends State<Jpg2PdfScreen> {
     );
   }
 
-  Widget _buildEmptyState() {
+  Widget _buildEmptyState(bool telefon) {
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -321,9 +385,14 @@ class _Jpg2PdfScreenState extends State<Jpg2PdfScreen> {
           Icon(Icons.add_photo_alternate,
               size: 80, color: Colors.grey.shade300),
           const SizedBox(height: 16),
-          Text(
-            tr('Bilder auswählen um sie in PDF zu konvertieren', 'Selectați imagini pentru a le converti în PDF'),
-            style: TextStyle(fontSize: 16, color: Colors.grey.shade500),
+          // Auf dem Telefon bricht der Hinweis um: dann zentriert und mit Rand.
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Text(
+              tr('Bilder auswählen um sie in PDF zu konvertieren', 'Selectați imagini pentru a le converti în PDF'),
+              textAlign: telefon ? TextAlign.center : null,
+              style: TextStyle(fontSize: 16, color: Colors.grey.shade500),
+            ),
           ),
           const SizedBox(height: 8),
           Text(
@@ -346,9 +415,13 @@ class _Jpg2PdfScreenState extends State<Jpg2PdfScreen> {
     );
   }
 
-  Widget _buildImageGrid() {
+  /// Auf dem Telefon engere Ränder und ein kleineres Vorschaubild — sonst
+  /// blieben dem Dateinamen neben Nummer, Entfernen und Griff auf 320 dp
+  /// kaum 40 dp („Kont…“).
+  Widget _buildImageGrid(bool telefon) {
+    final vorschau = telefon ? 48.0 : 60.0;
     return ReorderableListView.builder(
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.all(telefon ? 8 : 16),
       itemCount: _images.length,
       onReorder: (oldIndex, newIndex) {
         setState(() {
@@ -367,9 +440,11 @@ class _Jpg2PdfScreenState extends State<Jpg2PdfScreen> {
           key: ValueKey('${item.path}_$index'),
           margin: const EdgeInsets.symmetric(vertical: 4),
           child: ListTile(
+            contentPadding: telefon ? const EdgeInsets.symmetric(horizontal: 8) : null,
+            horizontalTitleGap: telefon ? 8 : null,
             leading: SizedBox(
-              width: 60,
-              height: 60,
+              width: vorschau,
+              height: vorschau,
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(6),
                 child: Image.memory(

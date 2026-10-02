@@ -45,6 +45,17 @@ class PdfAnnotation {
   });
 }
 
+/// Ein Dialog liegt über dem ganzen Fenster — hier zählt die Bildschirm-
+/// breite selbst. Unter 600 dp: Telefon.
+bool _schmalerDialog(BuildContext context) => MediaQuery.sizeOf(context).width < 600;
+
+/// Seitlicher Rand der Dialoge: auf dem Telefon 16 statt 40 dp — mit 40 dp
+/// blieben einem Dialog auf 320 dp nur 192 dp. Breit bleibt es beim
+/// Standard (null).
+EdgeInsets? _dialogRand(BuildContext context) => _schmalerDialog(context)
+    ? const EdgeInsets.symmetric(horizontal: 16, vertical: 24)
+    : null;
+
 // ==================== PDF Manager View ====================
 
 class PdfManagerView extends StatefulWidget {
@@ -156,13 +167,14 @@ class _PdfManagerViewState extends State<PdfManagerView> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) => AlertDialog(
+          insetPadding: _dialogRand(ctx),
           shape:
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           title: Row(
             children: [
               const Icon(Icons.text_fields, color: Colors.blue),
               const SizedBox(width: 8),
-              Text(tr('Text hinzufügen', 'Adaugă text')),
+              Expanded(child: Text(tr('Text hinzufügen', 'Adaugă text'))),
             ],
           ),
           content: SizedBox(
@@ -181,7 +193,11 @@ class _PdfManagerViewState extends State<PdfManagerView> {
                   ),
                 ),
                 const SizedBox(height: 16),
-                Row(
+                // Wrap statt Row: Größe und Farben passten auf dem Telefon
+                // nicht in eine Zeile. Breit bleibt alles in einer Zeile.
+                Wrap(
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  runSpacing: 8,
                   children: [
                     Text(tr('Größe: ', 'Mărime: ')),
                     SizedBox(
@@ -401,6 +417,7 @@ class _PdfManagerViewState extends State<PdfManagerView> {
         await showDialog(
           context: context,
           builder: (ctx) => AlertDialog(
+            insetPadding: _dialogRand(ctx),
             shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16)),
             title: Row(
@@ -491,12 +508,13 @@ class _PdfManagerViewState extends State<PdfManagerView> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) => AlertDialog(
+          insetPadding: _dialogRand(ctx),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           title: Row(
             children: [
               Icon(Icons.content_cut, color: Colors.purple.shade700),
               const SizedBox(width: 8),
-              Text(tr('PDF aufteilen', 'Împarte PDF')),
+              Expanded(child: Text(tr('PDF aufteilen', 'Împarte PDF'))),
             ],
           ),
           content: SizedBox(
@@ -507,8 +525,10 @@ class _PdfManagerViewState extends State<PdfManagerView> {
               children: [
                 Text(tr('$_pageCount Seiten', 'Pagini: $_pageCount'), style: TextStyle(fontSize: 13, color: Colors.grey.shade600)),
                 const SizedBox(height: 12),
-                // Mode selection
+                // Mode selection — auf dem Telefon untereinander: nebeneinander
+                // brachen „Einzelne Seiten“ und „Seitenbereich“ mitten im Wort.
                 SegmentedButton<String>(
+                  direction: _schmalerDialog(ctx) ? Axis.vertical : Axis.horizontal,
                   segments: [
                     ButtonSegment(
                       value: 'einzeln',
@@ -862,12 +882,13 @@ class _PdfManagerViewState extends State<PdfManagerView> {
         final items = List<PlatformFile>.from(files);
         return StatefulBuilder(
           builder: (ctx, setDialogState) => AlertDialog(
+            insetPadding: _dialogRand(ctx),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
             title: Row(
               children: [
                 Icon(Icons.merge_type, color: Colors.indigo.shade700),
                 const SizedBox(width: 8),
-                Text(tr('PDFs zusammenführen', 'Combină PDF-uri')),
+                Expanded(child: Text(tr('PDFs zusammenführen', 'Combină PDF-uri'))),
               ],
             ),
             content: SizedBox(
@@ -1013,12 +1034,13 @@ class _PdfManagerViewState extends State<PdfManagerView> {
         final openIt = await showDialog<bool>(
           context: context,
           builder: (ctx) => AlertDialog(
+            insetPadding: _dialogRand(ctx),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             title: Row(
               children: [
                 Icon(Icons.check_circle, color: Colors.green.shade600),
                 const SizedBox(width: 8),
-                Text(tr('PDF erstellt', 'PDF creat')),
+                Expanded(child: Text(tr('PDF erstellt', 'PDF creat'))),
               ],
             ),
             content: Text(
@@ -1080,12 +1102,13 @@ class _PdfManagerViewState extends State<PdfManagerView> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) => AlertDialog(
+          insetPadding: _dialogRand(ctx),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           title: Row(
             children: [
               Icon(Icons.compress, color: Colors.teal.shade700),
               const SizedBox(width: 8),
-              Text(tr('PDF komprimieren', 'Comprimă PDF')),
+              Expanded(child: Text(tr('PDF komprimieren', 'Comprimă PDF'))),
             ],
           ),
           content: SizedBox(
@@ -1105,8 +1128,15 @@ class _PdfManagerViewState extends State<PdfManagerView> {
                     children: [
                       Icon(Icons.description, size: 20, color: Colors.grey.shade600),
                       const SizedBox(width: 8),
-                      Text(_pdfFileName ?? 'PDF', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
-                      const Spacer(),
+                      // Expanded statt Text + Spacer: ein langer Dateiname lief
+                      // hinaus, jetzt endet er mit „…“.
+                      Expanded(
+                        child: Text(
+                          _pdfFileName ?? 'PDF',
+                          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
                       Text(_formatFileSize(originalSize), style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.red.shade700)),
                     ],
                   ),
@@ -1146,12 +1176,15 @@ class _PdfManagerViewState extends State<PdfManagerView> {
                 // DPI selection
                 Text(tr('Auflösung: $dpi DPI', 'Rezoluție: $dpi DPI'), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
                 const SizedBox(height: 8),
+                // Telefon: ohne Symbole und Haken — vier Segmente zu je
+                // ~60 dp ließen den Zahlen sonst keinen Platz.
                 SegmentedButton<int>(
-                  segments: const [
-                    ButtonSegment(value: 72, label: Text('72', style: TextStyle(fontSize: 12)), icon: Icon(Icons.speed, size: 16)),
-                    ButtonSegment(value: 100, label: Text('100', style: TextStyle(fontSize: 12))),
-                    ButtonSegment(value: 150, label: Text('150', style: TextStyle(fontSize: 12))),
-                    ButtonSegment(value: 200, label: Text('200', style: TextStyle(fontSize: 12)), icon: Icon(Icons.hd, size: 16)),
+                  showSelectedIcon: !_schmalerDialog(ctx),
+                  segments: [
+                    ButtonSegment(value: 72, label: const Text('72', style: TextStyle(fontSize: 12)), icon: _schmalerDialog(ctx) ? null : const Icon(Icons.speed, size: 16)),
+                    const ButtonSegment(value: 100, label: Text('100', style: TextStyle(fontSize: 12))),
+                    const ButtonSegment(value: 150, label: Text('150', style: TextStyle(fontSize: 12))),
+                    ButtonSegment(value: 200, label: const Text('200', style: TextStyle(fontSize: 12)), icon: _schmalerDialog(ctx) ? null : const Icon(Icons.hd, size: 16)),
                   ],
                   selected: {dpi},
                   onSelectionChanged: (v) => setDialogState(() => dpi = v.first),
@@ -1263,6 +1296,7 @@ class _PdfManagerViewState extends State<PdfManagerView> {
       await showDialog(
         context: context,
         builder: (ctx) => AlertDialog(
+          insetPadding: _dialogRand(ctx),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           title: Row(
             children: [
@@ -1383,11 +1417,20 @@ class _PdfManagerViewState extends State<PdfManagerView> {
 
   @override
   Widget build(BuildContext context) {
-    final isDesktop = MediaQuery.of(context).size.width > 800;
+    // Entschieden wird nach der Breite, die der Bildschirm wirklich bekommt
+    // (auf dem Schreibtisch nimmt die Seitenleiste ihren Teil), nicht nach
+    // MediaQuery.
+    return LayoutBuilder(
+      builder: (context, constraints) => _aufbau(breite: constraints.maxWidth),
+    );
+  }
+
+  Widget _aufbau({required double breite}) {
+    final isDesktop = breite > 800;
 
     return Column(
       children: [
-        _buildHeader(),
+        _buildHeader(schmal: breite < 600),
         Expanded(
           child: isDesktop
               ? Row(
@@ -1408,63 +1451,48 @@ class _PdfManagerViewState extends State<PdfManagerView> {
     );
   }
 
-  Widget _buildHeader() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border(bottom: BorderSide(color: Colors.grey.shade300)),
-      ),
-      child: Row(
-        children: [
-          IconButton(
-            icon: const Icon(Icons.arrow_back),
-            onPressed: widget.onBack,
-            tooltip: tr('Zurück', 'Înapoi'),
-          ),
-          Icon(Icons.picture_as_pdf, color: Colors.red.shade700, size: 24),
-          const SizedBox(width: 8),
-          Text(
-            _pdfFileName ?? tr('PDF Manager', 'Manager PDF'),
-            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-          ),
-          if (_pdfBytes != null) ...[
-            const SizedBox(width: 8),
-            Text(
-              tr('Seite $_currentPage von $_pageCount', 'Pagina $_currentPage din $_pageCount'),
-              style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
-            ),
-          ],
-          const Spacer(),
-          if (_editMode != _EditMode.none)
-            Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-              decoration: BoxDecoration(
+  Widget _buildHeader({required bool schmal}) {
+    final titel = Text(
+      _pdfFileName ?? tr('PDF Manager', 'Manager PDF'),
+      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+    );
+    final seite = Text(
+      tr('Seite $_currentPage von $_pageCount', 'Pagina $_currentPage din $_pageCount'),
+      style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+    );
+    final modus = _editMode == _EditMode.none
+        ? null
+        : Container(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+            decoration: BoxDecoration(
+              color: _editMode == _EditMode.text
+                  ? Colors.blue.shade50
+                  : Colors.green.shade50,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
                 color: _editMode == _EditMode.text
-                    ? Colors.blue.shade50
-                    : Colors.green.shade50,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
+                    ? Colors.blue
+                    : Colors.green,
+              ),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  _editMode == _EditMode.text
+                      ? Icons.text_fields
+                      : Icons.draw,
+                  size: 16,
                   color: _editMode == _EditMode.text
                       ? Colors.blue
                       : Colors.green,
                 ),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    _editMode == _EditMode.text
-                        ? Icons.text_fields
-                        : Icons.draw,
-                    size: 16,
-                    color: _editMode == _EditMode.text
-                        ? Colors.blue
-                        : Colors.green,
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
+                const SizedBox(width: 4),
+                Flexible(
+                  child: Text(
                     _editMode == _EditMode.text
                         ? tr('Textmodus - Klicken zum Platzieren', 'Mod text - clic pentru plasare')
                         : tr('Unterschrift - Klicken zum Platzieren', 'Semnătură - clic pentru plasare'),
@@ -1475,19 +1503,81 @@ class _PdfManagerViewState extends State<PdfManagerView> {
                           : Colors.green.shade700,
                     ),
                   ),
-                  const SizedBox(width: 4),
-                  InkWell(
-                    onTap: () => setState(() {
-                      _editMode = _EditMode.none;
-                      _capturedSignature = null;
-                    }),
-                    child: const Icon(Icons.close, size: 16),
-                  ),
-                ],
-              ),
+                ),
+                const SizedBox(width: 4),
+                InkWell(
+                  onTap: () => setState(() {
+                    _editMode = _EditMode.none;
+                    _capturedSignature = null;
+                  }),
+                  child: const Icon(Icons.close, size: 16),
+                ),
+              ],
             ),
-        ],
+          );
+    final zurueck = IconButton(
+      icon: const Icon(Icons.arrow_back),
+      onPressed: widget.onBack,
+      tooltip: tr('Zurück', 'Înapoi'),
+    );
+    final symbol = Icon(Icons.picture_as_pdf, color: Colors.red.shade700, size: 24);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border(bottom: BorderSide(color: Colors.grey.shade300)),
       ),
+      // Telefon: der Hinweis zum Text-/Unterschriftmodus steht unter dem
+      // Dateinamen. In einer Zeile lief die Kopfzeile mit einem langen
+      // Dateinamen um bis zu 732 dp hinaus — auch auf dem Schreibtisch.
+      child: schmal
+          ? Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    zurueck,
+                    symbol,
+                    const SizedBox(width: 8),
+                    // Seitenzahl unter dem Namen: so bleibt dem Namen die
+                    // ganze Zeile.
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          titel,
+                          if (_pdfBytes != null) seite,
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                if (modus != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 6),
+                    child: modus,
+                  ),
+              ],
+            )
+          : Row(
+              children: [
+                zurueck,
+                symbol,
+                const SizedBox(width: 8),
+                // Flexible: ein langer Dateiname endet mit „…“, statt die
+                // Zeile hinauszuschieben (flex 4: vom freien Platz bekommt er
+                // vier Fünftel, der Spacer den Rest). Passt er, ändert sich
+                // nichts.
+                Flexible(flex: 4, child: titel),
+                if (_pdfBytes != null) ...[
+                  const SizedBox(width: 8),
+                  seite,
+                ],
+                const Spacer(),
+                if (modus != null) modus,
+              ],
+            ),
     );
   }
 
@@ -1786,6 +1876,9 @@ class _PdfManagerViewState extends State<PdfManagerView> {
                     label: Text(tr('Löschen', 'Șterge')),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: Colors.red,
+                      // 12 dp Rand: in der 320 dp breiten Werkzeugleiste
+                      // brach „Übernehmen“ sonst mitten im Wort.
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
                     ),
                   ),
                 ),
@@ -1798,6 +1891,7 @@ class _PdfManagerViewState extends State<PdfManagerView> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.green.shade700,
                       foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
                     ),
                   ),
                 ),

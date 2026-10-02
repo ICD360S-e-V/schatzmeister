@@ -29,37 +29,38 @@ class ConversationListItem extends StatelessWidget {
     final lastMessage = conversation['last_message'] ?? l10n.noMessagesConv;
     final lastSeenStr = conversation['last_seen'] as String?;
 
-    return Container(
-      color: isSelected ? const Color(0xFF1a1a2e).withValues(alpha: 0.1) : null,
-      child: ListTile(
-        dense: true,
-        leading: _buildAvatar(memberName, status),
-        title: _buildTitle(memberName, unreadCount),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              hasActiveCall ? l10n.inCallLabel : lastMessage,
-              style: TextStyle(
-                fontSize: 11,
-                color: hasActiveCall ? Colors.green.shade700 : null,
-              ),
-              overflow: TextOverflow.ellipsis,
-              maxLines: 1,
+    // Die Markierung des gewählten Gesprächs malt die ListTile selbst
+    // (tileColor) — ein farbiger Container darum verdeckte ihre
+    // Tipp-Welle, und Flutter meldete das im Debug-Modus als Fehler.
+    return ListTile(
+      tileColor: isSelected ? const Color(0xFF1a1a2e).withValues(alpha: 0.1) : null,
+      dense: true,
+      leading: _buildAvatar(memberName, status),
+      title: _buildTitle(memberName, unreadCount),
+      subtitle: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            hasActiveCall ? l10n.inCallLabel : lastMessage,
+            style: TextStyle(
+              fontSize: 11,
+              color: hasActiveCall ? Colors.green.shade700 : null,
             ),
-            if (!isOnline && lastSeenStr != null)
-              Text(
-                _formatLastSeen(lastSeenStr, l10n),
-                style: TextStyle(
-                  fontSize: 10,
-                  color: Colors.grey.shade600,
-                  fontStyle: FontStyle.italic,
-                ),
+            overflow: TextOverflow.ellipsis,
+            maxLines: 1,
+          ),
+          if (!isOnline && lastSeenStr != null)
+            Text(
+              _formatLastSeen(lastSeenStr, l10n),
+              style: TextStyle(
+                fontSize: 10,
+                color: Colors.grey.shade600,
+                fontStyle: FontStyle.italic,
               ),
-          ],
-        ),
-        onTap: onTap,
+            ),
+        ],
       ),
+      onTap: onTap,
     );
   }
 

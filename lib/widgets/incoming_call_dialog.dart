@@ -538,82 +538,98 @@ class _InCallOverlayState extends State<InCallOverlay> with SingleTickerProvider
           const SizedBox(height: 8),
 
         // Visible UI
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          decoration: BoxDecoration(
-            color: Colors.green.shade700,
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-          // Voice activity indicator (bars)
-          _buildVoiceActivityIndicator(),
-          const SizedBox(width: 12),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            // Auf dem Telefon rücken die drei Knöpfe enger zusammen (40 statt
+            // 48 dp), damit neben ihnen der Name noch lesbar bleibt.
+            final eng = constraints.maxWidth < 400;
+            final dichte = eng ? VisualDensity.compact : null;
+            return Container(
+              padding: EdgeInsets.symmetric(horizontal: eng ? 12 : 16, vertical: 12),
+              decoration: BoxDecoration(
+                color: Colors.green.shade700,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Voice activity indicator (bars)
+                  _buildVoiceActivityIndicator(),
+                  const SizedBox(width: 12),
 
-          // Remote name, duration, and network quality
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Row(
-                  children: [
-                    Text(
-                      widget.remoteName,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
-                      ),
+                  // Remote name, duration, and network quality
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Row(
+                          children: [
+                            // Lange Namen kürzen, statt Knöpfe und Rand zu sprengen.
+                            Flexible(
+                              child: Text(
+                                widget.remoteName,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            _buildNetworkQualityIndicator(l),
+                          ],
+                        ),
+                        Text(
+                          _formatDuration(widget.callDuration),
+                          style: const TextStyle(
+                            color: Colors.white70,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(width: 8),
-                    _buildNetworkQualityIndicator(l),
-                  ],
-                ),
-                Text(
-                  _formatDuration(widget.callDuration),
-                  style: const TextStyle(
-                    color: Colors.white70,
-                    fontSize: 12,
                   ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 8),
+                  const SizedBox(width: 8),
 
-          // Speaker button
-          IconButton(
-            icon: Icon(
-              widget.isSpeakerOn ? Icons.volume_up : Icons.volume_off,
-              color: widget.isSpeakerOn ? Colors.white : Colors.red.shade300,
-            ),
-            onPressed: widget.onToggleSpeaker,
-            tooltip: widget.isSpeakerOn ? l.speakerOff : l.speakerOn,
-          ),
+                  // Speaker button
+                  IconButton(
+                    icon: Icon(
+                      widget.isSpeakerOn ? Icons.volume_up : Icons.volume_off,
+                      color: widget.isSpeakerOn ? Colors.white : Colors.red.shade300,
+                    ),
+                    visualDensity: dichte,
+                    onPressed: widget.onToggleSpeaker,
+                    tooltip: widget.isSpeakerOn ? l.speakerOff : l.speakerOn,
+                  ),
 
-          // Mute button
-          IconButton(
-            icon: Icon(
-              widget.isMuted ? Icons.mic_off : Icons.mic,
-              color: widget.isMuted ? Colors.red.shade300 : Colors.white,
-            ),
-            onPressed: widget.onToggleMute,
-            tooltip: widget.isMuted ? l.unmute : l.mute,
-          ),
+                  // Mute button
+                  IconButton(
+                    icon: Icon(
+                      widget.isMuted ? Icons.mic_off : Icons.mic,
+                      color: widget.isMuted ? Colors.red.shade300 : Colors.white,
+                    ),
+                    visualDensity: dichte,
+                    onPressed: widget.onToggleMute,
+                    tooltip: widget.isMuted ? l.unmute : l.mute,
+                  ),
 
-          // End call button
-          IconButton(
-            icon: const Icon(Icons.call_end, color: Colors.white),
-            onPressed: widget.onEndCall,
-            style: IconButton.styleFrom(
-              backgroundColor: Colors.red,
-            ),
-            tooltip: l.hangUp,
-          ),
-            ],
-          ),
+                  // End call button
+                  IconButton(
+                    icon: const Icon(Icons.call_end, color: Colors.white),
+                    visualDensity: dichte,
+                    onPressed: widget.onEndCall,
+                    style: IconButton.styleFrom(
+                      backgroundColor: Colors.red,
+                    ),
+                    tooltip: l.hangUp,
+                  ),
+                ],
+              ),
+            );
+          },
         ),
       ],
     );
@@ -722,27 +738,31 @@ class CallingOverlay extends StatelessWidget {
           ),
           const SizedBox(width: 12),
 
-          // Calling text
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                l.calling,
-                style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.8),
-                  fontSize: 12,
+          // Calling text — darf schmaler werden als der Name lang ist.
+          Flexible(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  l.calling,
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.8),
+                    fontSize: 12,
+                  ),
                 ),
-              ),
-              Text(
-                targetName,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 14,
+                Text(
+                  targetName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
           const SizedBox(width: 16),
 

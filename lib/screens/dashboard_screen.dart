@@ -1223,16 +1223,31 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => LayoutBuilder(builder: _buildMitBreite);
+
+  /// Die Kopfleiste ist so breit wie der ganze Bildschirm. Auf dem Telefon
+  /// stehen darin Menü-Knopf, vier Aktionen und der Titel — auf 320–393 dp
+  /// blieb vom Titel nur „IC…" bzw. „ICD360S …". Deshalb auf dem Telefon:
+  /// kein Randabstand um den Titel, unter 380 dp rücken die Aktionen enger
+  /// zusammen (40 statt 48 dp), und was dann noch fehlt, gleicht der Titel
+  /// durch eine etwas kleinere Schrift aus, statt abgeschnitten zu werden.
+  Widget _buildMitBreite(BuildContext context, BoxConstraints constraints) {
     final isMobile = ResponsiveLayout.isMobile(context);
+    final aktionsDichte =
+        isMobile && constraints.maxWidth < 380 ? VisualDensity.compact : null;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F5),
       appBar: AppBar(
-        title: Text(isMobile
-            ? 'ICD360S e.V'
-            : tr('ICD360S e.V - Schatzmeister Panel',
+        title: isMobile
+            ? const FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: AlignmentDirectional.centerStart,
+                child: Text('ICD360S e.V'),
+              )
+            : Text(tr('ICD360S e.V - Schatzmeister Panel',
                 'ICD360S e.V - Panou trezorier')),
+        titleSpacing: isMobile ? 0 : null,
         backgroundColor: const Color(0xFF1a1a2e),
         foregroundColor: Colors.white,
         flexibleSpace: SeasonalBackground.isEasterSeason
@@ -1271,6 +1286,7 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
             children: [
               IconButton(
                 icon: const Icon(Icons.draw_outlined),
+                visualDensity: aktionsDichte,
                 tooltip: tr('Meine Unterschriften', 'Semnăturile mele'),
                 onPressed: () async {
                   await Navigator.of(context).push(MaterialPageRoute(
@@ -1315,6 +1331,7 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
             children: [
               IconButton(
                 icon: const Icon(Icons.chat_outlined),
+                visualDensity: aktionsDichte,
                 onPressed: _showAdminChatDialog,
                 tooltip: AppLocalizations.of(context).liveChat,
               ),
@@ -1412,11 +1429,13 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
             ),
           IconButton(
             icon: const Icon(Icons.person),
+            visualDensity: aktionsDichte,
             onPressed: _showProfileDialog,
             tooltip: AppLocalizations.of(context).myProfile,
           ),
           IconButton(
             icon: const Icon(Icons.logout),
+            visualDensity: aktionsDichte,
             onPressed: _logout,
             tooltip: AppLocalizations.of(context).logout,
           ),
@@ -1653,6 +1672,10 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
             unselectedLabelColor: Colors.grey,
             indicatorColor: const Color(0xFF4a90d9),
             isScrollable: true,
+            // Telefon: ohne den Einzug von 52 dp, mit dem Material 3
+            // scrollbare Reiter beginnt — sonst war schon der erste halb
+            // aus dem Bild.
+            tabAlignment: isMobile ? TabAlignment.start : null,
             labelStyle: TextStyle(fontSize: isMobile ? 11 : 14),
             tabs: [
               Tab(
@@ -1789,15 +1812,19 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
                     color: isCurrentWeek ? const Color(0xFF4a90d9) : Colors.grey.shade600,
                   ),
                   const SizedBox(width: 8),
-                  Text(
-                    _weekLabel(weekStart),
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.bold,
-                      color: isCurrentWeek ? const Color(0xFF4a90d9) : Colors.grey.shade700,
+                  // „Săptămâna aceasta — Săpt. 39 • 28.09 - 04.10.2026" ist
+                  // breiter als ein Telefon: umbrechen statt hinauslaufen.
+                  Expanded(
+                    child: Text(
+                      _weekLabel(weekStart),
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                        color: isCurrentWeek ? const Color(0xFF4a90d9) : Colors.grey.shade700,
+                      ),
                     ),
                   ),
-                  const Spacer(),
+                  const SizedBox(width: 8),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                     decoration: BoxDecoration(
@@ -1934,6 +1961,7 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
             unselectedLabelColor: Colors.grey,
             indicatorColor: const Color(0xFF4a90d9),
             isScrollable: isMobile,
+            tabAlignment: isMobile ? TabAlignment.start : null,
             labelStyle: TextStyle(fontSize: isMobile ? 11 : 14),
             tabs: [
               Tab(
