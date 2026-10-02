@@ -62,6 +62,12 @@ class _TicketDetailsDialogState extends State<TicketDetailsDialog> with SingleTi
   Timer? _runningTimerTick;
   int _syncCounter = 0;
 
+  /// Telefonbreite (< 600 dp): der Dialog füllt den ganzen Bildschirm, die
+  /// Reiter werden wischbar, Kopf- und Knopfzeilen brechen um. Gesetzt in
+  /// [build] aus der Breite, die der Dialog wirklich bekommt — auf dem
+  /// Schreibtisch bleibt alles, wie es war (800 × 700 dp).
+  bool _schmal = false;
+
   @override
   void initState() {
     super.initState();
@@ -194,6 +200,9 @@ class _TicketDetailsDialogState extends State<TicketDetailsDialog> with SingleTi
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) => AlertDialog(
+          // Telefon: Kategorien, Dauer, Datum und Notiz sind höher als 640 dp
+          // abzüglich Rand — der Inhalt scrollt, statt unten abzureißen.
+          scrollable: true,
           title: Text(l.manualTimeEntry),
           content: SizedBox(
             width: 400,
@@ -205,6 +214,7 @@ class _TicketDetailsDialogState extends State<TicketDetailsDialog> with SingleTi
                 const SizedBox(height: 8),
                 Wrap(
                   spacing: 8,
+                  runSpacing: 4,
                   children: TimeCategory.values.map((cat) => ChoiceChip(
                     label: Text(cat.display),
                     selected: category == cat,
@@ -640,7 +650,7 @@ class _TicketDetailsDialogState extends State<TicketDetailsDialog> with SingleTi
           children: [
             const CircularProgressIndicator(),
             const SizedBox(width: 16),
-            Text(l.fileUploading),
+            Flexible(child: Text(l.fileUploading)),
           ],
         ),
       ),
@@ -766,11 +776,37 @@ class _TicketDetailsDialogState extends State<TicketDetailsDialog> with SingleTi
 
   @override
   Widget build(BuildContext context) {
+    // Entschieden wird nach der Breite, die der Dialog wirklich bekommt
+    // (Dialog-Route: der ganze Bildschirm ohne Systemleisten).
+    return LayoutBuilder(builder: _baueDialog);
+  }
+
+  Widget _baueDialog(BuildContext context, BoxConstraints constraints) {
+    // Telefon: ganzer Bildschirm — in 800 × 700 dp mit 40 dp Rand blieben
+    // auf 393 dp nur 313 dp für fünf Reiter.
+    _schmal = constraints.maxWidth < 600;
+    final statusPlakette = Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: _getStatusColor(widget.ticket.status).withAlpha(100),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Text(
+        widget.ticket.statusDisplay,
+        style: TextStyle(
+          color: _getStatusColor(widget.ticket.status),
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+    );
     return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      insetPadding: _schmal ? EdgeInsets.zero : null,
+      shape: _schmal
+          ? const RoundedRectangleBorder()
+          : RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: SizedBox(
-        width: 800,
-        height: 700,
+        width: _schmal ? constraints.maxWidth : 800,
+        height: _schmal ? constraints.maxHeight : 700,
         child: Column(
           children: [
             // Header
@@ -778,7 +814,7 @@ class _TicketDetailsDialogState extends State<TicketDetailsDialog> with SingleTi
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 color: _getStatusColor(widget.ticket.status).withAlpha(30),
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                borderRadius: _schmal ? null : const BorderRadius.vertical(top: Radius.circular(16)),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -793,27 +829,21 @@ class _TicketDetailsDialogState extends State<TicketDetailsDialog> with SingleTi
                           style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                         ),
                       ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: _getStatusColor(widget.ticket.status).withAlpha(100),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Text(
-                          widget.ticket.statusDisplay,
-                          style: TextStyle(
-                            color: _getStatusColor(widget.ticket.status),
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
+                      if (!_schmal) ...[
+                        statusPlakette,
+                        const SizedBox(width: 8),
+                      ],
                       IconButton(
                         icon: const Icon(Icons.close),
                         onPressed: () => Navigator.pop(context),
                       ),
                     ],
                   ),
+                  // Telefon: der Status unter der Ticketnummer statt daneben
+                  if (_schmal) ...[
+                    const SizedBox(height: 4),
+                    statusPlakette,
+                  ],
                   const SizedBox(height: 8),
                   // Subject with translation toggle
                   if (_ticketTranslation != null && _ticketTranslation!.subjectIsTranslated)
@@ -855,6 +885,10 @@ class _TicketDetailsDialogState extends State<TicketDetailsDialog> with SingleTi
                   labelColor: Colors.blue.shade700,
                   unselectedLabelColor: Colors.grey,
                   indicatorColor: Colors.blue.shade700,
+                  // Telefon: wischbar — fünf Reiter in 393 dp schnitten
+                  // „Zeiterfassung" & Co. ab.
+                  isScrollable: _schmal,
+                  tabAlignment: _schmal ? TabAlignment.start : null,
                   tabs: [
                     Tab(icon: const Icon(Icons.info_outline), text: l.detailsTab),
                     Tab(icon: const Icon(Icons.chat_bubble_outline), text: l.commentsTab),
@@ -887,8 +921,23 @@ class _TicketDetailsDialogState extends State<TicketDetailsDialog> with SingleTi
   }
 
   Widget _buildDetailsTab() {
+    // Priority badge
+    final prioritaet = Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: _getPriorityColor(widget.ticket.priority).withAlpha(30),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Text(
+        AppLocalizations.of(context).priorityLabel(widget.ticket.priorityDisplay),
+        style: TextStyle(
+          color: _getPriorityColor(widget.ticket.priority),
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
+      padding: EdgeInsets.all(_schmal ? 16 : 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -912,24 +961,16 @@ class _TicketDetailsDialogState extends State<TicketDetailsDialog> with SingleTi
                       widget.ticket.memberNummer ?? '',
                       style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
                     ),
+                    // Telefon: die Priorität unter dem Namen — daneben blieben
+                    // dem Namen kaum 80 dp.
+                    if (_schmal) ...[
+                      const SizedBox(height: 6),
+                      prioritaet,
+                    ],
                   ],
                 ),
               ),
-              // Priority badge
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: _getPriorityColor(widget.ticket.priority).withAlpha(30),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  AppLocalizations.of(context).priorityLabel(widget.ticket.priorityDisplay),
-                  style: TextStyle(
-                    color: _getPriorityColor(widget.ticket.priority),
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
+              if (!_schmal) prioritaet,
             ],
           ),
           const SizedBox(height: 24),
@@ -940,9 +981,11 @@ class _TicketDetailsDialogState extends State<TicketDetailsDialog> with SingleTi
               children: [
                 Icon(Icons.category, size: 16, color: Colors.grey.shade600),
                 const SizedBox(width: 8),
-                Text(
-                  AppLocalizations.of(context).categoryWithName(widget.ticket.categoryName!),
-                  style: TextStyle(color: Colors.grey.shade700, fontSize: 14),
+                Flexible(
+                  child: Text(
+                    AppLocalizations.of(context).categoryWithName(widget.ticket.categoryName!),
+                    style: TextStyle(color: Colors.grey.shade700, fontSize: 14),
+                  ),
                 ),
               ],
             ),
@@ -952,12 +995,15 @@ class _TicketDetailsDialogState extends State<TicketDetailsDialog> with SingleTi
           // Original Message
           Row(
             children: [
-              Text(
-                AppLocalizations.of(context).originalMessage,
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+              // Expanded statt Text + Spacer: die Überschrift bricht um,
+              // statt den Übersetzen-Schalter hinauszuschieben.
+              Expanded(
+                child: Text(
+                  AppLocalizations.of(context).originalMessage,
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                ),
               ),
               if (_ticketTranslation != null && _ticketTranslation!.messageIsTranslated) ...[
-                const Spacer(),
                 InkWell(
                   onTap: () => setState(() => _showOriginalMessage = !_showOriginalMessage),
                   borderRadius: BorderRadius.circular(12),
@@ -1009,9 +1055,11 @@ class _TicketDetailsDialogState extends State<TicketDetailsDialog> with SingleTi
                     children: [
                       Icon(Icons.auto_awesome, size: 12, color: Colors.blue.shade400),
                       const SizedBox(width: 4),
-                      Text(
-                        _showOriginalMessage ? AppLocalizations.of(context).originalText : AppLocalizations.of(context).autoTranslated,
-                        style: TextStyle(fontSize: 11, color: Colors.blue.shade400, fontStyle: FontStyle.italic),
+                      Flexible(
+                        child: Text(
+                          _showOriginalMessage ? AppLocalizations.of(context).originalText : AppLocalizations.of(context).autoTranslated,
+                          style: TextStyle(fontSize: 11, color: Colors.blue.shade400, fontStyle: FontStyle.italic),
+                        ),
                       ),
                     ],
                   ),
@@ -1047,12 +1095,14 @@ class _TicketDetailsDialogState extends State<TicketDetailsDialog> with SingleTi
                   children: [
                     Icon(Icons.event, color: Colors.blue.shade700, size: 20),
                     const SizedBox(width: 10),
-                    Text(
-                      AppLocalizations.of(context).scheduledFor,
-                      style: TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 14,
-                        color: Colors.blue.shade900,
+                    Flexible(
+                      child: Text(
+                        AppLocalizations.of(context).scheduledFor,
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 14,
+                          color: Colors.blue.shade900,
+                        ),
                       ),
                     ),
                   ],
@@ -1161,19 +1211,24 @@ class _TicketDetailsDialogState extends State<TicketDetailsDialog> with SingleTi
                   children: [
                     Icon(Icons.swap_horiz, size: 18, color: Colors.grey.shade700),
                     const SizedBox(width: 8),
-                    Text(
-                      AppLocalizations.of(context).changeStatus,
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
-                        color: Colors.grey.shade700,
+                    Flexible(
+                      child: Text(
+                        AppLocalizations.of(context).changeStatus,
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                          color: Colors.grey.shade700,
+                        ),
                       ),
                     ),
                   ],
                 ),
                 const SizedBox(height: 12),
-                // Current status display
-                Row(
+                // Current status display — Wrap: auf dem Telefon rückt der
+                // lange Status („Warten auf Unterlagen") in die nächste Zeile.
+                Wrap(
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  runSpacing: 4,
                   children: [
                     Text(AppLocalizations.of(context).currentlyLabel, style: const TextStyle(fontSize: 13)),
                     Container(
@@ -1399,11 +1454,12 @@ class _TicketDetailsDialogState extends State<TicketDetailsDialog> with SingleTi
             children: [
               Icon(Icons.folder, color: Colors.blue.shade700, size: 20),
               const SizedBox(width: 8),
-              Text(
-                tr('Dokumente (${_attachments.length})', 'Documente (${_attachments.length})'),
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+              Expanded(
+                child: Text(
+                  tr('Dokumente (${_attachments.length})', 'Documente (${_attachments.length})'),
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                ),
               ),
-              const Spacer(),
               ElevatedButton.icon(
                 onPressed: _showAttachOptions,
                 icon: const Icon(Icons.upload_file, size: 18),
@@ -1546,7 +1602,7 @@ class _TicketDetailsDialogState extends State<TicketDetailsDialog> with SingleTi
           children: [
             const CircularProgressIndicator(),
             const SizedBox(width: 16),
-            Text(l.fileDownloading),
+            Flexible(child: Text(l.fileDownloading)),
           ],
         ),
       ),
@@ -1619,16 +1675,19 @@ class _TicketDetailsDialogState extends State<TicketDetailsDialog> with SingleTi
         crossAxisAlignment: isMember ? CrossAxisAlignment.start : CrossAxisAlignment.end,
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Header: Name + Timestamp
+          // Header: Name + Timestamp (Flexible: ein langer Name bricht um,
+          // statt auf dem Telefon hinauszulaufen)
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
               if (isMember) ...[
-                Text(
-                  comment.userName,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 13,
+                Flexible(
+                  child: Text(
+                    comment.userName,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -1648,11 +1707,13 @@ class _TicketDetailsDialogState extends State<TicketDetailsDialog> with SingleTi
                   ),
                 ),
                 const SizedBox(width: 8),
-                Text(
-                  comment.userName,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 13,
+                Flexible(
+                  child: Text(
+                    comment.userName,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                    ),
                   ),
                 ),
               ],
@@ -1720,14 +1781,16 @@ class _TicketDetailsDialogState extends State<TicketDetailsDialog> with SingleTi
                       children: [
                         Icon(Icons.translate, size: 12, color: Colors.blue.shade400),
                         const SizedBox(width: 4),
-                        Text(
-                          _showOriginalCommentIds.contains(comment.id)
-                              ? AppLocalizations.of(context).originalTextTapTranslation
-                              : AppLocalizations.of(context).translatedTapOriginal,
-                          style: TextStyle(
-                            fontSize: 10,
-                            color: Colors.blue.shade400,
-                            fontStyle: FontStyle.italic,
+                        Flexible(
+                          child: Text(
+                            _showOriginalCommentIds.contains(comment.id)
+                                ? AppLocalizations.of(context).originalTextTapTranslation
+                                : AppLocalizations.of(context).translatedTapOriginal,
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: Colors.blue.shade400,
+                              fontStyle: FontStyle.italic,
+                            ),
                           ),
                         ),
                       ],
@@ -1794,244 +1857,295 @@ class _TicketDetailsDialogState extends State<TicketDetailsDialog> with SingleTi
     final summary = _timeSummary;
     final dateFormat = DateFormat('dd.MM.yyyy HH:mm');
 
-    return Column(
-      children: [
-        // Timer section + summary (fixed at top)
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: _runningEntry != null ? Colors.red.shade50 : Colors.grey.shade50,
-            border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+    // Timer section + summary (fixed at top; Telefon: scrollt mit)
+    final kopf = Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: _runningEntry != null ? Colors.red.shade50 : Colors.grey.shade50,
+        border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Category selector
+          Row(
             children: [
-              // Category selector
-              Row(
-                children: [
-                  Icon(Icons.timer, size: 18, color: Colors.grey.shade700),
-                  const SizedBox(width: 8),
-                  Text(AppLocalizations.of(context).timerLabel, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.grey.shade700)),
-                ],
-              ),
-              const SizedBox(height: 10),
-              Wrap(
-                spacing: 8,
-                children: TimeCategory.values.map((cat) => ChoiceChip(
-                  avatar: Icon(_timeCategoryIcon(cat), size: 16, color: _selectedCategory == cat ? Colors.white : _timeCategoryColor(cat)),
-                  label: Text(cat.display),
-                  selected: _selectedCategory == cat,
-                  selectedColor: _timeCategoryColor(cat),
-                  labelStyle: TextStyle(color: _selectedCategory == cat ? Colors.white : null, fontSize: 12),
-                  onSelected: _runningEntry != null ? null : (sel) {
-                    if (sel) setState(() => _selectedCategory = cat);
-                  },
-                )).toList(),
-              ),
-              const SizedBox(height: 12),
+              Icon(Icons.timer, size: 18, color: Colors.grey.shade700),
+              const SizedBox(width: 8),
+              Text(AppLocalizations.of(context).timerLabel, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.grey.shade700)),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 4,
+            children: TimeCategory.values.map((cat) => ChoiceChip(
+              avatar: Icon(_timeCategoryIcon(cat), size: 16, color: _selectedCategory == cat ? Colors.white : _timeCategoryColor(cat)),
+              label: Text(cat.display),
+              selected: _selectedCategory == cat,
+              selectedColor: _timeCategoryColor(cat),
+              labelStyle: TextStyle(color: _selectedCategory == cat ? Colors.white : null, fontSize: 12),
+              onSelected: _runningEntry != null ? null : (sel) {
+                if (sel) setState(() => _selectedCategory = cat);
+              },
+            )).toList(),
+          ),
+          const SizedBox(height: 12),
 
-              // Start/Stop button
-              if (_runningEntry == null)
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: _startTimer,
-                    icon: const Icon(Icons.play_arrow, size: 20),
-                    label: Text(AppLocalizations.of(context).startTimerCategory(_selectedCategory.display)),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: _timeCategoryColor(_selectedCategory),
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
+          // Start/Stop button
+          if (_runningEntry == null)
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: _startTimer,
+                icon: const Icon(Icons.play_arrow, size: 20),
+                label: Text(AppLocalizations.of(context).startTimerCategory(_selectedCategory.display)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _timeCategoryColor(_selectedCategory),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+              ),
+            )
+          else
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.red.shade100,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: Colors.red.shade300),
+              ),
+              child: Row(
+                children: [
+                  Icon(_timeCategoryIcon(_runningEntry!.category), size: 20, color: _timeCategoryColor(_runningEntry!.category)),
+                  const SizedBox(width: 10),
+                  // Expanded statt Column + Spacer: auf dem Telefon bricht
+                  // die Kategorie um, statt den Stopp-Knopf hinauszuschieben.
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(_runningEntry!.category.display, style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+                        Text(
+                          _runningEntry!.durationDisplay,
+                          style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, fontFamily: 'monospace'),
+                        ),
+                      ],
                     ),
                   ),
-                )
-              else
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.red.shade100,
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: Colors.red.shade300),
+                  ElevatedButton.icon(
+                    onPressed: _stopTimer,
+                    icon: const Icon(Icons.stop, size: 20),
+                    label: Text(AppLocalizations.of(context).stopLabel),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.red,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                    ),
                   ),
-                  child: Row(
-                    children: [
-                      Icon(_timeCategoryIcon(_runningEntry!.category), size: 20, color: _timeCategoryColor(_runningEntry!.category)),
-                      const SizedBox(width: 10),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(_runningEntry!.category.display, style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
-                          Text(
-                            _runningEntry!.durationDisplay,
-                            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, fontFamily: 'monospace'),
-                          ),
-                        ],
-                      ),
-                      const Spacer(),
-                      ElevatedButton.icon(
-                        onPressed: _stopTimer,
-                        icon: const Icon(Icons.stop, size: 20),
-                        label: Text(AppLocalizations.of(context).stopLabel),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.red,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+                ],
+              ),
+            ),
 
-              const SizedBox(height: 16),
+          const SizedBox(height: 16),
 
-              // Summary cards
-              if (summary != null)
+          // Summary cards — Telefon: zwei mal zwei statt vier in einer
+          // Zeile (je 60 dp brächen „Timp de așteptare" mehrfach um).
+          if (summary != null && _schmal)
+            Column(
+              children: [
                 Row(
                   children: [
                     _buildSummaryCard(Icons.directions_car, AppLocalizations.of(context).travelTime, summary.fahrzeitDisplay, Colors.blue),
                     const SizedBox(width: 8),
                     _buildSummaryCard(Icons.work, AppLocalizations.of(context).workTime, summary.arbeitszeitDisplay, Colors.green),
-                    const SizedBox(width: 8),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
                     _buildSummaryCard(Icons.hourglass_empty, AppLocalizations.of(context).waitTime, summary.wartezeitDisplay, Colors.orange),
                     const SizedBox(width: 8),
                     _buildSummaryCard(Icons.functions, AppLocalizations.of(context).total, summary.gesamtDisplay, Colors.grey.shade700),
                   ],
                 ),
-            ],
-          ),
-        ),
+              ],
+            )
+          else if (summary != null)
+            Row(
+              children: [
+                _buildSummaryCard(Icons.directions_car, AppLocalizations.of(context).travelTime, summary.fahrzeitDisplay, Colors.blue),
+                const SizedBox(width: 8),
+                _buildSummaryCard(Icons.work, AppLocalizations.of(context).workTime, summary.arbeitszeitDisplay, Colors.green),
+                const SizedBox(width: 8),
+                _buildSummaryCard(Icons.hourglass_empty, AppLocalizations.of(context).waitTime, summary.wartezeitDisplay, Colors.orange),
+                const SizedBox(width: 8),
+                _buildSummaryCard(Icons.functions, AppLocalizations.of(context).total, summary.gesamtDisplay, Colors.grey.shade700),
+              ],
+            ),
+        ],
+      ),
+    );
 
-        // Manual entry button
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          child: Row(
-            children: [
-              OutlinedButton.icon(
-                onPressed: _showManualTimeDialog,
-                icon: const Icon(Icons.add, size: 16),
-                label: Text(AppLocalizations.of(context).addManually, style: const TextStyle(fontSize: 12)),
-              ),
-              const Spacer(),
-              IconButton(
-                onPressed: _loadTimeEntries,
-                icon: const Icon(Icons.refresh, size: 18),
-                tooltip: AppLocalizations.of(context).refresh,
-              ),
-            ],
+    // Manual entry button
+    final handZeile = Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Row(
+        children: [
+          OutlinedButton.icon(
+            onPressed: _showManualTimeDialog,
+            icon: const Icon(Icons.add, size: 16),
+            label: Text(AppLocalizations.of(context).addManually, style: const TextStyle(fontSize: 12)),
           ),
-        ),
+          const Spacer(),
+          IconButton(
+            onPressed: _loadTimeEntries,
+            icon: const Icon(Icons.refresh, size: 18),
+            tooltip: AppLocalizations.of(context).refresh,
+          ),
+        ],
+      ),
+    );
 
+    final leer = Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Icon(Icons.timer_off, size: 48, color: Colors.grey.shade400),
+        const SizedBox(height: 12),
+        Text(AppLocalizations.of(context).noTimeEntriesYet, style: TextStyle(color: Colors.grey.shade600)),
+      ],
+    );
+
+    // Telefon: alles in EINER Liste — fest oben stehend nahmen Uhr und
+    // Summen auf 320 × 640 dp die ganze Höhe, für die Einträge blieben 0 dp.
+    if (_schmal) {
+      return ListView(
+        children: [
+          kopf,
+          handZeile,
+          if (_timeEntries.isEmpty)
+            Padding(padding: const EdgeInsets.symmetric(vertical: 24), child: leer)
+          else
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Column(children: [for (final e in _timeEntries) _buildZeitEintrag(e, dateFormat)]),
+            ),
+        ],
+      );
+    }
+
+    return Column(
+      children: [
+        kopf,
+        handZeile,
         // Time entries list
         Expanded(
           child: _timeEntries.isEmpty
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.timer_off, size: 48, color: Colors.grey.shade400),
-                      const SizedBox(height: 12),
-                      Text(AppLocalizations.of(context).noTimeEntriesYet, style: TextStyle(color: Colors.grey.shade600)),
-                    ],
-                  ),
-                )
+              ? Center(child: leer)
               : ListView.builder(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   itemCount: _timeEntries.length,
-                  itemBuilder: (context, index) {
-                    final entry = _timeEntries[index];
-                    final color = _timeCategoryColor(entry.category);
-                    final icon = _timeCategoryIcon(entry.category);
-
-                    return Card(
-                      margin: const EdgeInsets.only(bottom: 8),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                        side: BorderSide(color: color.withAlpha(80)),
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(12),
-                        child: Row(
-                          children: [
-                            // Category icon
-                            Container(
-                              width: 36,
-                              height: 36,
-                              decoration: BoxDecoration(
-                                color: color.withAlpha(30),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Icon(icon, size: 18, color: color),
-                            ),
-                            const SizedBox(width: 12),
-                            // Info
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    children: [
-                                      Text(entry.category.display, style: TextStyle(fontWeight: FontWeight.bold, color: color, fontSize: 13)),
-                                      if (entry.isManual) ...[
-                                        const SizedBox(width: 6),
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-                                          decoration: BoxDecoration(
-                                            color: Colors.grey.shade200,
-                                            borderRadius: BorderRadius.circular(4),
-                                          ),
-                                          child: Text(AppLocalizations.of(context).manualBadge, style: TextStyle(fontSize: 10, color: Colors.grey.shade600)),
-                                        ),
-                                      ],
-                                      if (entry.isRunning) ...[
-                                        const SizedBox(width: 6),
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-                                          decoration: BoxDecoration(
-                                            color: Colors.red.shade100,
-                                            borderRadius: BorderRadius.circular(4),
-                                          ),
-                                          child: Text(AppLocalizations.of(context).runningBadge, style: TextStyle(fontSize: 10, color: Colors.red.shade700, fontWeight: FontWeight.bold)),
-                                        ),
-                                      ],
-                                    ],
-                                  ),
-                                  const SizedBox(height: 2),
-                                  if (entry.isManual && entry.startedAt != null)
-                                    Text(DateFormat('dd.MM.yyyy').format(entry.startedAt!), style: TextStyle(fontSize: 11, color: Colors.grey.shade600))
-                                  else if (!entry.isManual && entry.startedAt != null)
-                                    Text(
-                                      '${dateFormat.format(entry.startedAt!)}${entry.stoppedAt != null ? ' – ${DateFormat('HH:mm').format(entry.stoppedAt!)}' : ''}',
-                                      style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
-                                    ),
-                                  if (entry.note != null && entry.note!.isNotEmpty)
-                                    Padding(
-                                      padding: const EdgeInsets.only(top: 2),
-                                      child: Text(entry.note!, style: TextStyle(fontSize: 11, color: Colors.grey.shade500, fontStyle: FontStyle.italic), maxLines: 2, overflow: TextOverflow.ellipsis),
-                                    ),
-                                ],
-                              ),
-                            ),
-                            // Duration
-                            Text(
-                              entry.durationDisplay,
-                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, fontFamily: 'monospace', color: entry.isRunning ? Colors.red : null),
-                            ),
-                            // Delete
-                            if (!entry.isRunning)
-                              IconButton(
-                                onPressed: () => _deleteTimeEntry(entry),
-                                icon: Icon(Icons.delete_outline, size: 18, color: Colors.grey.shade400),
-                                tooltip: AppLocalizations.of(context).delete,
-                              ),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
+                  itemBuilder: (context, index) => _buildZeitEintrag(_timeEntries[index], dateFormat),
                 ),
         ),
       ],
+    );
+  }
+
+  /// Ein Zeiteintrag als Karte (Kategorie, Zeitraum, Notiz, Dauer, Löschen).
+  Widget _buildZeitEintrag(TimeEntry entry, DateFormat dateFormat) {
+    final color = _timeCategoryColor(entry.category);
+    final icon = _timeCategoryIcon(entry.category);
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(8),
+        side: BorderSide(color: color.withAlpha(80)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Row(
+          children: [
+            // Category icon
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: color.withAlpha(30),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(icon, size: 18, color: color),
+            ),
+            const SizedBox(width: 12),
+            // Info
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Wrap: Kategorie und Plaketten brechen auf dem
+                  // Telefon um, statt hinauszulaufen.
+                  Wrap(
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    runSpacing: 2,
+                    children: [
+                      Text(entry.category.display, style: TextStyle(fontWeight: FontWeight.bold, color: color, fontSize: 13)),
+                      if (entry.isManual) ...[
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade200,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(AppLocalizations.of(context).manualBadge, style: TextStyle(fontSize: 10, color: Colors.grey.shade600)),
+                        ),
+                      ],
+                      if (entry.isRunning) ...[
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                          decoration: BoxDecoration(
+                            color: Colors.red.shade100,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(AppLocalizations.of(context).runningBadge, style: TextStyle(fontSize: 10, color: Colors.red.shade700, fontWeight: FontWeight.bold)),
+                        ),
+                      ],
+                    ],
+                  ),
+                  const SizedBox(height: 2),
+                  if (entry.isManual && entry.startedAt != null)
+                    Text(DateFormat('dd.MM.yyyy').format(entry.startedAt!), style: TextStyle(fontSize: 11, color: Colors.grey.shade600))
+                  else if (!entry.isManual && entry.startedAt != null)
+                    Text(
+                      '${dateFormat.format(entry.startedAt!)}${entry.stoppedAt != null ? ' – ${DateFormat('HH:mm').format(entry.stoppedAt!)}' : ''}',
+                      style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                    ),
+                  if (entry.note != null && entry.note!.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 2),
+                      child: Text(entry.note!, style: TextStyle(fontSize: 11, color: Colors.grey.shade500, fontStyle: FontStyle.italic), maxLines: 2, overflow: TextOverflow.ellipsis),
+                    ),
+                ],
+              ),
+            ),
+            // Duration
+            Text(
+              entry.durationDisplay,
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, fontFamily: 'monospace', color: entry.isRunning ? Colors.red : null),
+            ),
+            // Delete
+            if (!entry.isRunning)
+              IconButton(
+                onPressed: () => _deleteTimeEntry(entry),
+                icon: Icon(Icons.delete_outline, size: 18, color: Colors.grey.shade400),
+                tooltip: AppLocalizations.of(context).delete,
+              ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -2088,9 +2202,12 @@ class _TicketDetailsDialogState extends State<TicketDetailsDialog> with SingleTi
             '$label: ',
             style: TextStyle(color: Colors.grey.shade700, fontSize: 14),
           ),
-          Text(
-            value,
-            style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14),
+          // Flexible: ein langer Bearbeitername bricht um, statt hinauszulaufen
+          Flexible(
+            child: Text(
+              value,
+              style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14),
+            ),
           ),
         ],
       ),

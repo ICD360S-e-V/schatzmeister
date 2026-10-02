@@ -99,12 +99,21 @@ class FileViewerDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Entschieden wird nach der Breite, die der Dialog wirklich bekommt.
+    return LayoutBuilder(builder: _baueDialog);
+  }
+
+  Widget _baueDialog(BuildContext context, BoxConstraints constraints) {
     final loc = AppLocalizations.of(context);
+    // Telefon: ganzer Bildschirm — in 800 × 650 dp mit 40 dp Rand bliebe
+    // vom Dokument auf 393 dp nur ein schmaler Streifen.
+    final schmal = constraints.maxWidth < 600;
     return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      insetPadding: schmal ? EdgeInsets.zero : null,
+      shape: schmal ? const RoundedRectangleBorder() : RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: SizedBox(
-        width: 800,
-        height: 650,
+        width: schmal ? constraints.maxWidth : 800,
+        height: schmal ? constraints.maxHeight : 650,
         child: Column(
           children: [
             // Header with actions
@@ -112,7 +121,7 @@ class FileViewerDialog extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               decoration: BoxDecoration(
                 color: Colors.grey.shade100,
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+                borderRadius: schmal ? null : const BorderRadius.vertical(top: Radius.circular(12)),
               ),
               child: Row(
                 children: [

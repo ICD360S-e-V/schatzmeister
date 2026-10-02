@@ -87,52 +87,63 @@ class _VisitenkarteState extends State<Visitenkarte> {
   @override
   Widget build(BuildContext context) {
     final loc = AppLocalizations.of(context);
-    return Padding(
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          // Business Card
-          GestureDetector(
-            onTap: _flipCard,
-            child: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 300),
-              transitionBuilder: (child, animation) {
-                return FadeTransition(
-                  opacity: animation,
-                  child: child,
-                );
-              },
-              child: _showFront ? _buildVorderseite(loc) : _buildRuckseite(loc),
-            ),
-          ),
-          const SizedBox(height: 16),
-          // Flip instruction
-          Row(
+    // Wie bisher mittig; ist der Reiter niedriger als Karte und Hinweis
+    // (Telefon quer, kleines Telefon), scrollt er, statt unten abzureißen.
+    return LayoutBuilder(builder: (context, constraints) => SingleChildScrollView(
+      child: ConstrainedBox(
+        constraints: BoxConstraints(minHeight: constraints.hasBoundedHeight ? constraints.maxHeight : 0),
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.touch_app, size: 16, color: Colors.grey.shade600),
-              const SizedBox(width: 8),
-              Text(
-                _showFront ? loc.tapForBack : loc.tapForFront,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey.shade600,
-                  fontStyle: FontStyle.italic,
+              // Business Card
+              GestureDetector(
+                onTap: _flipCard,
+                child: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 300),
+                  transitionBuilder: (child, animation) {
+                    return FadeTransition(
+                      opacity: animation,
+                      child: child,
+                    );
+                  },
+                  child: _showFront ? _buildVorderseite(loc) : _buildRuckseite(loc),
                 ),
+              ),
+              const SizedBox(height: 16),
+              // Flip instruction
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.touch_app, size: 16, color: Colors.grey.shade600),
+                  const SizedBox(width: 8),
+                  Flexible(
+                    child: Text(
+                      _showFront ? loc.tapForBack : loc.tapForFront,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey.shade600,
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
-        ],
+        ),
       ),
-    );
+    ));
   }
 
   Widget _buildVorderseite(AppLocalizations loc) {
     return Container(
       key: const ValueKey('front'),
       width: double.infinity,
-      height: 280,
+      // Mindesthöhe statt fester Höhe: ein langer Doppelname bricht um und
+      // die Karte wächst mit, statt unten abgeschnitten zu werden.
+      constraints: const BoxConstraints(minHeight: 280),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
@@ -254,11 +265,13 @@ class _VisitenkarteState extends State<Visitenkarte> {
                     children: [
                       const Icon(Icons.phone, size: 14, color: Colors.white70),
                       const SizedBox(width: 6),
-                      Text(
-                        _phone,
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: Colors.white,
+                      Flexible(
+                        child: Text(
+                          _phone,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Colors.white,
+                          ),
                         ),
                       ),
                     ],
@@ -295,7 +308,7 @@ class _VisitenkarteState extends State<Visitenkarte> {
     return Container(
       key: const ValueKey('back'),
       width: double.infinity,
-      height: 280,
+      constraints: const BoxConstraints(minHeight: 280),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),

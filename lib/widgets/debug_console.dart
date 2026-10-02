@@ -64,57 +64,88 @@ class _DebugConsoleState extends State<DebugConsole> {
 
   @override
   Widget build(BuildContext context) {
+    // Entschieden wird nach der Breite, die der Dialog wirklich bekommt.
+    return LayoutBuilder(builder: _baueDialog);
+  }
+
+  Widget _baueDialog(BuildContext context, BoxConstraints constraints) {
     final loc = AppLocalizations.of(context);
+    // Telefon: ganzer Bildschirm, Kopf in zwei Zeilen — Titel, Zähler und
+    // vier Knöpfe passen nicht in 393 dp.
+    final schmal = constraints.maxWidth < 600;
+    final titel = Text(
+      loc.debugConsole,
+      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+    );
+    final anzahl = Text(
+      loc.entriesCount(_logs.length),
+      style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+    );
+    final knoepfe = [
+      IconButton(
+        icon: Icon(
+          _autoScroll ? Icons.vertical_align_bottom : Icons.vertical_align_center,
+          color: _autoScroll ? Colors.green : Colors.grey,
+        ),
+        onPressed: () => setState(() => _autoScroll = !_autoScroll),
+        tooltip: _autoScroll ? loc.autoScrollOn : loc.autoScrollOff,
+      ),
+      IconButton(
+        icon: const Icon(Icons.copy, color: Colors.blue),
+        onPressed: _copyLogs,
+        tooltip: loc.copyLogs,
+      ),
+      IconButton(
+        icon: const Icon(Icons.delete_outline, color: Colors.red),
+        onPressed: () {
+          _logger.clear();
+          setState(() => _logs = []);
+        },
+        tooltip: loc.deleteLogs,
+      ),
+    ];
+    final schliessen = IconButton(
+      icon: const Icon(Icons.close),
+      onPressed: () => Navigator.pop(context),
+    );
     return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      insetPadding: schmal ? EdgeInsets.zero : null,
+      shape: schmal ? const RoundedRectangleBorder() : RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Container(
-        width: 700,
-        height: 500,
+        width: schmal ? constraints.maxWidth : 700,
+        height: schmal ? constraints.maxHeight : 500,
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
             // Header
-            Row(
-              children: [
-                const Icon(Icons.terminal, color: Colors.green),
-                const SizedBox(width: 8),
-                Text(
-                  loc.debugConsole,
-                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-                const Spacer(),
-                Text(
-                  loc.entriesCount(_logs.length),
-                  style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
-                ),
-                const SizedBox(width: 16),
-                IconButton(
-                  icon: Icon(
-                    _autoScroll ? Icons.vertical_align_bottom : Icons.vertical_align_center,
-                    color: _autoScroll ? Colors.green : Colors.grey,
-                  ),
-                  onPressed: () => setState(() => _autoScroll = !_autoScroll),
-                  tooltip: _autoScroll ? loc.autoScrollOn : loc.autoScrollOff,
-                ),
-                IconButton(
-                  icon: const Icon(Icons.copy, color: Colors.blue),
-                  onPressed: _copyLogs,
-                  tooltip: loc.copyLogs,
-                ),
-                IconButton(
-                  icon: const Icon(Icons.delete_outline, color: Colors.red),
-                  onPressed: () {
-                    _logger.clear();
-                    setState(() => _logs = []);
-                  },
-                  tooltip: loc.deleteLogs,
-                ),
-                IconButton(
-                  icon: const Icon(Icons.close),
-                  onPressed: () => Navigator.pop(context),
-                ),
-              ],
-            ),
+            if (schmal) ...[
+              Row(
+                children: [
+                  const Icon(Icons.terminal, color: Colors.green),
+                  const SizedBox(width: 8),
+                  Expanded(child: titel),
+                  schliessen,
+                ],
+              ),
+              Row(
+                children: [
+                  Expanded(child: anzahl),
+                  ...knoepfe,
+                ],
+              ),
+            ] else
+              Row(
+                children: [
+                  const Icon(Icons.terminal, color: Colors.green),
+                  const SizedBox(width: 8),
+                  titel,
+                  const Spacer(),
+                  anzahl,
+                  const SizedBox(width: 16),
+                  ...knoepfe,
+                  schliessen,
+                ],
+              ),
             const Divider(),
 
             // Logs

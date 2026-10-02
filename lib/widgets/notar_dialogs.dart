@@ -29,7 +29,7 @@ Future<bool> showEditNotarDialog({
         children: [
           const Icon(Icons.edit, color: Colors.orange),
           const SizedBox(width: 8),
-          Text(l.editNotarData),
+          Flexible(child: Text(l.editNotarData)),
         ],
       ),
       content: SizedBox(
@@ -66,10 +66,12 @@ Future<bool> showEditNotarDialog({
                   child: Text(l.addressLabel, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
                 ),
                 const SizedBox(height: 12),
-                Row(
+                // Telefon (Inhalt < 360 dp): die Hausnummer bekommt ein Drittel
+                // statt eines Viertels — in 63 dp passte „123a" nicht hinein.
+                LayoutBuilder(builder: (context, c) => Row(
                   children: [
                     Expanded(
-                      flex: 3,
+                      flex: c.maxWidth < 360 ? 2 : 3,
                       child: TextFormField(
                         controller: strasseController,
                         decoration: InputDecoration(
@@ -89,7 +91,7 @@ Future<bool> showEditNotarDialog({
                       ),
                     ),
                   ],
-                ),
+                )),
                 const SizedBox(height: 12),
                 Row(
                   children: [
@@ -231,7 +233,7 @@ Future<bool> showAddRechnungDialog({
           children: [
             const Icon(Icons.receipt_long, color: Colors.blue),
             const SizedBox(width: 8),
-            Text(l.newInvoice),
+            Flexible(child: Text(l.newInvoice)),
           ],
         ),
         content: SizedBox(
@@ -351,7 +353,7 @@ Future<bool> showAddBesuchDialog({
           children: [
             const Icon(Icons.calendar_today, color: Colors.green),
             const SizedBox(width: 8),
-            Text(l.newVisit),
+            Flexible(child: Text(l.newVisit)),
           ],
         ),
         content: SizedBox(
@@ -503,7 +505,7 @@ Future<bool> showAddDokumentDialog({
           children: [
             const Icon(Icons.folder_open, color: Colors.purple),
             const SizedBox(width: 8),
-            Text(l.newDocument),
+            Flexible(child: Text(l.newDocument)),
           ],
         ),
         content: SizedBox(
@@ -841,7 +843,7 @@ Future<bool> showAddAufgabeDialog({
           children: [
             const Icon(Icons.task_alt, color: Colors.deepOrange),
             const SizedBox(width: 8),
-            Text(l.newTask),
+            Flexible(child: Text(l.newTask)),
           ],
         ),
         content: SizedBox(
@@ -983,7 +985,7 @@ Future<bool> showAddZahlungDialog({
           children: [
             const Icon(Icons.euro, color: Colors.teal),
             const SizedBox(width: 8),
-            Text(l.newPayment),
+            Flexible(child: Text(l.newPayment)),
           ],
         ),
         content: SizedBox(
