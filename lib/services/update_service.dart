@@ -34,8 +34,8 @@ class UpdateService {
   /// http-Paket folgt Weiterleitungen bei GET von sich aus.
   static const String versionUrl =
       'https://github.com/ICD360S-e-V/schatzmeister/releases/latest/download/version_schatzmeister.json';
-  static const String currentVersion = '1.3.1';
-  static const int currentBuildNumber = 41;
+  static const String currentVersion = '1.3.2';
+  static const int currentBuildNumber = 42;
   // ✅ SECURITY FIX: Removed hardcoded API key (extractable via reverse engineering)
   // All requests now use dynamic Device Key only
 
