@@ -8,7 +8,9 @@ import '../services/api_service.dart';
 import '../services/logger_service.dart';
 import '../services/verwarnung_service.dart';
 import '../services/dokumente_service.dart';
+import '../services/language_service.dart';
 import '../utils/role_helpers.dart';
+import 'flagge.dart';
 import 'visitenkarte.dart';
 
 class ProfileDialog extends StatefulWidget {
@@ -737,6 +739,7 @@ class _ProfileDialogState extends State<ProfileDialog> with SingleTickerProvider
           const SizedBox(height: 12),
           _buildInfoRow(Icons.phone, l.phone, _currentPhone),
           const SizedBox(height: 12),
+          _buildSprachZeile(),
           const SizedBox(height: 24),
 
           // Change Phone Button/Form
@@ -2049,6 +2052,41 @@ class _ProfileDialogState extends State<ProfileDialog> with SingleTickerProvider
       case 'abgelehnt': return l.statusRejected;
       default: return l.statusOpenVerif;
     }
+  }
+
+  /// Sprache der Oberfläche — dieselbe Wahl wie beim ersten Start.
+  Widget _buildSprachZeile() {
+    final aktuell = LanguageService.instance.currentCode;
+    return Row(
+      children: [
+        Icon(Icons.translate, color: Colors.grey.shade600, size: 20),
+        const SizedBox(width: 12),
+        Text(
+          tr('Sprache', 'Limba'),
+          style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (final lang in LanguageService.supported)
+                ChoiceChip(
+                  key: ValueKey('profil_sprache_${lang.code}'),
+                  avatar: Flagge(code: lang.code, breite: 22),
+                  label: Text(lang.nativeName),
+                  selected: lang.code == aktuell,
+                  onSelected: (_) async {
+                    await LanguageService.instance.setLanguage(lang.code);
+                    if (mounted) setState(() {});
+                  },
+                ),
+            ],
+          ),
+        ),
+      ],
+    );
   }
 
   Widget _buildInfoRow(IconData icon, String label, String value) {

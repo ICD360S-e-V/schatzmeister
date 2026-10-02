@@ -4,7 +4,9 @@ import 'package:flutter/services.dart' show HardwareKeyboard;
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'l10n/app_localizations.dart';
 import 'screens/login_with_code_screen.dart';
+import 'screens/sprachauswahl_screen.dart';
 import 'services/api_service.dart';
+import 'services/language_service.dart';
 import 'services/notification_service.dart';
 import 'services/logger_service.dart';
 import 'services/startup_service.dart';
@@ -19,6 +21,10 @@ import 'package:windows_single_instance/windows_single_instance.dart';
 
 void main(List<String> args) async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Gewählte Sprache vor dem ersten Bild laden — sonst blitzte die
+  // Oberfläche einen Frame lang auf Deutsch auf.
+  await LanguageService.instance.load();
 
   // ============================================================
   // DESKTOP-ONLY INITIALIZATION
@@ -108,10 +114,35 @@ class _SchatzmeisterAppState extends State<SchatzmeisterApp> {
   void initState() {
     super.initState();
 
+    LanguageService.instance.localeNotifier.addListener(_spracheGewechselt);
+
     // Desktop-only: Add window listener for tray minimize
     if (PlatformService.isDesktop) {
       _initDesktopWindowListener();
     }
+  }
+
+  @override
+  void dispose() {
+    LanguageService.instance.localeNotifier.removeListener(_spracheGewechselt);
+    super.dispose();
+  }
+
+  /// Sprachwechsel: alles neu zeichnen.
+  ///
+  /// setState allein reicht nicht. Texte über tr() lesen die Sprache ohne
+  /// BuildContext und hängen damit nicht an Localizations — solche Widgets
+  /// (auch konstante) würden erst beim nächsten zufälligen Neuaufbau
+  /// umschalten. Darum wird jedes Element darunter als veraltet markiert,
+  /// auch in offenen Dialogen und Routen.
+  void _spracheGewechselt() {
+    setState(() {});
+    void neu(Element e) {
+      e.markNeedsBuild();
+      e.visitChildren(neu);
+    }
+
+    (context as Element).visitChildren(neu);
   }
 
   void _initDesktopWindowListener() {
@@ -123,11 +154,14 @@ class _SchatzmeisterAppState extends State<SchatzmeisterApp> {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'ICD360S e.V - Schatzmeister Portal',
+      // Fenstertitel bzw. Name in der Android-Übersicht, in der gewählten Sprache.
+      onGenerateTitle: (context) => AppLocalizations.of(context).appTitle,
       debugShowCheckedModeBanner: false,
       // Navigator key for in-app notifications overlay
       navigatorKey: NotificationService.navigatorKey,
-      // Localization delegates (DE + RO based on device language)
+      // DE + RO — gewählt auf dem Sprachauswahlbildschirm, nicht mehr aus
+      // der Geräteeinstellung abgeleitet.
+      locale: LanguageService.instance.localeNotifier.value,
       localizationsDelegates: const [
         AppLocalizations.delegate,
         GlobalMaterialLocalizations.delegate,
@@ -138,13 +172,6 @@ class _SchatzmeisterAppState extends State<SchatzmeisterApp> {
         Locale('de', 'DE'),
         Locale('ro', 'RO'),
       ],
-      // Auto-detect device language (fallback to German)
-      localeResolutionCallback: (locale, supportedLocales) {
-        if (locale != null && locale.languageCode == 'ro') {
-          return const Locale('ro', 'RO');
-        }
-        return const Locale('de', 'DE');
-      },
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
           seedColor: const Color(0xFF4a90d9),
@@ -154,7 +181,10 @@ class _SchatzmeisterAppState extends State<SchatzmeisterApp> {
         // Use system font on each platform
         fontFamily: Platform.isWindows ? 'Segoe UI' : null,
       ),
-      home: const LoginWithCodeScreen(),
+      // Erster Start: erst die Sprache wählen, dann aktivieren.
+      home: LanguageService.instance.hasUserChoice
+          ? const LoginWithCodeScreen()
+          : const SprachauswahlScreen(danach: LoginWithCodeScreen()),
     );
   }
 }
@@ -167,11 +197,12 @@ class _DesktopWindowListener extends WindowListener {
     await TrayService().hideToTray();
 
     // Show notification that app is still running
-    // Note: No BuildContext available here, show in German (desktop only)
     NotificationService().showSuccess(
-      title: 'App im Hintergrund',
-      message:
-          'ICD360S e.V läuft weiter im Hintergrund. Klicken Sie auf das Tray-Icon zum Öffnen.',
+      title: tr('App im Hintergrund', 'Aplicație în fundal'),
+      message: tr(
+        'ICD360S e.V läuft weiter im Hintergrund. Klicken Sie auf das Tray-Icon zum Öffnen.',
+        'ICD360S e.V rulează în fundal. Faceți clic pe pictograma din tray pentru a deschide.',
+      ),
     );
   }
 
