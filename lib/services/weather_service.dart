@@ -3,43 +3,46 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'notification_service.dart';
 import 'logger_service.dart';
+import 'language_service.dart';
 
 final _log = LoggerService();
 
-/// WMO Weather Code descriptions (German)
+/// WMO Weather Code descriptions (German/Romanian)
 class WeatherCode {
-  static const Map<int, String> descriptions = {
-    0: 'Klar',
-    1: 'Überwiegend klar',
-    2: 'Teilweise bewölkt',
-    3: 'Bewölkt',
-    45: 'Nebel',
-    48: 'Nebel mit Reif',
-    51: 'Leichter Nieselregen',
-    53: 'Nieselregen',
-    55: 'Starker Nieselregen',
-    56: 'Gefrierender Nieselregen',
-    57: 'Starker gefrierender Nieselregen',
-    61: 'Leichter Regen',
-    63: 'Regen',
-    65: 'Starker Regen',
-    66: 'Gefrierender Regen',
-    67: 'Starker gefrierender Regen',
-    71: 'Leichter Schneefall',
-    73: 'Schneefall',
-    75: 'Starker Schneefall',
-    77: 'Schneegriesel',
-    80: 'Leichte Regenschauer',
-    81: 'Regenschauer',
-    82: 'Starke Regenschauer',
-    85: 'Leichte Schneeschauer',
-    86: 'Starke Schneeschauer',
-    95: 'Gewitter',
-    96: 'Gewitter mit Hagel',
-    99: 'Starkes Gewitter mit Hagel',
+  // Getter statt const: tr() muss bei jedem Zugriff die aktuelle Sprache lesen.
+  static Map<int, String> get descriptions => {
+    0: tr('Klar', 'Senin'),
+    1: tr('Überwiegend klar', 'Predominant senin'),
+    2: tr('Teilweise bewölkt', 'Parțial noros'),
+    3: tr('Bewölkt', 'Noros'),
+    45: tr('Nebel', 'Ceață'),
+    48: tr('Nebel mit Reif', 'Ceață cu chiciură'),
+    51: tr('Leichter Nieselregen', 'Burniță slabă'),
+    53: tr('Nieselregen', 'Burniță'),
+    55: tr('Starker Nieselregen', 'Burniță puternică'),
+    56: tr('Gefrierender Nieselregen', 'Burniță care îngheață'),
+    57: tr('Starker gefrierender Nieselregen', 'Burniță puternică care îngheață'),
+    61: tr('Leichter Regen', 'Ploaie slabă'),
+    63: tr('Regen', 'Ploaie'),
+    65: tr('Starker Regen', 'Ploaie puternică'),
+    66: tr('Gefrierender Regen', 'Ploaie care îngheață'),
+    67: tr('Starker gefrierender Regen', 'Ploaie puternică care îngheață'),
+    71: tr('Leichter Schneefall', 'Ninsoare slabă'),
+    73: tr('Schneefall', 'Ninsoare'),
+    75: tr('Starker Schneefall', 'Ninsoare puternică'),
+    77: tr('Schneegriesel', 'Grăunțe de zăpadă'),
+    80: tr('Leichte Regenschauer', 'Averse slabe de ploaie'),
+    81: tr('Regenschauer', 'Averse de ploaie'),
+    82: tr('Starke Regenschauer', 'Averse puternice de ploaie'),
+    85: tr('Leichte Schneeschauer', 'Averse slabe de ninsoare'),
+    86: tr('Starke Schneeschauer', 'Averse puternice de ninsoare'),
+    95: tr('Gewitter', 'Furtună'),
+    96: tr('Gewitter mit Hagel', 'Furtună cu grindină'),
+    99: tr('Starkes Gewitter mit Hagel', 'Furtună puternică cu grindină'),
   };
 
-  static String describe(int code) => descriptions[code] ?? 'Unbekannt';
+  static String describe(int code) =>
+      descriptions[code] ?? tr('Unbekannt', 'Necunoscut');
 
   static bool isRain(int code) => (code >= 51 && code <= 67) || (code >= 80 && code <= 82);
   static bool isSnow(int code) => (code >= 71 && code <= 77) || (code >= 85 && code <= 86);
@@ -156,13 +159,13 @@ class WeatherAlert {
   String get severityLabel {
     switch (severity) {
       case 'extreme':
-        return 'Extrem';
+        return tr('Extrem', 'Extremă');
       case 'severe':
-        return 'Schwer';
+        return tr('Schwer', 'Severă');
       case 'moderate':
-        return 'Mäßig';
+        return tr('Mäßig', 'Moderată');
       default:
-        return 'Leicht';
+        return tr('Leicht', 'Ușoară');
     }
   }
 }
@@ -404,13 +407,13 @@ class WeatherService {
     String? body;
 
     if (weather.isThunder) {
-      title = '⛈️ Gewitter in $_city';
+      title = tr('⛈️ Gewitter in $_city', '⛈️ Furtună în $_city');
       body = '${weather.description} • ${weather.temperature.toStringAsFixed(0)}°C';
     } else if (weather.isSnow) {
-      title = '🌨️ Schneefall in $_city';
+      title = tr('🌨️ Schneefall in $_city', '🌨️ Ninsoare în $_city');
       body = '${weather.description} • ${weather.temperature.toStringAsFixed(0)}°C';
     } else if (weather.isRain) {
-      title = '🌧️ Regen in $_city';
+      title = tr('🌧️ Regen in $_city', '🌧️ Ploaie în $_city');
       body = '${weather.description} • ${weather.temperature.toStringAsFixed(0)}°C';
     }
 
@@ -431,8 +434,9 @@ class WeatherService {
     if (isStrongWind && !_lastNotifiedStrongWind) {
       _lastNotifiedStrongWind = true;
       NotificationService().show(
-        title: '💨 Starker Wind in $_city',
-        body: 'Windgeschwindigkeit: ${weather.windSpeed.toStringAsFixed(0)} km/h',
+        title: tr('💨 Starker Wind in $_city', '💨 Vânt puternic în $_city'),
+        body: tr('Windgeschwindigkeit: ${weather.windSpeed.toStringAsFixed(0)} km/h',
+            'Viteza vântului: ${weather.windSpeed.toStringAsFixed(0)} km/h'),
       );
       _log.info('Weather: Wind notification sent - ${weather.windSpeed} km/h', tag: 'WEATHER');
     } else if (!isStrongWind) {
@@ -462,7 +466,8 @@ class WeatherService {
         }
 
         NotificationService().show(
-          title: '$severityIcon DWD Warnung: ${alert.event}',
+          title: tr('$severityIcon DWD Warnung: ${alert.event}',
+              '$severityIcon Avertizare DWD: ${alert.event}'),
           body: alert.headline,
         );
         _log.info('Weather: DWD alert notification - ${alert.headline}', tag: 'WEATHER');

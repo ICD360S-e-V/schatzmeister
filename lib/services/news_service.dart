@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'logger_service.dart';
+import 'language_service.dart';
 
 final _log = LoggerService();
 
@@ -26,9 +27,15 @@ class NewsArticle {
   /// How long ago the article was published
   String get timeAgo {
     final diff = DateTime.now().difference(pubDate);
-    if (diff.inMinutes < 60) return 'vor ${diff.inMinutes} Min.';
-    if (diff.inHours < 24) return 'vor ${diff.inHours} Std.';
-    return 'vor ${diff.inDays} Tag${diff.inDays > 1 ? 'en' : ''}';
+    if (diff.inMinutes < 60) {
+      return tr('vor ${diff.inMinutes} Min.', 'acum ${diff.inMinutes} min.');
+    }
+    if (diff.inHours < 24) {
+      return tr('vor ${diff.inHours} Std.',
+          'acum ${diff.inHours} ${diff.inHours == 1 ? 'oră' : 'ore'}');
+    }
+    return tr('vor ${diff.inDays} Tag${diff.inDays > 1 ? 'en' : ''}',
+        'acum ${diff.inDays} ${diff.inDays > 1 ? 'zile' : 'zi'}');
   }
 }
 

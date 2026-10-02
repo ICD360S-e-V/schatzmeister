@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:html/parser.dart' as html_parser;
+import 'language_service.dart';
 
 /// Direct client-side scraping of handelsregister.de.
 /// Each user's desktop makes requests from their own IP,
@@ -91,7 +92,8 @@ class HandelsregisterClientService {
       final vs1 = _extractViewState(html1);
       if (vs1 == null) {
         debugPrint('[HR-CLIENT] Step 1 FAILED: no ViewState');
-        return _err('Handelsregister nicht erreichbar');
+        return _err(tr('Handelsregister nicht erreichbar',
+            'Handelsregister nu este accesibil'));
       }
       debugPrint('[HR-CLIENT] Step 1 ViewState: ${vs1.substring(0, vs1.length > 30 ? 30 : vs1.length)}...');
 
@@ -110,7 +112,8 @@ class HandelsregisterClientService {
       final vs2 = _extractViewState(html2);
       if (vs2 == null) {
         debugPrint('[HR-CLIENT] Step 2 FAILED: no ViewState');
-        return _err('Navigation zur Suche fehlgeschlagen');
+        return _err(tr('Navigation zur Suche fehlgeschlagen',
+            'Navigarea la căutare a eșuat'));
       }
 
       // Resolve Gericht code from dropdown
@@ -237,7 +240,8 @@ class HandelsregisterClientService {
           }
         }
         if (docOnclick == null) {
-          return _err("Dokumenttyp '$documentType' nicht verfügbar");
+          return _err(tr("Dokumenttyp '$documentType' nicht verfügbar",
+              "Tipul de document '$documentType' nu este disponibil"));
         }
 
         final params = _parseOnclickParams(docOnclick);
@@ -313,7 +317,10 @@ class HandelsregisterClientService {
       final welcomeUrl = '$_baseUrl/welcome.xhtml';
       final html1 = await _get(client, welcomeUrl);
       final vs1 = _extractViewState(html1);
-      if (vs1 == null) return _err('Handelsregister nicht erreichbar');
+      if (vs1 == null) {
+        return _err(tr('Handelsregister nicht erreichbar',
+            'Handelsregister nu este accesibil'));
+      }
 
       await Future.delayed(const Duration(milliseconds: 300));
 
@@ -325,7 +332,10 @@ class HandelsregisterClientService {
         'javax.faces.ViewState': vs1,
       }, referer: welcomeUrl);
       final vs2 = _extractViewState(html2);
-      if (vs2 == null) return _err('Navigation zur Suche fehlgeschlagen');
+      if (vs2 == null) {
+        return _err(tr('Navigation zur Suche fehlgeschlagen',
+            'Navigarea la căutare a eșuat'));
+      }
 
       final gerichtCode = _resolveGerichtCode(html2, registerGericht);
 
@@ -369,26 +379,28 @@ class HandelsregisterClientService {
       debugPrint('[HR-CLIENT-DL] Step 3 html length: ${html3.length}');
 
       if (resultUrl.contains('cstimeout')) {
-        return _err('Zu viele Anfragen. Bitte später erneut versuchen.');
+        return _err(tr('Zu viele Anfragen. Bitte später erneut versuchen.',
+            'Prea multe cereri. Vă rugăm să încercați din nou mai târziu.'));
       }
       if (resultUrl.contains('error')) {
-        return _err('Session-Fehler. Bitte erneut versuchen.');
+        return _err(tr('Session-Fehler. Bitte erneut versuchen.',
+            'Eroare de sesiune. Vă rugăm să încercați din nou.'));
       }
 
       final vs3 = _extractViewState(html3);
-      if (vs3 == null) return _err('Keine Ergebnisse gefunden');
+      if (vs3 == null) return _err(tr('Keine Ergebnisse gefunden', 'Niciun rezultat găsit'));
 
       // Cache this session for subsequent downloads
       final doc = html_parser.parse(html3);
       final form = doc.querySelector('form#ergebnissForm');
-      if (form == null) return _err('Keine Ergebnisse gefunden');
+      if (form == null) return _err(tr('Keine Ergebnisse gefunden', 'Niciun rezultat găsit'));
       final formAction = form.attributes['action'] ?? '';
       final formUrl = 'https://www.handelsregister.de$formAction';
       _cacheSession(html3, vs3, formUrl, resultUrl);
 
       // Find result rows
       final rows = doc.querySelectorAll('table[role="grid"] tr[data-ri]');
-      if (rows.isEmpty) return _err('Keine Ergebnisse gefunden');
+      if (rows.isEmpty) return _err(tr('Keine Ergebnisse gefunden', 'Niciun rezultat găsit'));
 
       // Find document link
       final links = rows.first.querySelectorAll('a.dokumentList');
@@ -401,12 +413,14 @@ class HandelsregisterClientService {
         }
       }
       if (docOnclick == null) {
-        return _err("Dokumenttyp '$documentType' nicht verfügbar");
+        return _err(tr("Dokumenttyp '$documentType' nicht verfügbar",
+            "Tipul de document '$documentType' nu este disponibil"));
       }
 
       final params = _parseOnclickParams(docOnclick);
       if (params == null) {
-        return _err('Dokument-Link konnte nicht gelesen werden');
+        return _err(tr('Dokument-Link konnte nicht gelesen werden',
+            'Linkul documentului nu a putut fi citit'));
       }
       params['ergebnissForm'] = 'ergebnissForm';
       params['javax.faces.ViewState'] = vs3;
@@ -443,10 +457,11 @@ class HandelsregisterClientService {
       final contentType = resp4.headers.contentType?.mimeType ?? '';
 
       if (effectiveUrl4.contains('cstimeout')) {
-        return _err('Zu viele Anfragen. Bitte später erneut versuchen.');
+        return _err(tr('Zu viele Anfragen. Bitte später erneut versuchen.',
+            'Prea multe cereri. Vă rugăm să încercați din nou mai târziu.'));
       }
       if (bytes.isEmpty) {
-        return _err('Leere Antwort vom Server');
+        return _err(tr('Leere Antwort vom Server', 'Răspuns gol de la server'));
       }
 
       final isPdf = (bytes.length >= 4 &&
@@ -456,7 +471,8 @@ class HandelsregisterClientService {
           contentType.contains('octet');
 
       if (!isPdf) {
-        return _err('Kein PDF erhalten (${bytes.length} bytes, $contentType)');
+        return _err(tr('Kein PDF erhalten (${bytes.length} bytes, $contentType)',
+            'Nu s-a primit niciun PDF (${bytes.length} octeți, $contentType)'));
       }
 
       final fileName =
@@ -469,7 +485,7 @@ class HandelsregisterClientService {
         }
       };
     } catch (e) {
-      return _err('Download fehlgeschlagen: $e');
+      return _err(tr('Download fehlgeschlagen: $e', 'Descărcare eșuată: $e'));
     } finally {
       client.close();
     }

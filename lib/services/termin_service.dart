@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/io_client.dart';
 import 'device_key_service.dart';
+import 'language_service.dart';
 
 /// Termin Model
 class Termin {
@@ -116,13 +117,13 @@ class Termin {
   String get categoryDisplay {
     switch (category) {
       case 'vorstandssitzung':
-        return 'Vorstandssitzung';
+        return tr('Vorstandssitzung', 'Ședință de conducere');
       case 'mitgliederversammlung':
-        return 'Mitgliederversammlung';
+        return tr('Mitgliederversammlung', 'Adunare generală');
       case 'schulung':
-        return 'Schulung';
+        return tr('Schulung', 'Instruire');
       case 'sonstiges':
-        return 'Sonstiges';
+        return tr('Sonstiges', 'Altele');
       default:
         return category;
     }
@@ -187,13 +188,13 @@ class TerminParticipant {
   String get responseDisplay {
     switch (response) {
       case 'confirmed':
-        return 'Bestätigt';
+        return tr('Bestätigt', 'Confirmat');
       case 'declined':
-        return 'Abgelehnt';
+        return tr('Abgelehnt', 'Refuzat');
       case 'pending':
-        return 'Ausstehend';
+        return tr('Ausstehend', 'În așteptare');
       case 'rescheduling':
-        return 'Verschiebung';
+        return tr('Verschiebung', 'Reprogramare');
       default:
         return response;
     }

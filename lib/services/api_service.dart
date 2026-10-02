@@ -7,6 +7,7 @@ import 'package:http/io_client.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'device_key_service.dart';
 import 'http_client_factory.dart';
+import 'language_service.dart';
 import 'logger_service.dart';
 import '../utils/role_helpers.dart';
 
@@ -233,7 +234,8 @@ class ApiService {
     if (!isValidMitgliedernummer(sanitizedMitgliedernummer)) {
       return {
         'success': false,
-        'message': 'Ungültige Benutzernummer Format.',
+        'message': tr('Ungültige Benutzernummer Format.',
+            'Format invalid al numărului de utilizator.'),
       };
     }
 
@@ -339,12 +341,12 @@ class ApiService {
       }
       return {
         'success': false,
-        'message': data['message'] ?? 'Aktivierung fehlgeschlagen',
+        'message': data['message'] ?? tr('Aktivierung fehlgeschlagen', 'Activare eșuată'),
       };
     } on FormatException {
-      return {'success': false, 'message': 'Ungültige Serverantwort'};
+      return {'success': false, 'message': tr('Ungültige Serverantwort', 'Răspuns invalid de la server')};
     } catch (e) {
-      return {'success': false, 'message': 'Aktivierung fehlgeschlagen: $e'};
+      return {'success': false, 'message': tr('Aktivierung fehlgeschlagen: $e', 'Activare eșuată: $e')};
     }
   }
 
@@ -362,9 +364,9 @@ class ApiService {
 
       return jsonDecode(response.body);
     } on FormatException {
-      return {'success': false, 'message': 'Ungültige Serverantwort'};
+      return {'success': false, 'message': tr('Ungültige Serverantwort', 'Răspuns invalid de la server')};
     } catch (e) {
-      return {'success': false, 'message': 'Wiederherstellung fehlgeschlagen: $e'};
+      return {'success': false, 'message': tr('Wiederherstellung fehlgeschlagen: $e', 'Restaurare eșuată: $e')};
     }
   }
 
@@ -658,7 +660,7 @@ class ApiService {
     if (!isValidEmail(sanitizedEmail)) {
       return {
         'success': false,
-        'message': 'Ungültige E-Mail-Adresse.',
+        'message': tr('Ungültige E-Mail-Adresse.', 'Adresă de e-mail invalidă.'),
       };
     }
 
@@ -1309,9 +1311,9 @@ class ApiService {
 
       return jsonDecode(response.body);
     } on FormatException {
-      return {'success': false, 'message': 'Ungültige Serverantwort'};
+      return {'success': false, 'message': tr('Ungültige Serverantwort', 'Răspuns invalid de la server')};
     } catch (e) {
-      return {'success': false, 'message': 'Reaktion fehlgeschlagen: $e'};
+      return {'success': false, 'message': tr('Reaktion fehlgeschlagen: $e', 'Reacția a eșuat: $e')};
     }
   }
 
@@ -1345,15 +1347,23 @@ class ApiService {
 
       final data = jsonDecode(response.body);
       if (data is! Map) {
-        return {'success': false, 'message': 'Unerwartete Antwort vom Server'};
+        return {
+          'success': false,
+          'message': tr('Unerwartete Antwort vom Server',
+              'Răspuns neașteptat de la server'),
+        };
       }
       return Map<String, dynamic>.from(data);
     } on FormatException {
-      return {'success': false, 'message': 'Ungültige Antwort vom Server'};
+      return {
+        'success': false,
+        'message': tr('Ungültige Antwort vom Server',
+            'Răspuns invalid de la server'),
+      };
     } catch (e) {
       // Der Aufrufer soll einen Satz zum Anzeigen bekommen, keine Ausnahme:
       // dieser Bildschirm läuft auch mal ohne Netz.
-      return {'success': false, 'message': 'Netzwerkfehler: $e'};
+      return {'success': false, 'message': tr('Netzwerkfehler: $e', 'Eroare de rețea: $e')};
     }
   }
 
@@ -1409,7 +1419,8 @@ class ApiService {
     return {
       'success': false,
       'read_only': true,
-      'message': 'Vereinsstammdaten können nur vom Vorsitzenden geändert werden.',
+      'message': tr('Vereinsstammdaten können nur vom Vorsitzenden geändert werden.',
+          'Datele de bază ale asociației pot fi modificate doar de președinte.'),
     };
   }
 
@@ -1982,7 +1993,7 @@ class ApiService {
       final response = await _client.get(uri, headers: _headers);
       return jsonDecode(response.body);
     } catch (e) {
-      return {'success': false, 'message': 'Filialfinder Fehler: $e'};
+      return {'success': false, 'message': tr('Filialfinder Fehler: $e', 'Eroare la căutarea filialelor: $e')};
     }
   }
 

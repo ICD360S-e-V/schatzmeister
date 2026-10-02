@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import 'package:http/io_client.dart';
 import 'api_service.dart';
 import 'http_client_factory.dart';
+import 'language_service.dart';
 import 'logger_service.dart';
 import 'notification_service.dart';
 
@@ -165,7 +166,7 @@ class NtfyService {
       // Skip keepalive/open events
       if (data['event'] != 'message') return;
 
-      final title = data['title'] ?? 'Benachrichtigung';
+      final title = data['title'] ?? tr('Benachrichtigung', 'Notificare');
       final message = data['message'] ?? '';
 
       _log.info('NtfyService: Received: $title - $message', tag: 'NTFY');
