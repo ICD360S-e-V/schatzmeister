@@ -29,7 +29,8 @@ class ApiService {
   static final ApiService _instance = ApiService._internal();
   factory ApiService() => _instance;
   ApiService._internal() {
-    // ✅ SECURITY: Certificate pinning (ISRG Root X1 / Let's Encrypt only)
+    // ✅ SECURITY: Certificate pinning (Let's Encrypt only: ISRG Root X1, X2,
+    // YE, YR — see HttpClientFactory)
     // In release: only accepts certificates signed by Let's Encrypt
     // In debug: pinning disabled for development
     final httpClient = HttpClientFactory.createPinnedHttpClient();

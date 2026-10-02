@@ -121,19 +121,34 @@ void main() {
   });
 
   group('Vertrauensanker', () {
-    test('es sind zwei, nicht einer', () {
+    test('es sind vier: X1, X2 und die naechste Generation YE, YR', () {
       // Die Kette endet heute nur deshalb bei X1, weil Let's Encrypt zwei
       // Kreuzsignaturen mitschickt. Fallen die weg, endet sie bei X2 — mit nur
-      // X1 als Anker schluege dann JEDE Verbindung fehl.
+      // X1 als Anker schluege dann JEDE Verbindung fehl. Und seit 10/2026
+      // haengt sie an Root YE, die X2 nur per Kreuzsignatur traegt: faellt
+      // auch die weg, tragen nur noch YE/YR.
       final anker = HttpClientFactory.vertrauensanker;
-      expect('BEGIN CERTIFICATE'.allMatches(anker).length, 2);
+      expect('BEGIN CERTIFICATE'.allMatches(anker).length, 4);
       expect(anker, contains('MIIFazCCA1OgAwIBAgIRAIIQz7DSQONZRGPgu2OCiwAw'),
           reason: 'ISRG Root X1');
       expect(anker, contains('MIICGzCCAaGgAwIBAgIQQdKd0XLq7qeAwSxs6S+HUjAK'),
           reason: 'ISRG Root X2');
+      expect(anker, contains('MIIB2TCCAWCgAwIBAgIRAKQCa6LvbHwg1AR+XmWmk4Aw'),
+          reason: 'ISRG Root YE');
+      expect(anker, contains('MIIFKTCCAxGgAwIBAgIRAOxGNJNgz0sP+KmC2Tqpyj0w'),
+          reason: 'ISRG Root YR');
     });
 
-    test('der Kontext nimmt beide an', () {
+    test('alle vier lassen sich als Vertrauensanker laden', () {
+      // Im Testlauf (Debug) pinnt die Fabrik nicht — deshalb hier direkt.
+      expect(
+          () => SecurityContext(withTrustedRoots: false)
+              .setTrustedCertificatesBytes(
+                  HttpClientFactory.vertrauensanker.codeUnits),
+          returnsNormally);
+    });
+
+    test('der Kontext nimmt alle an', () {
       // Ein zweiter Aufbau darf nicht an doppelt gesetzten Ankern scheitern.
       expect(() => HttpClientFactory.createPinnedHttpClient().close(),
           returnsNormally);
