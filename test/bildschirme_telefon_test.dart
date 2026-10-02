@@ -105,7 +105,9 @@ Widget _rahmen(Widget kind, String sprache) => MaterialApp(
     );
 
 /// Rendert [bauen] auf jeder Breite in jeder Sprache und verlangt: kein
-/// Überlauf. Andere Fehler (Netz, Plattform-Kanäle) zählen hier nicht.
+/// Überlauf und auch sonst kein Fehler beim Bauen oder Layouten — ein
+/// Bildschirm, der auf dem Telefon z. B. keine Höhe findet, ist kaputt, auch
+/// wenn nichts übersteht. Fehler aus Netz und Plattform-Kanälen zählen nicht.
 void pruefeBildschirm(String name, Widget Function() bauen) {
   group('Bildschirm $name', () {
     for (final sprache in kSprachen) {
@@ -116,15 +118,22 @@ void pruefeBildschirm(String name, Widget Function() bauen) {
           addTearDown(tester.view.reset);
           await LanguageService.instance.setLanguage(sprache);
 
-          final ueberlaeufe = <String>[];
+          final fehler = <String>[];
           final vorher = FlutterError.onError;
           FlutterError.onError = (details) {
             final text = details.toString();
+            final ort = RegExp(r'lib/[\w/]+\.dart:\d+').firstMatch(text)?.group(0) ?? '?';
             final m = RegExp(r'overflowed by ([0-9.]+) pixels on the (\w+)')
                 .firstMatch(text);
-            if (m == null) return;
-            final ort = RegExp(r'lib/[\w/]+\.dart:\d+').firstMatch(text);
-            ueberlaeufe.add('${m.group(1)} px ${m.group(2)} @ ${ort?.group(0) ?? '?'}');
+            if (m != null) {
+              fehler.add('${m.group(1)} px ${m.group(2)} @ $ort');
+              return;
+            }
+            final bibliothek = details.library ?? '';
+            if (bibliothek == 'rendering library' || bibliothek == 'widgets library') {
+              fehler.add('Fehler ($bibliothek): '
+                  '${details.exceptionAsString().split('\n').first} @ $ort');
+            }
           };
           try {
             await tester.pumpWidget(_rahmen(bauen(), sprache));
@@ -137,8 +146,8 @@ void pruefeBildschirm(String name, Widget Function() bauen) {
           tester.takeException();
           await tester.pumpWidget(const SizedBox());
 
-          expect(ueberlaeufe, isEmpty,
-              reason: '$name auf ${fall.key} [$sprache]:\n${ueberlaeufe.toSet().join('\n')}');
+          expect(fehler, isEmpty,
+              reason: '$name auf ${fall.key} [$sprache]:\n${fehler.toSet().join('\n')}');
         });
       }
     }
