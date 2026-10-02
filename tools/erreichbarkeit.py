@@ -25,7 +25,11 @@ import sys
 #       und wurden hier abgehängt. Der Sprung ist gewollt: die Dateien
 #       bleiben liegen, statt sie zu löschen, solange nicht entschieden ist,
 #       ob sie drüben gebraucht werden.
-ERWARTET_GEPARKT = 44
+#   35  2026-10-02 — sieben davon gelöscht: alle, die noch Vorsitzer-Endpunkte
+#       (/admin/…) aufriefen. Kein Aufruf aus dieser App in 54 Tagen
+#       Zugriffsprotokoll, und der Server lässt dort nur `vorsitzer` herein.
+#       Die Vorsitzer-App hat eigene Fassungen davon.
+ERWARTET_GEPARKT = 35
 
 
 def main() -> int:
