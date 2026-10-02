@@ -8,6 +8,7 @@ import 'package:pdfrx/pdfrx.dart';
 import 'package:archive/archive.dart' as archive;
 import '../models/user.dart';
 import '../services/api_service.dart';
+import '../services/language_service.dart';
 import '../services/logger_service.dart';
 
 final _log = LoggerService();
@@ -52,13 +53,13 @@ class _ArchivScreenState extends State<ArchivScreen> {
         });
       } else {
         setState(() {
-          _error = result['message']?.toString() ?? 'Fehler beim Laden';
+          _error = result['message']?.toString() ?? tr('Fehler beim Laden', 'Eroare la încărcare');
           _isLoading = false;
         });
       }
     } catch (e) {
       setState(() {
-        _error = 'Verbindungsfehler: $e';
+        _error = tr('Verbindungsfehler: $e', 'Eroare de conexiune: $e');
         _isLoading = false;
       });
       _log.error('Archiv: Load failed: $e', tag: 'ARCHIV');
@@ -107,7 +108,7 @@ class _ArchivScreenState extends State<ArchivScreen> {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text('Fehler: ${uploadResult['message']}'),
+                content: Text(tr('Fehler: ${uploadResult['message']}', 'Eroare: ${uploadResult['message']}')),
                 backgroundColor: Colors.red,
               ),
             );
@@ -120,7 +121,8 @@ class _ArchivScreenState extends State<ArchivScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('${result.files.length} Datei(en) erfolgreich archiviert'),
+            content: Text(tr('${result.files.length} Datei(en) erfolgreich archiviert',
+                'Fișiere arhivate cu succes: ${result.files.length}')),
             backgroundColor: Colors.green,
           ),
         );
@@ -129,7 +131,7 @@ class _ArchivScreenState extends State<ArchivScreen> {
       _log.error('Archiv: Upload failed: $e', tag: 'ARCHIV');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Upload fehlgeschlagen: $e'), backgroundColor: Colors.red),
+          SnackBar(content: Text(tr('Upload fehlgeschlagen: $e', 'Încărcare eșuată: $e')), backgroundColor: Colors.red),
         );
         setState(() => _isLoading = false);
       }
@@ -162,7 +164,7 @@ class _ArchivScreenState extends State<ArchivScreen> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Anzeige fehlgeschlagen: ${result['message']}'),
+              content: Text(tr('Anzeige fehlgeschlagen: ${result['message']}', 'Afișare eșuată: ${result['message']}')),
               backgroundColor: Colors.red,
             ),
           );
@@ -184,7 +186,7 @@ class _ArchivScreenState extends State<ArchivScreen> {
         final filename = result['filename']?.toString() ?? 'archiv_download';
 
         final savePath = await FilePicker.platform.saveFile(
-          dialogTitle: 'Archiv speichern',
+          dialogTitle: tr('Archiv speichern', 'Salvează arhiva'),
           fileName: filename,
         );
 
@@ -194,7 +196,7 @@ class _ArchivScreenState extends State<ArchivScreen> {
 
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Datei gespeichert'), backgroundColor: Colors.green),
+              SnackBar(content: Text(tr('Datei gespeichert', 'Fișier salvat')), backgroundColor: Colors.green),
             );
           }
         }
@@ -202,7 +204,7 @@ class _ArchivScreenState extends State<ArchivScreen> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Download fehlgeschlagen: ${result['message']}'),
+              content: Text(tr('Download fehlgeschlagen: ${result['message']}', 'Descărcare eșuată: ${result['message']}')),
               backgroundColor: Colors.red,
             ),
           );
@@ -217,14 +219,15 @@ class _ArchivScreenState extends State<ArchivScreen> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Archiv löschen'),
-        content: Text('Möchten Sie "${archive['titel']}" wirklich löschen?\n\nDiese Aktion kann nicht rückgängig gemacht werden.'),
+        title: Text(tr('Archiv löschen', 'Șterge arhiva')),
+        content: Text(tr('Möchten Sie "${archive['titel']}" wirklich löschen?\n\nDiese Aktion kann nicht rückgängig gemacht werden.',
+            'Sigur doriți să ștergeți „${archive['titel']}”?\n\nAceastă acțiune nu poate fi anulată.')),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Abbrechen')),
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(tr('Abbrechen', 'Anulare'))),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Löschen', style: TextStyle(color: Colors.white)),
+            child: Text(tr('Löschen', 'Șterge'), style: const TextStyle(color: Colors.white)),
           ),
         ],
       ),
@@ -241,7 +244,7 @@ class _ArchivScreenState extends State<ArchivScreen> {
         await _loadArchives();
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Archiv gelöscht'), backgroundColor: Colors.green),
+            SnackBar(content: Text(tr('Archiv gelöscht', 'Arhivă ștearsă')), backgroundColor: Colors.green),
           );
         }
       }
@@ -275,14 +278,15 @@ class _ArchivScreenState extends State<ArchivScreen> {
             children: [
               Icon(Icons.archive, color: Colors.indigo.shade700, size: 28),
               const SizedBox(width: 12),
-              const Expanded(
+              Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Archiv', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+                    Text(tr('Archiv', 'Arhivă'), style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
                     Text(
-                      'Verschlüsselte Aufbewahrung von WhatsApp-Chats und Dokumenten',
-                      style: TextStyle(color: Colors.grey, fontSize: 13),
+                      tr('Verschlüsselte Aufbewahrung von WhatsApp-Chats und Dokumenten',
+                          'Păstrare criptată a conversațiilor WhatsApp și a documentelor'),
+                      style: const TextStyle(color: Colors.grey, fontSize: 13),
                     ),
                   ],
                 ),
@@ -290,7 +294,7 @@ class _ArchivScreenState extends State<ArchivScreen> {
               ElevatedButton.icon(
                 onPressed: _uploadArchive,
                 icon: const Icon(Icons.upload_file),
-                label: const Text('Hochladen'),
+                label: Text(tr('Hochladen', 'Încarcă')),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.indigo.shade700,
                   foregroundColor: Colors.white,
@@ -307,7 +311,7 @@ class _ArchivScreenState extends State<ArchivScreen> {
           // Search
           TextField(
             decoration: InputDecoration(
-              hintText: 'Suchen nach Person, Titel...',
+              hintText: tr('Suchen nach Person, Titel...', 'Căutare după persoană, titlu...'),
               prefixIcon: const Icon(Icons.search),
               border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
               contentPadding: const EdgeInsets.symmetric(vertical: 12),
@@ -329,7 +333,7 @@ class _ArchivScreenState extends State<ArchivScreen> {
                             const SizedBox(height: 12),
                             Text(_error!, style: const TextStyle(color: Colors.red)),
                             const SizedBox(height: 12),
-                            ElevatedButton(onPressed: _loadArchives, child: const Text('Erneut versuchen')),
+                            ElevatedButton(onPressed: _loadArchives, child: Text(tr('Erneut versuchen', 'Încearcă din nou'))),
                           ],
                         ),
                       )
@@ -341,13 +345,15 @@ class _ArchivScreenState extends State<ArchivScreen> {
                                 Icon(Icons.archive_outlined, size: 64, color: Colors.grey.shade300),
                                 const SizedBox(height: 16),
                                 Text(
-                                  _searchQuery.isEmpty ? 'Noch keine Archive vorhanden' : 'Keine Ergebnisse',
+                                  _searchQuery.isEmpty
+                                      ? tr('Noch keine Archive vorhanden', 'Încă nu există arhive')
+                                      : tr('Keine Ergebnisse', 'Niciun rezultat'),
                                   style: TextStyle(fontSize: 16, color: Colors.grey.shade500),
                                 ),
                                 if (_searchQuery.isEmpty) ...[
                                   const SizedBox(height: 8),
                                   Text(
-                                    'Laden Sie WhatsApp-Chats oder Dokumente hoch',
+                                    tr('Laden Sie WhatsApp-Chats oder Dokumente hoch', 'Încărcați conversații WhatsApp sau documente'),
                                     style: TextStyle(fontSize: 13, color: Colors.grey.shade400),
                                   ),
                                 ],
@@ -383,15 +389,15 @@ class _ArchivScreenState extends State<ArchivScreen> {
       ),
       child: Row(
         children: [
-          _statItem(Icons.archive, '$total', 'Gesamt'),
+          _statItem(Icons.archive, '$total', tr('Gesamt', 'Total')),
           _statDivider(),
           _statItem(Icons.chat, '$whatsapp', 'WhatsApp'),
           _statDivider(),
-          _statItem(Icons.description, '$dokumente', 'Dokumente'),
+          _statItem(Icons.description, '$dokumente', tr('Dokumente', 'Documente')),
           _statDivider(),
-          _statItem(Icons.folder, '$sonstige', 'Sonstiges'),
+          _statItem(Icons.folder, '$sonstige', tr('Sonstiges', 'Altele')),
           _statDivider(),
-          _statItem(Icons.lock, _formatSize(totalSize), 'Verschlüsselt'),
+          _statItem(Icons.lock, _formatSize(totalSize), tr('Verschlüsselt', 'Criptat')),
         ],
       ),
     );
@@ -483,7 +489,7 @@ class _ArchivScreenState extends State<ArchivScreen> {
                     children: [
                       Expanded(
                         child: Text(
-                          archive['titel']?.toString() ?? 'Kein Titel',
+                          archive['titel']?.toString() ?? tr('Kein Titel', 'Fără titlu'),
                           style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -495,7 +501,11 @@ class _ArchivScreenState extends State<ArchivScreen> {
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Text(
-                          kategorie == 'whatsapp' ? 'WhatsApp' : kategorie == 'dokument' ? 'Dokument' : 'Sonstiges',
+                          kategorie == 'whatsapp'
+                              ? 'WhatsApp'
+                              : kategorie == 'dokument'
+                                  ? tr('Dokument', 'Document')
+                                  : tr('Sonstiges', 'Altele'),
                           style: TextStyle(fontSize: 11, color: catColor, fontWeight: FontWeight.w500),
                         ),
                       ),
@@ -560,19 +570,19 @@ class _ArchivScreenState extends State<ArchivScreen> {
               children: [
                 IconButton(
                   icon: const Icon(Icons.visibility, size: 20),
-                  tooltip: 'Anzeigen (nur im Speicher)',
+                  tooltip: tr('Anzeigen (nur im Speicher)', 'Afișează (doar în memorie)'),
                   onPressed: () => _viewArchive(archive),
                   color: Colors.green.shade700,
                 ),
                 IconButton(
                   icon: const Icon(Icons.download, size: 20),
-                  tooltip: 'Herunterladen',
+                  tooltip: tr('Herunterladen', 'Descarcă'),
                   onPressed: () => _downloadArchive(archive),
                   color: Colors.indigo,
                 ),
                 IconButton(
                   icon: const Icon(Icons.delete_outline, size: 20),
-                  tooltip: 'Löschen',
+                  tooltip: tr('Löschen', 'Șterge'),
                   onPressed: () => _deleteArchive(archive),
                   color: Colors.red.shade400,
                 ),
@@ -642,7 +652,7 @@ class _UploadDialogState extends State<_UploadDialog> {
         children: [
           Icon(Icons.upload_file, color: Colors.indigo.shade700),
           const SizedBox(width: 8),
-          const Text('Archiv hochladen'),
+          Text(tr('Archiv hochladen', 'Încarcă arhivă')),
         ],
       ),
       content: SizedBox(
@@ -663,10 +673,11 @@ class _UploadDialogState extends State<_UploadDialog> {
                 children: [
                   Icon(Icons.lock, color: Colors.green.shade700, size: 20),
                   const SizedBox(width: 8),
-                  const Expanded(
+                  Expanded(
                     child: Text(
-                      'Dateien werden AES-256 verschlüsselt auf dem Server gespeichert.',
-                      style: TextStyle(fontSize: 12),
+                      tr('Dateien werden AES-256 verschlüsselt auf dem Server gespeichert.',
+                          'Fișierele sunt stocate pe server, criptate cu AES-256.'),
+                      style: const TextStyle(fontSize: 12),
                     ),
                   ),
                 ],
@@ -675,15 +686,16 @@ class _UploadDialogState extends State<_UploadDialog> {
             const SizedBox(height: 16),
 
             // Member selector
-            const Align(
+            Align(
               alignment: Alignment.centerLeft,
-              child: Text('Mitglied auswählen *', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+              child: Text(tr('Mitglied auswählen *', 'Selectați membrul *'),
+                  style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
             ),
             const SizedBox(height: 6),
             TextField(
               controller: _searchCtrl,
               decoration: InputDecoration(
-                hintText: 'Suchen nach Name, Nummer...',
+                hintText: tr('Suchen nach Name, Nummer...', 'Căutare după nume, număr...'),
                 prefixIcon: const Icon(Icons.search, size: 20),
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
                 contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
@@ -763,25 +775,25 @@ class _UploadDialogState extends State<_UploadDialog> {
 
             TextField(
               controller: _titelCtrl,
-              decoration: const InputDecoration(
-                labelText: 'Titel *',
-                hintText: 'z.B. WhatsApp Chat mit Max Mustermann',
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.title),
+              decoration: InputDecoration(
+                labelText: tr('Titel *', 'Titlu *'),
+                hintText: tr('z.B. WhatsApp Chat mit Max Mustermann', 'de ex. Chat WhatsApp cu Ion Popescu'),
+                border: const OutlineInputBorder(),
+                prefixIcon: const Icon(Icons.title),
               ),
             ),
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
               initialValue: _kategorie,
-              decoration: const InputDecoration(
-                labelText: 'Kategorie',
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.category),
+              decoration: InputDecoration(
+                labelText: tr('Kategorie', 'Categorie'),
+                border: const OutlineInputBorder(),
+                prefixIcon: const Icon(Icons.category),
               ),
-              items: const [
-                DropdownMenuItem(value: 'whatsapp', child: Text('WhatsApp Chat')),
-                DropdownMenuItem(value: 'dokument', child: Text('Dokument')),
-                DropdownMenuItem(value: 'sonstiges', child: Text('Sonstiges')),
+              items: [
+                DropdownMenuItem(value: 'whatsapp', child: Text(tr('WhatsApp Chat', 'Chat WhatsApp'))),
+                DropdownMenuItem(value: 'dokument', child: Text(tr('Dokument', 'Document'))),
+                DropdownMenuItem(value: 'sonstiges', child: Text(tr('Sonstiges', 'Altele'))),
               ],
               onChanged: (v) => setState(() => _kategorie = v ?? 'whatsapp'),
             ),
@@ -789,11 +801,11 @@ class _UploadDialogState extends State<_UploadDialog> {
             TextField(
               controller: _beschreibungCtrl,
               maxLines: 2,
-              decoration: const InputDecoration(
-                labelText: 'Beschreibung',
-                hintText: 'Warum wird dieses Archiv aufbewahrt?',
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.notes),
+              decoration: InputDecoration(
+                labelText: tr('Beschreibung', 'Descriere'),
+                hintText: tr('Warum wird dieses Archiv aufbewahrt?', 'De ce este păstrată această arhivă?'),
+                border: const OutlineInputBorder(),
+                prefixIcon: const Icon(Icons.notes),
               ),
             ),
           ],
@@ -802,19 +814,23 @@ class _UploadDialogState extends State<_UploadDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text('Abbrechen'),
+          child: Text(tr('Abbrechen', 'Anulare')),
         ),
         ElevatedButton.icon(
           onPressed: () {
             if (_selectedUser == null) {
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Bitte wählen Sie ein Mitglied aus'), backgroundColor: Colors.red),
+                SnackBar(
+                    content: Text(tr('Bitte wählen Sie ein Mitglied aus', 'Vă rugăm selectați un membru')),
+                    backgroundColor: Colors.red),
               );
               return;
             }
             if (_titelCtrl.text.trim().isEmpty) {
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Titel ist erforderlich'), backgroundColor: Colors.red),
+                SnackBar(
+                    content: Text(tr('Titel ist erforderlich', 'Titlul este obligatoriu')),
+                    backgroundColor: Colors.red),
               );
               return;
             }
@@ -827,7 +843,7 @@ class _UploadDialogState extends State<_UploadDialog> {
             });
           },
           icon: const Icon(Icons.check),
-          label: const Text('Weiter — Dateien auswählen'),
+          label: Text(tr('Weiter — Dateien auswählen', 'Continuă — selectați fișierele')),
           style: ElevatedButton.styleFrom(
             backgroundColor: Colors.indigo.shade700,
             foregroundColor: Colors.white,
@@ -921,7 +937,8 @@ class _SecureFileViewerState extends State<_SecureFileViewer> {
         : widget.titel;
     final displaySubtitle = _selectedZipFile != null
         ? '${widget.filename} → ${_selectedZipFile!.name}'
-        : '${widget.filename} — Nur im Speicher (nicht auf der Festplatte)';
+        : tr('${widget.filename} — Nur im Speicher (nicht auf der Festplatte)',
+            '${widget.filename} — doar în memorie (nu pe disc)');
 
     return Dialog(
       insetPadding: const EdgeInsets.all(24),
@@ -947,7 +964,7 @@ class _SecureFileViewerState extends State<_SecureFileViewer> {
                     IconButton(
                       icon: const Icon(Icons.arrow_back, color: Colors.white, size: 20),
                       onPressed: _backToZipList,
-                      tooltip: 'Zurück zur Dateiliste',
+                      tooltip: tr('Zurück zur Dateiliste', 'Înapoi la lista de fișiere'),
                     ),
                   ] else
                     const Icon(Icons.lock, color: Colors.white, size: 20),
@@ -988,7 +1005,7 @@ class _SecureFileViewerState extends State<_SecureFileViewer> {
                   IconButton(
                     icon: const Icon(Icons.close, color: Colors.white),
                     onPressed: () => Navigator.pop(context),
-                    tooltip: 'Schließen (Daten werden aus dem Speicher gelöscht)',
+                    tooltip: tr('Schließen (Daten werden aus dem Speicher gelöscht)', 'Închide (datele sunt șterse din memorie)'),
                   ),
                 ],
               ),
@@ -1010,7 +1027,8 @@ class _SecureFileViewerState extends State<_SecureFileViewer> {
                   const SizedBox(width: 6),
                   Expanded(
                     child: Text(
-                      'Diese Datei existiert nur im Arbeitsspeicher. Beim Schließen wird sie vollständig gelöscht.',
+                      tr('Diese Datei existiert nur im Arbeitsspeicher. Beim Schließen wird sie vollständig gelöscht.',
+                          'Acest fișier există doar în memoria RAM. La închidere este șters complet.'),
                       style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
                     ),
                   ),
@@ -1066,7 +1084,8 @@ class _SecureFileViewerState extends State<_SecureFileViewer> {
               Icon(Icons.folder_zip, color: Colors.orange.shade700, size: 20),
               const SizedBox(width: 8),
               Text(
-                '${files.length} Dateien — ${_formatSize(totalSize)}',
+                tr('${files.length} Dateien — ${_formatSize(totalSize)}',
+                    'Fișiere: ${files.length} — ${_formatSize(totalSize)}'),
                 style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.grey.shade700),
               ),
               const Spacer(),
@@ -1076,7 +1095,7 @@ class _SecureFileViewerState extends State<_SecureFileViewer> {
                 child: TextField(
                   onChanged: (v) => setState(() => _zipSearchQuery = v),
                   decoration: InputDecoration(
-                    hintText: 'Datei suchen...',
+                    hintText: tr('Datei suchen...', 'Caută fișier...'),
                     hintStyle: const TextStyle(fontSize: 12),
                     prefixIcon: const Icon(Icons.search, size: 18),
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
@@ -1213,17 +1232,19 @@ class _SecureFileViewerState extends State<_SecureFileViewer> {
           Icon(Icons.insert_drive_file, size: 64, color: Colors.grey.shade400),
           const SizedBox(height: 16),
           Text(
-            'Vorschau für .$_ext nicht verfügbar',
+            tr('Vorschau für .$_ext nicht verfügbar', 'Previzualizare indisponibilă pentru .$_ext'),
             style: TextStyle(fontSize: 16, color: Colors.grey.shade600),
           ),
           const SizedBox(height: 8),
           Text(
-            'Dateityp: $_ext | Größe: ${_formatSize(_selectedFileBytes?.length ?? widget.bytes.length)}',
+            tr('Dateityp: $_ext | Größe: ${_formatSize(_selectedFileBytes?.length ?? widget.bytes.length)}',
+                'Tip fișier: $_ext | Dimensiune: ${_formatSize(_selectedFileBytes?.length ?? widget.bytes.length)}'),
             style: TextStyle(fontSize: 13, color: Colors.grey.shade500),
           ),
           const SizedBox(height: 8),
           Text(
-            'Die Datei ist im Speicher entschlüsselt, kann aber nicht angezeigt werden.',
+            tr('Die Datei ist im Speicher entschlüsselt, kann aber nicht angezeigt werden.',
+                'Fișierul este decriptat în memorie, dar nu poate fi afișat.'),
             style: TextStyle(fontSize: 12, color: Colors.grey.shade400),
           ),
         ],

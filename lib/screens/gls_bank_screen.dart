@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../services/language_service.dart';
+
 class GlsBankScreen extends StatelessWidget {
   final VoidCallback onBack;
 
@@ -18,7 +20,7 @@ class GlsBankScreen extends StatelessWidget {
               IconButton(
                 icon: const Icon(Icons.arrow_back),
                 onPressed: onBack,
-                tooltip: 'Zurück zu Banken',
+                tooltip: tr('Zurück zu Banken', 'Înapoi la bănci'),
               ),
               const SizedBox(width: 8),
               Icon(Icons.eco, size: 32, color: Colors.green.shade700),
@@ -41,7 +43,7 @@ class GlsBankScreen extends StatelessWidget {
                     Icon(Icons.eco, size: 14, color: Colors.green.shade700),
                     const SizedBox(width: 4),
                     Text(
-                      'Nachhaltige Bank',
+                      tr('Nachhaltige Bank', 'Bancă sustenabilă'),
                       style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
@@ -95,21 +97,22 @@ class GlsBankScreen extends StatelessWidget {
   Widget _buildKontoinformationenCard() {
     return _buildSectionCard(
       icon: Icons.account_balance_wallet,
-      title: 'Kontoinformationen',
+      title: tr('Kontoinformationen', 'Informații cont'),
       color: Colors.green,
       child: Column(
         children: [
-          _infoRow(Icons.business, 'Kontoinhaber', 'ICD360S e.V.'),
+          _infoRow(Icons.business, tr('Kontoinhaber', 'Titular cont'), 'ICD360S e.V.'),
           _infoRow(Icons.tag, 'IBAN', 'DE12 4306 0967 1234 5678 00'),
           _infoRow(Icons.code, 'BIC / SWIFT', 'GENODEM1GLS'),
-          _infoRow(Icons.numbers, 'Kontonummer', '1234567800'),
-          _infoRow(Icons.pin, 'Bankleitzahl (BLZ)', '430 609 67'),
+          _infoRow(Icons.numbers, tr('Kontonummer', 'Număr de cont'), '1234567800'),
+          _infoRow(Icons.pin, tr('Bankleitzahl (BLZ)', 'Cod bancar (BLZ)'), '430 609 67'),
           const Divider(height: 24),
-          _infoRow(Icons.category, 'Kontotyp', 'Konto für Gemeinnützige'),
-          _infoRow(Icons.style, 'Kontomodell', 'GLS Vereinskonto'),
-          _infoRow(Icons.location_on, 'Hauptsitz', 'GLS Bank, Bochum'),
-          _infoRow(Icons.calendar_today, 'Eröffnet am', '—'),
-          _infoRow(Icons.verified_user, 'Kontostand', '—'),
+          _infoRow(Icons.category, tr('Kontotyp', 'Tip de cont'),
+              tr('Konto für Gemeinnützige', 'Cont pentru organizații nonprofit (gemeinnützig)')),
+          _infoRow(Icons.style, tr('Kontomodell', 'Model de cont'), 'GLS Vereinskonto'),
+          _infoRow(Icons.location_on, tr('Hauptsitz', 'Sediu central'), 'GLS Bank, Bochum'),
+          _infoRow(Icons.calendar_today, tr('Eröffnet am', 'Data deschiderii'), '—'),
+          _infoRow(Icons.verified_user, tr('Kontostand', 'Sold cont'), '—'),
         ],
       ),
     );
@@ -120,7 +123,7 @@ class GlsBankScreen extends StatelessWidget {
   Widget _buildKartenCard() {
     return _buildSectionCard(
       icon: Icons.credit_card,
-      title: 'Karten',
+      title: tr('Karten', 'Carduri'),
       color: Colors.teal,
       child: Column(
         children: [
@@ -130,18 +133,18 @@ class GlsBankScreen extends StatelessWidget {
             name: 'GLS BankCard (Girocard)',
             netzwerk: 'Debit Mastercard',
             color: Colors.green,
-            material: 'Kartenkörper: 100% aus Holz',
+            material: tr('Kartenkörper: 100% aus Holz', 'Corpul cardului: 100% lemn'),
             details: [
-              _cardDetail('Karteninhaber', 'ICD360S e.V.'),
-              _cardDetail('Kartennummer', '**** **** **** 9012'),
-              _cardDetail('Gültig bis', '09/2028'),
-              _cardDetail('Status', 'Aktiv'),
-              _cardDetail('Kontaktlos', 'Ja (NFC)'),
+              _cardDetail(tr('Karteninhaber', 'Titular card'), 'ICD360S e.V.'),
+              _cardDetail(tr('Kartennummer', 'Număr card'), '**** **** **** 9012'),
+              _cardDetail(tr('Gültig bis', 'Valabil până la'), '09/2028'),
+              _cardDetail('Status', tr('Aktiv', 'Activ')),
+              _cardDetail(tr('Kontaktlos', 'Contactless'), tr('Ja (NFC)', 'Da (NFC)')),
             ],
             features: [
-              'Kostenlos Bargeld an 15.000 Automaten (ServiceNetz)',
-              'Kontaktlos bezahlen im Handel',
-              'Weltweit einsetzbar (Debit Mastercard)',
+              tr('Kostenlos Bargeld an 15.000 Automaten (ServiceNetz)', 'Numerar gratuit la 15.000 de bancomate (ServiceNetz)'),
+              tr('Kontaktlos bezahlen im Handel', 'Plată contactless în magazine'),
+              tr('Weltweit einsetzbar (Debit Mastercard)', 'Utilizabil în toată lumea (Debit Mastercard)'),
             ],
           ),
           const SizedBox(height: 16),
@@ -149,20 +152,20 @@ class GlsBankScreen extends StatelessWidget {
           _buildCardItem(
             icon: Icons.credit_score,
             name: 'GLS BusinessCard',
-            netzwerk: 'Kreditkarte (Mastercard)',
+            netzwerk: tr('Kreditkarte (Mastercard)', 'Card de credit (Mastercard)'),
             color: Colors.teal,
-            material: '75% bio-basierte Rohstoffe',
+            material: tr('75% bio-basierte Rohstoffe', '75% materii prime biobazate'),
             details: [
-              _cardDetail('Karteninhaber', 'ICD360S e.V.'),
-              _cardDetail('Kartennummer', '**** **** **** 3456'),
-              _cardDetail('Gültig bis', '03/2027'),
-              _cardDetail('Status', 'Aktiv'),
-              _cardDetail('Kreditrahmen', '5.000,00 EUR'),
+              _cardDetail(tr('Karteninhaber', 'Titular card'), 'ICD360S e.V.'),
+              _cardDetail(tr('Kartennummer', 'Număr card'), '**** **** **** 3456'),
+              _cardDetail(tr('Gültig bis', 'Valabil până la'), '03/2027'),
+              _cardDetail('Status', tr('Aktiv', 'Activ')),
+              _cardDetail(tr('Kreditrahmen', 'Limită de credit'), '5.000,00 EUR'),
             ],
             features: [
-              'Online-Zahlungen weltweit',
-              'Dienstreisen & Geschäftsausgaben',
-              'Abrechnung über GLS Geschäftskonto',
+              tr('Online-Zahlungen weltweit', 'Plăți online în toată lumea'),
+              tr('Dienstreisen & Geschäftsausgaben', 'Deplasări de serviciu și cheltuieli de afaceri'),
+              tr('Abrechnung über GLS Geschäftskonto', 'Decontare prin contul de afaceri GLS'),
             ],
           ),
         ],
@@ -175,44 +178,44 @@ class GlsBankScreen extends StatelessWidget {
   Widget _buildZahlungsverkehrCard() {
     return _buildSectionCard(
       icon: Icons.swap_horiz,
-      title: 'Zahlungsverkehr',
+      title: tr('Zahlungsverkehr', 'Operațiuni de plată'),
       color: Colors.blue,
       child: Column(
         children: [
           _buildFeatureItem(
             icon: Icons.send,
-            title: 'Überweisungen',
-            subtitle: 'SEPA-Einzelüberweisung, Sammelüberweisung',
+            title: tr('Überweisungen', 'Transferuri bancare'),
+            subtitle: tr('SEPA-Einzelüberweisung, Sammelüberweisung', 'Transfer SEPA individual, transfer colectiv'),
             color: Colors.blue,
           ),
           _buildFeatureItem(
             icon: Icons.bolt,
-            title: 'Echtzeitüberweisung',
-            subtitle: 'Instant Payment — sofortige Gutschrift',
+            title: tr('Echtzeitüberweisung', 'Transfer instant'),
+            subtitle: tr('Instant Payment — sofortige Gutschrift', 'Instant Payment — creditare imediată'),
             color: Colors.amber.shade700,
           ),
           _buildFeatureItem(
             icon: Icons.repeat,
-            title: 'Daueraufträge',
-            subtitle: 'Regelmäßige Zahlungen automatisch ausführen',
+            title: tr('Daueraufträge', 'Ordine permanente'),
+            subtitle: tr('Regelmäßige Zahlungen automatisch ausführen', 'Plăți regulate executate automat'),
             color: Colors.teal,
           ),
           _buildFeatureItem(
             icon: Icons.receipt_long,
-            title: 'SEPA-Lastschriften',
-            subtitle: 'Mitgliedsbeiträge automatisch einziehen',
+            title: tr('SEPA-Lastschriften', 'Debite directe SEPA'),
+            subtitle: tr('Mitgliedsbeiträge automatisch einziehen', 'Încasarea automată a cotizațiilor'),
             color: Colors.purple,
           ),
           _buildFeatureItem(
             icon: Icons.public,
-            title: 'Internationale Überweisungen',
-            subtitle: 'Zahlungen außerhalb des SEPA-Raums',
+            title: tr('Internationale Überweisungen', 'Transferuri internaționale'),
+            subtitle: tr('Zahlungen außerhalb des SEPA-Raums', 'Plăți în afara spațiului SEPA'),
             color: Colors.indigo,
           ),
           _buildFeatureItem(
             icon: Icons.integration_instructions,
-            title: 'DATEV-Anbindung',
-            subtitle: 'Direkte Verbindung zum Steuerberater',
+            title: tr('DATEV-Anbindung', 'Conectare DATEV'),
+            subtitle: tr('Direkte Verbindung zum Steuerberater', 'Legătură directă cu consultantul fiscal'),
             color: Colors.green.shade700,
           ),
         ],
@@ -225,14 +228,14 @@ class GlsBankScreen extends StatelessWidget {
   Widget _buildKonditionenCard() {
     return _buildSectionCard(
       icon: Icons.euro,
-      title: 'Konditionen & Online-Banking',
+      title: tr('Konditionen & Online-Banking', 'Condiții și online banking'),
       color: Colors.orange,
       child: Column(
         children: [
           Padding(
             padding: const EdgeInsets.only(bottom: 8),
             child: Text(
-              'Kontogebühren',
+              tr('Kontogebühren', 'Comisioane cont'),
               style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
@@ -240,18 +243,18 @@ class GlsBankScreen extends StatelessWidget {
               ),
             ),
           ),
-          _konditionRow('GLS Beitrag (jährlich)', '60,00 EUR'),
-          _konditionRow('GLS Mitgliedschaft', '5,00 EUR/Monat'),
-          _konditionRow('Kontoführung/Monat', '8,80 EUR'),
-          _konditionRow('GLS BankCard (erste)', 'Kostenlos'),
-          _konditionRow('GLS BankCard (weitere)', '15,00 EUR/Jahr'),
-          _konditionRow('GLS BusinessCard', '30,00 EUR/Jahr'),
-          _konditionRow('Buchungsposten', '0,08 EUR'),
+          _konditionRow(tr('GLS Beitrag (jährlich)', 'Contribuție GLS (anuală)'), '60,00 EUR'),
+          _konditionRow(tr('GLS Mitgliedschaft', 'Calitate de membru GLS'), tr('5,00 EUR/Monat', '5,00 EUR/lună')),
+          _konditionRow(tr('Kontoführung/Monat', 'Administrare cont/lună'), '8,80 EUR'),
+          _konditionRow(tr('GLS BankCard (erste)', 'GLS BankCard (primul card)'), tr('Kostenlos', 'Gratuit')),
+          _konditionRow(tr('GLS BankCard (weitere)', 'GLS BankCard (carduri suplimentare)'), tr('15,00 EUR/Jahr', '15,00 EUR/an')),
+          _konditionRow('GLS BusinessCard', tr('30,00 EUR/Jahr', '30,00 EUR/an')),
+          _konditionRow(tr('Buchungsposten', 'Comision per operațiune'), '0,08 EUR'),
           const Divider(height: 24),
           Padding(
             padding: const EdgeInsets.only(bottom: 8),
             child: Text(
-              'Online-Banking',
+              tr('Online-Banking', 'Online banking'),
               style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
@@ -262,18 +265,18 @@ class GlsBankScreen extends StatelessWidget {
           _buildFeatureItem(
             icon: Icons.phone_android,
             title: 'GLS Banking App',
-            subtitle: 'Kontoverwaltung mobil — Push-TAN, Umsätze',
+            subtitle: tr('Kontoverwaltung mobil — Push-TAN, Umsätze', 'Administrare cont pe mobil — Push-TAN, tranzacții'),
             color: Colors.green,
           ),
           _buildFeatureItem(
             icon: Icons.computer,
-            title: 'Online-Banking (Browser)',
-            subtitle: 'Multi-Bank-fähig — alle Konten in einer Übersicht',
+            title: tr('Online-Banking (Browser)', 'Online banking (browser)'),
+            subtitle: tr('Multi-Bank-fähig — alle Konten in einer Übersicht', 'Multi-bancă — toate conturile la un loc'),
             color: Colors.blue,
           ),
           _buildFeatureItem(
             icon: Icons.security,
-            title: 'TAN-Verfahren',
+            title: tr('TAN-Verfahren', 'Metode TAN'),
             subtitle: 'SecureGo plus, SmartTAN (chipTAN)',
             color: Colors.orange,
           ),
@@ -281,7 +284,7 @@ class GlsBankScreen extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.only(bottom: 8),
             child: Text(
-              'Einlagensicherung',
+              tr('Einlagensicherung', 'Garantarea depozitelor'),
               style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
@@ -289,8 +292,9 @@ class GlsBankScreen extends StatelessWidget {
               ),
             ),
           ),
-          _infoRow(Icons.shield, 'Gesetzlich', 'bis 100.000 EUR (EU)'),
-          _infoRow(Icons.security, 'Genossenschaftlich', 'BVR Sicherungssystem (unbegrenzt)'),
+          _infoRow(Icons.shield, tr('Gesetzlich', 'Garanție legală'), tr('bis 100.000 EUR (EU)', 'până la 100.000 EUR (UE)')),
+          _infoRow(Icons.security, tr('Genossenschaftlich', 'Garanție cooperatistă'),
+              tr('BVR Sicherungssystem (unbegrenzt)', 'Sistemul de garantare BVR (nelimitat)')),
         ],
       ),
     );
@@ -301,34 +305,37 @@ class GlsBankScreen extends StatelessWidget {
   Widget _buildNachhaltigkeitCard() {
     return _buildSectionCard(
       icon: Icons.eco,
-      title: 'Nachhaltigkeit — Wohin fließt Ihr Geld?',
+      title: tr('Nachhaltigkeit — Wohin fließt Ihr Geld?', 'Sustenabilitate — unde merg banii dumneavoastră?'),
       color: Colors.green,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Die GLS Bank finanziert ausschließlich sozial-ökologische Unternehmen und Projekte. '
-            'Als Kontoinhaber können Sie mitentscheiden, in welchem Bereich Ihr Geld wirkt:',
+            tr(
+                'Die GLS Bank finanziert ausschließlich sozial-ökologische Unternehmen und Projekte. '
+                'Als Kontoinhaber können Sie mitentscheiden, in welchem Bereich Ihr Geld wirkt:',
+                'Banca GLS finanțează exclusiv companii și proiecte social-ecologice. '
+                'Ca titular de cont, puteți alege în ce domeniu sunt folosiți banii dumneavoastră:'),
             style: TextStyle(fontSize: 13, color: Colors.grey.shade700),
           ),
           const SizedBox(height: 16),
           Row(
             children: [
-              Expanded(child: _nachhaltigkeitItem(Icons.wind_power, 'Erneuerbare Energien', 'Windkraft, Solar, Biogas', Colors.blue)),
+              Expanded(child: _nachhaltigkeitItem(Icons.wind_power, tr('Erneuerbare Energien', 'Energii regenerabile'), tr('Windkraft, Solar, Biogas', 'Eoliană, solară, biogaz'), Colors.blue)),
               const SizedBox(width: 12),
-              Expanded(child: _nachhaltigkeitItem(Icons.home, 'Wohnen', 'Soziales Wohnen, Baugruppen', Colors.brown)),
+              Expanded(child: _nachhaltigkeitItem(Icons.home, tr('Wohnen', 'Locuințe'), tr('Soziales Wohnen, Baugruppen', 'Locuințe sociale, construcții în comun'), Colors.brown)),
               const SizedBox(width: 12),
-              Expanded(child: _nachhaltigkeitItem(Icons.health_and_safety, 'Soziales & Gesundheit', 'Pflege, Inklusion, Therapie', Colors.red)),
+              Expanded(child: _nachhaltigkeitItem(Icons.health_and_safety, tr('Soziales & Gesundheit', 'Social și sănătate'), tr('Pflege, Inklusion, Therapie', 'Îngrijire, incluziune, terapie'), Colors.red)),
             ],
           ),
           const SizedBox(height: 12),
           Row(
             children: [
-              Expanded(child: _nachhaltigkeitItem(Icons.store, 'Nachhaltige Wirtschaft', 'Bio, Naturkosmetik, Textilien', Colors.green)),
+              Expanded(child: _nachhaltigkeitItem(Icons.store, tr('Nachhaltige Wirtschaft', 'Economie sustenabilă'), tr('Bio, Naturkosmetik, Textilien', 'Bio, cosmetice naturale, textile'), Colors.green)),
               const SizedBox(width: 12),
-              Expanded(child: _nachhaltigkeitItem(Icons.school, 'Bildung & Kultur', 'Schulen, Kunst, Medien', Colors.purple)),
+              Expanded(child: _nachhaltigkeitItem(Icons.school, tr('Bildung & Kultur', 'Educație și cultură'), tr('Schulen, Kunst, Medien', 'Școli, artă, media'), Colors.purple)),
               const SizedBox(width: 12),
-              Expanded(child: _nachhaltigkeitItem(Icons.restaurant, 'Ernährung', 'Bio-Landwirtschaft, Hofläden', Colors.orange)),
+              Expanded(child: _nachhaltigkeitItem(Icons.restaurant, tr('Ernährung', 'Alimentație'), tr('Bio-Landwirtschaft, Hofläden', 'Agricultură bio, magazine de fermă'), Colors.orange)),
             ],
           ),
           const SizedBox(height: 16),
@@ -345,7 +352,8 @@ class GlsBankScreen extends StatelessWidget {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    'Kein Geld fließt in: Kinderarbeit, Atomenergie, Rüstungsindustrie, Agrochemie',
+                    tr('Kein Geld fließt in: Kinderarbeit, Atomenergie, Rüstungsindustrie, Agrochemie',
+                        'Niciun ban nu ajunge în: munca copiilor, energia nucleară, industria armamentului, agrochimie'),
                     style: TextStyle(fontSize: 12, color: Colors.red.shade700, fontWeight: FontWeight.w500),
                   ),
                 ),
@@ -522,7 +530,7 @@ class GlsBankScreen extends StatelessWidget {
           ...details,
           if (features.isNotEmpty) ...[
             const Divider(height: 20),
-            Text('Funktionen', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.grey.shade700)),
+            Text(tr('Funktionen', 'Funcții'), style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.grey.shade700)),
             const SizedBox(height: 6),
             ...features.map((f) => Padding(
               padding: const EdgeInsets.only(bottom: 4),

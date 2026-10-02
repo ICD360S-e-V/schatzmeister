@@ -7,6 +7,7 @@ import 'package:pdfrx/pdfrx.dart';
 import 'package:signature/signature.dart';
 
 import '../services/api_service.dart';
+import '../services/language_service.dart';
 
 /// Dokumente, die der SCHATZMEISTER SELBST unterschreiben soll.
 ///
@@ -67,7 +68,8 @@ class _EigeneUnterschriftenScreenState
     if (antwort['success'] != true) {
       setState(() {
         _laedt = false;
-        _fehler = antwort['message']?.toString() ?? 'Laden fehlgeschlagen';
+        _fehler = antwort['message']?.toString() ??
+            tr('Laden fehlgeschlagen', 'Încărcare eșuată');
       });
       return;
     }
@@ -85,11 +87,11 @@ class _EigeneUnterschriftenScreenState
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Meine Unterschriften'),
+        title: Text(tr('Meine Unterschriften', 'Semnăturile mele')),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
-            tooltip: 'Neu laden',
+            tooltip: tr('Neu laden', 'Reîncarcă'),
             onPressed: _laedt ? null : _laden,
           ),
         ],
@@ -121,7 +123,9 @@ class _EigeneUnterschriftenScreenState
               const SizedBox(height: 16),
               Text(_fehler!, textAlign: TextAlign.center),
               const SizedBox(height: 16),
-              FilledButton(onPressed: _laden, child: const Text('Erneut versuchen')),
+              FilledButton(
+                  onPressed: _laden,
+                  child: Text(tr('Erneut versuchen', 'Încearcă din nou'))),
             ],
           ),
         ),
@@ -134,7 +138,8 @@ class _EigeneUnterschriftenScreenState
           Icon(Icons.draw_outlined, size: 56, color: Colors.grey.shade400),
           const SizedBox(height: 16),
           Text(
-            'Zurzeit liegt nichts zu Ihrer Unterschrift vor.',
+            tr('Zurzeit liegt nichts zu Ihrer Unterschrift vor.',
+                'Momentan nu aveți nimic de semnat.'),
             textAlign: TextAlign.center,
             style: TextStyle(color: Colors.grey.shade600),
           ),
@@ -153,13 +158,18 @@ class _EigeneUnterschriftenScreenState
       'signiert' when wartet => (
           Colors.blue.shade700,
           Icons.hourglass_top,
-          'Von Ihnen unterschrieben · warten auf die zweite Unterschrift',
+          tr('Von Ihnen unterschrieben · warten auf die zweite Unterschrift',
+              'Semnat de dumneavoastră · se așteaptă a doua semnătură'),
         ),
-      'signiert' => (Colors.green.shade700, Icons.verified, 'Von Ihnen unterschrieben'),
-      'abgelehnt' => (Colors.red.shade700, Icons.cancel, 'Von Ihnen abgelehnt'),
-      'widerrufen' => (Colors.grey.shade600, Icons.undo, 'Zurückgezogen'),
-      'abgelaufen' => (Colors.grey.shade600, Icons.schedule, 'Frist abgelaufen'),
-      _ => (Colors.orange.shade800, Icons.edit_document, 'Wartet auf Ihre Unterschrift'),
+      'signiert' => (Colors.green.shade700, Icons.verified,
+          tr('Von Ihnen unterschrieben', 'Semnat de dumneavoastră')),
+      'abgelehnt' => (Colors.red.shade700, Icons.cancel,
+          tr('Von Ihnen abgelehnt', 'Refuzat de dumneavoastră')),
+      'widerrufen' => (Colors.grey.shade600, Icons.undo, tr('Zurückgezogen', 'Retras')),
+      'abgelaufen' => (Colors.grey.shade600, Icons.schedule,
+          tr('Frist abgelaufen', 'Termen expirat')),
+      _ => (Colors.orange.shade800, Icons.edit_document,
+          tr('Wartet auf Ihre Unterschrift', 'Așteaptă semnătura dumneavoastră')),
     };
 
     return Card(
@@ -280,10 +290,13 @@ class _EigeneUnterschriftLeistenScreenState
           _fussleiste(
             hinweis: _durchgeblaettert
                 ? null
-                : 'Bitte lesen Sie das Dokument bis zur letzten Seite '
-                    '($_letzteGeseheneSeite von ${widget.seiten}).',
+                : tr(
+                    'Bitte lesen Sie das Dokument bis zur letzten Seite '
+                        '($_letzteGeseheneSeite von ${widget.seiten}).',
+                    'Vă rugăm citiți documentul până la ultima pagină '
+                        '($_letzteGeseheneSeite din ${widget.seiten}).'),
             weiter: _durchgeblaettert ? () => setState(() => _schritt = 1) : null,
-            weiterText: 'Weiter zur Unterschrift',
+            weiterText: tr('Weiter zur Unterschrift', 'Continuă la semnătură'),
           ),
         ],
       );
@@ -297,9 +310,10 @@ class _EigeneUnterschriftLeistenScreenState
               padding: const EdgeInsets.all(16),
               child: Column(
                 children: [
-                  const Text(
-                    'Bitte unterschreiben Sie im weißen Feld.',
-                    style: TextStyle(fontWeight: FontWeight.w600),
+                  Text(
+                    tr('Bitte unterschreiben Sie im weißen Feld.',
+                        'Vă rugăm semnați în câmpul alb.'),
+                    style: const TextStyle(fontWeight: FontWeight.w600),
                   ),
                   const SizedBox(height: 12),
                   Expanded(
@@ -321,7 +335,7 @@ class _EigeneUnterschriftLeistenScreenState
                     child: TextButton.icon(
                       onPressed: () => _unterschrift.clear(),
                       icon: const Icon(Icons.clear, size: 18),
-                      label: const Text('Löschen'),
+                      label: Text(tr('Löschen', 'Șterge')),
                     ),
                   ),
                 ],
@@ -332,12 +346,14 @@ class _EigeneUnterschriftLeistenScreenState
             zurueck: () => setState(() => _schritt = 0),
             weiter: () {
               if (_unterschrift.isEmpty) {
-                _meldung('Bitte unterschreiben Sie zuerst.', fehler: true);
+                _meldung(
+                    tr('Bitte unterschreiben Sie zuerst.', 'Vă rugăm semnați mai întâi.'),
+                    fehler: true);
                 return;
               }
               setState(() => _schritt = 2);
             },
-            weiterText: 'Weiter zum Code',
+            weiterText: tr('Weiter zum Code', 'Continuă la cod'),
           ),
         ],
       );
@@ -352,28 +368,33 @@ class _EigeneUnterschriftLeistenScreenState
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const Text(
-                    'Zur Bestätigung schicken wir Ihnen einen Code per SMS an '
-                    'Ihre hinterlegte Mobilnummer.',
+                  Text(
+                    tr(
+                        'Zur Bestätigung schicken wir Ihnen einen Code per SMS an '
+                        'Ihre hinterlegte Mobilnummer.',
+                        'Pentru confirmare vă trimitem un cod prin SMS '
+                        'la numărul de mobil înregistrat.'),
                   ),
                   const SizedBox(height: 16),
                   if (_codeGesendetAn == null)
                     FilledButton.icon(
                       onPressed: _sendet ? null : _tanAnfordern,
                       icon: const Icon(Icons.sms),
-                      label: const Text('Code anfordern'),
+                      label: Text(tr('Code anfordern', 'Solicită cod')),
                     )
                   else ...[
-                    Text('Code gesendet an $_codeGesendetAn',
+                    Text(
+                        tr('Code gesendet an $_codeGesendetAn',
+                            'Cod trimis la $_codeGesendetAn'),
                         style: TextStyle(color: Colors.green.shade700)),
                     const SizedBox(height: 16),
                     TextField(
                       controller: _tanFeld,
                       keyboardType: TextInputType.number,
                       maxLength: 6,
-                      decoration: const InputDecoration(
-                        labelText: 'Code aus der SMS',
-                        border: OutlineInputBorder(),
+                      decoration: InputDecoration(
+                        labelText: tr('Code aus der SMS', 'Codul din SMS'),
+                        border: const OutlineInputBorder(),
                       ),
                       onChanged: (_) {
                         // Der Knopf hängt am Inhalt, also muss der Aufbau
@@ -384,7 +405,7 @@ class _EigeneUnterschriftLeistenScreenState
                     ),
                     TextButton(
                       onPressed: _sendet ? null : _tanAnfordern,
-                      child: const Text('Neuen Code anfordern'),
+                      child: Text(tr('Neuen Code anfordern', 'Solicită un cod nou')),
                     ),
                   ],
                   if (_fehler != null) ...[
@@ -395,7 +416,7 @@ class _EigeneUnterschriftLeistenScreenState
                   TextButton.icon(
                     onPressed: _sendet ? null : _ablehnen,
                     icon: const Icon(Icons.cancel_outlined),
-                    label: const Text('Unterschrift ablehnen'),
+                    label: Text(tr('Unterschrift ablehnen', 'Refuză semnătura')),
                     style: TextButton.styleFrom(foregroundColor: Colors.red.shade700),
                   ),
                 ],
@@ -407,7 +428,7 @@ class _EigeneUnterschriftLeistenScreenState
             weiter: (_codeGesendetAn != null && _tanFeld.text.trim().length >= 4 && !_sendet)
                 ? _signieren
                 : null,
-            weiterText: 'Rechtsverbindlich unterschreiben',
+            weiterText: tr('Rechtsverbindlich unterschreiben', 'Semnează cu valoare juridică'),
           ),
         ],
       );
@@ -438,7 +459,8 @@ class _EigeneUnterschriftLeistenScreenState
               Row(
                 children: [
                   if (zurueck != null)
-                    TextButton(onPressed: zurueck, child: const Text('Zurück')),
+                    TextButton(
+                        onPressed: zurueck, child: Text(tr('Zurück', 'Înapoi'))),
                   const Spacer(),
                   FilledButton(
                     onPressed: weiter,
@@ -480,9 +502,13 @@ class _EigeneUnterschriftLeistenScreenState
     // aus wie ein Fehler in der App, obwohl schlicht keine Nummer hinterlegt ist.
     setState(() {
       _fehler = antwort['grund'] == 'keine_rufnummer'
-          ? 'Für Ihr Konto ist keine Mobilnummer hinterlegt. '
-              'Ohne Nummer kann kein Code verschickt werden.'
-          : (antwort['message']?.toString() ?? 'Code konnte nicht gesendet werden.');
+          ? tr(
+              'Für Ihr Konto ist keine Mobilnummer hinterlegt. '
+                  'Ohne Nummer kann kein Code verschickt werden.',
+              'Pentru contul dumneavoastră nu este înregistrat niciun număr de mobil. '
+                  'Fără număr nu se poate trimite niciun cod.')
+          : (antwort['message']?.toString() ??
+              tr('Code konnte nicht gesendet werden.', 'Codul nu a putut fi trimis.'));
     });
   }
 
@@ -490,7 +516,7 @@ class _EigeneUnterschriftLeistenScreenState
     final svg = _unterschrift.toRawSVG();
     if (svg == null || svg.isEmpty) {
       setState(() => _schritt = 1);
-      _meldung('Die Unterschrift ist leer.', fehler: true);
+      _meldung(tr('Die Unterschrift ist leer.', 'Semnătura este goală.'), fehler: true);
       return;
     }
 
@@ -511,18 +537,21 @@ class _EigeneUnterschriftLeistenScreenState
     setState(() => _sendet = false);
 
     if (antwort['success'] == true) {
-      _meldung('Unterschrift gespeichert.', erfolg: true);
+      _meldung(tr('Unterschrift gespeichert.', 'Semnătură salvată.'), erfolg: true);
       if (mounted) Navigator.pop(context, true);
       return;
     }
 
     setState(() {
       _fehler = switch (antwort['grund']?.toString()) {
-        'tan_falsch' => 'Der Code stimmt nicht.',
-        'tan_abgelaufen' => 'Der Code ist abgelaufen. Bitte fordern Sie einen neuen an.',
+        'tan_falsch' => tr('Der Code stimmt nicht.', 'Codul nu este corect.'),
+        'tan_abgelaufen' => tr('Der Code ist abgelaufen. Bitte fordern Sie einen neuen an.',
+            'Codul a expirat. Vă rugăm solicitați unul nou.'),
         'zu_viele_versuche' =>
-          'Zu viele Fehlversuche. Bitte fordern Sie einen neuen Code an.',
-        _ => antwort['message']?.toString() ?? 'Unterschrift fehlgeschlagen.',
+          tr('Zu viele Fehlversuche. Bitte fordern Sie einen neuen Code an.',
+              'Prea multe încercări eșuate. Vă rugăm solicitați un cod nou.'),
+        _ => antwort['message']?.toString() ??
+            tr('Unterschrift fehlgeschlagen.', 'Semnarea a eșuat.'),
       };
     });
   }
@@ -533,32 +562,38 @@ class _EigeneUnterschriftLeistenScreenState
     final bestaetigt = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Unterschrift ablehnen'),
+        title: Text(tr('Unterschrift ablehnen', 'Refuză semnătura')),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text(
-              'Das Dokument wird dann nicht unterschrieben. Bei einer Vollmacht '
-              'gilt die Ablehnung für das ganze Dokument — auch wenn die andere '
-              'Person schon unterschrieben hat.',
+            Text(
+              tr(
+                  'Das Dokument wird dann nicht unterschrieben. Bei einer Vollmacht '
+                  'gilt die Ablehnung für das ganze Dokument — auch wenn die andere '
+                  'Person schon unterschrieben hat.',
+                  'Documentul nu va fi semnat. În cazul unei împuterniciri (Vollmacht) '
+                  'refuzul se aplică întregului document — chiar dacă cealaltă '
+                  'persoană a semnat deja.'),
             ),
             const SizedBox(height: 12),
             TextField(
               controller: grundFeld,
               maxLines: 3,
-              decoration: const InputDecoration(
-                labelText: 'Begründung (freiwillig)',
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                labelText: tr('Begründung (freiwillig)', 'Motivare (opțional)'),
+                border: const OutlineInputBorder(),
               ),
             ),
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Abbrechen')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text(tr('Abbrechen', 'Anulare'))),
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: Colors.red.shade700),
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Ablehnen'),
+            child: Text(tr('Ablehnen', 'Refuză')),
           ),
         ],
       ),
@@ -573,10 +608,12 @@ class _EigeneUnterschriftLeistenScreenState
     if (!mounted) return;
 
     if (antwort['success'] == true) {
-      _meldung('Abgelehnt.', erfolg: true);
+      _meldung(tr('Abgelehnt.', 'Refuzat.'), erfolg: true);
       Navigator.pop(context, true);
     } else {
-      _meldung(antwort['message']?.toString() ?? 'Ablehnen fehlgeschlagen.',
+      _meldung(
+          antwort['message']?.toString() ??
+              tr('Ablehnen fehlgeschlagen.', 'Refuzul a eșuat.'),
           fehler: true);
     }
   }
@@ -690,7 +727,9 @@ class _EigenesPdfState extends State<_EigenesPdf> {
             children: [
               Icon(Icons.cloud_off, size: 48, color: Colors.grey.shade400),
               const SizedBox(height: 16),
-              const Text('Das Dokument konnte nicht geladen werden.',
+              Text(
+                  tr('Das Dokument konnte nicht geladen werden.',
+                      'Documentul nu a putut fi încărcat.'),
                   textAlign: TextAlign.center),
               const SizedBox(height: 16),
               FilledButton(
@@ -698,7 +737,7 @@ class _EigenesPdfState extends State<_EigenesPdf> {
                   setState(() => _laedt = true);
                   _laden();
                 },
-                child: const Text('Erneut versuchen'),
+                child: Text(tr('Erneut versuchen', 'Încearcă din nou')),
               ),
             ],
           ),
