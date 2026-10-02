@@ -96,6 +96,10 @@ dependencies:
   # Image cropping (pure Dart, works on all platforms including macOS)
   crop_your_image: ^2.0.0
 
+  # SVG-Flaggen der Sprachauswahl (assets/flags/<code>.svg) — dieselben
+  # Dateien und dasselbe Paket wie in der Mitglieder-App.
+  flutter_svg: ^2.0.10
+
   # APK-Installation auf Android. Der Weg ueber `launchUrl(Uri.file(...))`
   # scheitert seit Android 7 (API 24, unser minSdk): ein file://-URI an eine
   # fremde App zu reichen loest FileUriExposedException aus. Dieses Paket
@@ -182,6 +186,7 @@ flutter:
   # Assets for system tray icon and badges
   assets:
     - assets/app_icon.ico
+    - assets/flags/
     - assets/badges/
     - assets/tray_icons/
 
