@@ -30,76 +30,94 @@ class ConversationHeader extends StatelessWidget {
     final memberName = conversation['member_name'] ?? l10n.unknown;
     final memberNr = conversation['member_nr'] ?? '';
 
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1a1a2e),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Row(
-        children: [
-          CircleAvatar(
-            radius: 18,
-            backgroundColor: Colors.blue,
-            child: Text(
-              memberName[0].toUpperCase(),
-              style: const TextStyle(color: Colors.white),
-            ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // Telefon: neben vier Knöpfen zu 48 dp und dem Avatar blieben dem
+        // Namen keine 30 dp — er stand Buchstabe für Buchstabe untereinander.
+        // Schmal daher ohne Avatar, mit enger stehenden Knöpfen (40 dp) und
+        // höchstens zwei Zeilen Name.
+        final eng = constraints.maxWidth < 420;
+        final dichte = eng ? VisualDensity.compact : null;
+        return Container(
+          padding: EdgeInsets.all(eng ? 8 : 12),
+          decoration: BoxDecoration(
+            color: const Color(0xFF1a1a2e),
+            borderRadius: BorderRadius.circular(8),
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  memberName,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
+          child: Row(
+            children: [
+              if (!eng) ...[
+                CircleAvatar(
+                  radius: 18,
+                  backgroundColor: Colors.blue,
+                  child: Text(
+                    memberName[0].toUpperCase(),
+                    style: const TextStyle(color: Colors.white),
                   ),
                 ),
-                Text(
-                  memberNr,
-                  style: TextStyle(
-                    color: Colors.grey.shade400,
-                    fontSize: 11,
-                  ),
-                ),
+                const SizedBox(width: 12),
               ],
-            ),
-          ),
-          // Scheduled messages settings
-          if (isOpen && onScheduledSettings != null)
-            IconButton(
-              icon: Icon(Icons.schedule_send, color: Colors.amber.shade300),
-              onPressed: onScheduledSettings,
-              tooltip: l10n.automaticMessages,
-            ),
-          // Mute toggle button
-          if (isOpen)
-            IconButton(
-              icon: Icon(
-                isMuted ? Icons.notifications_off : Icons.notifications_active,
-                color: isMuted ? Colors.orange : Colors.grey.shade400,
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      memberName,
+                      maxLines: eng ? 2 : null,
+                      overflow: eng ? TextOverflow.ellipsis : null,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    Text(
+                      memberNr,
+                      style: TextStyle(
+                        color: Colors.grey.shade400,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ],
+                ),
               ),
-              onPressed: onMuteToggle,
-              tooltip: isMuted ? l10n.unmuteNotifications : l10n.muteNotifications,
-            ),
-          // Call button (only when idle and connected)
-          if (isOpen && canCall)
-            IconButton(
-              icon: const Icon(Icons.call, color: Colors.green),
-              onPressed: onCall,
-              tooltip: l10n.callUser,
-            ),
-          if (isOpen)
-            IconButton(
-              icon: const Icon(Icons.close, color: Colors.white),
-              onPressed: onClose,
-              tooltip: l10n.closeConversationTooltip,
-            ),
-        ],
-      ),
+              // Scheduled messages settings
+              if (isOpen && onScheduledSettings != null)
+                IconButton(
+                  icon: Icon(Icons.schedule_send, color: Colors.amber.shade300),
+                  visualDensity: dichte,
+                  onPressed: onScheduledSettings,
+                  tooltip: l10n.automaticMessages,
+                ),
+              // Mute toggle button
+              if (isOpen)
+                IconButton(
+                  icon: Icon(
+                    isMuted ? Icons.notifications_off : Icons.notifications_active,
+                    color: isMuted ? Colors.orange : Colors.grey.shade400,
+                  ),
+                  visualDensity: dichte,
+                  onPressed: onMuteToggle,
+                  tooltip: isMuted ? l10n.unmuteNotifications : l10n.muteNotifications,
+                ),
+              // Call button (only when idle and connected)
+              if (isOpen && canCall)
+                IconButton(
+                  icon: const Icon(Icons.call, color: Colors.green),
+                  visualDensity: dichte,
+                  onPressed: onCall,
+                  tooltip: l10n.callUser,
+                ),
+              if (isOpen)
+                IconButton(
+                  icon: const Icon(Icons.close, color: Colors.white),
+                  visualDensity: dichte,
+                  onPressed: onClose,
+                  tooltip: l10n.closeConversationTooltip,
+                ),
+            ],
+          ),
+        );
+      },
     );
   }
 }

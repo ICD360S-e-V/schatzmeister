@@ -634,94 +634,111 @@ class _ProfileDialogState extends State<ProfileDialog> with SingleTickerProvider
 
   @override
   Widget build(BuildContext context) {
+    // Auf dem Telefon (unter 600 dp) als Vollbild: im 950 × 700 dp großen
+    // Fenster mit 40 dp Rand blieben für Namen, Werte und Formulare kaum
+    // 230 dp. Auf dem Schreibtisch bleibt das Fenster, wie es war.
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final telefon = constraints.maxWidth < 600;
+        final inhalt = _buildInhalt(telefon);
+        if (telefon) return Dialog.fullscreen(child: inhalt);
+        return Dialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          child: SizedBox(
+            width: 950,
+            height: 700,
+            child: inhalt,
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildInhalt(bool telefon) {
     final l = AppLocalizations.of(context);
-    return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: SizedBox(
-        width: 950,
-        height: 700,
-        child: Column(
-          children: [
-            // Header
-            Container(
-              padding: const EdgeInsets.all(24),
-              child: Row(
-                children: [
-                  const CircleAvatar(
-                    radius: 30,
-                    backgroundColor: Color(0xFF4a90d9),
-                    child: Icon(Icons.person, size: 36, color: Colors.white),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          widget.userName,
-                          style: const TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        Text(
-                          _getRoleText(widget.role, l),
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.purple.shade700,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
+    return Column(
+      children: [
+        // Header
+        Container(
+          padding: EdgeInsets.all(telefon ? 16 : 24),
+          child: Row(
+            children: [
+              const CircleAvatar(
+                radius: 30,
+                backgroundColor: Color(0xFF4a90d9),
+                child: Icon(Icons.person, size: 36, color: Colors.white),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      widget.userName,
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.close),
-                    onPressed: () => Navigator.pop(context),
-                  ),
-                ],
+                    Text(
+                      _getRoleText(widget.role, l),
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.purple.shade700,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-
-            // TabBar
-            TabBar(
-              controller: _tabController,
-              labelColor: const Color(0xFF4a90d9),
-              unselectedLabelColor: Colors.grey,
-              indicatorColor: const Color(0xFF4a90d9),
-              isScrollable: true,
-              tabs: [
-                Tab(icon: const Icon(Icons.person), text: l.profileTab),
-                Tab(icon: const Icon(Icons.devices), text: l.myDevices),
-                Tab(icon: const Icon(Icons.card_membership), text: l.businessCard),
-                Tab(icon: const Icon(Icons.warning_amber), text: l.warnings),
-                Tab(icon: const Icon(Icons.folder_open), text: l.documents),
-                Tab(icon: const Icon(Icons.groups), text: l.membership),
-                Tab(icon: const Icon(Icons.verified_user), text: l.verification),
-              ],
-            ),
-
-            // TabBarView
-            Expanded(
-              child: TabBarView(
-                controller: _tabController,
-                children: [
-                  _buildProfileTab(),
-                  _buildDevicesTab(),
-                  Visitenkarte(
-                    mitgliedernummer: widget.mitgliedernummer,
-                    apiService: widget.apiService,
-                  ),
-                  _buildVerwarnungenTab(),
-                  _buildDokumenteTab(),
-                  _buildMitgliedschaftTab(),
-                  _buildVerifizierungTab(),
-                ],
+              IconButton(
+                icon: const Icon(Icons.close),
+                onPressed: () => Navigator.pop(context),
               ),
-            ),
+            ],
+          ),
+        ),
+
+        // TabBar
+        TabBar(
+          controller: _tabController,
+          labelColor: const Color(0xFF4a90d9),
+          unselectedLabelColor: Colors.grey,
+          indicatorColor: const Color(0xFF4a90d9),
+          isScrollable: true,
+          // Telefon: ohne den Einzug, mit dem Material 3 scrollbare Reiter
+          // beginnt — der erste Reiter steht am Rand.
+          tabAlignment: telefon ? TabAlignment.start : null,
+          tabs: [
+            Tab(icon: const Icon(Icons.person), text: l.profileTab),
+            Tab(icon: const Icon(Icons.devices), text: l.myDevices),
+            Tab(icon: const Icon(Icons.card_membership), text: l.businessCard),
+            Tab(icon: const Icon(Icons.warning_amber), text: l.warnings),
+            Tab(icon: const Icon(Icons.folder_open), text: l.documents),
+            Tab(icon: const Icon(Icons.groups), text: l.membership),
+            Tab(icon: const Icon(Icons.verified_user), text: l.verification),
           ],
         ),
-      ),
+
+        // TabBarView
+        Expanded(
+          child: TabBarView(
+            controller: _tabController,
+            children: [
+              _buildProfileTab(),
+              _buildDevicesTab(),
+              Visitenkarte(
+                mitgliedernummer: widget.mitgliedernummer,
+                apiService: widget.apiService,
+              ),
+              _buildVerwarnungenTab(),
+              _buildDokumenteTab(),
+              _buildMitgliedschaftTab(),
+              _buildVerifizierungTab(),
+            ],
+          ),
+        ),
+      ],
     );
   }
 
@@ -836,12 +853,13 @@ class _ProfileDialogState extends State<ProfileDialog> with SingleTickerProvider
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const SizedBox(height: 4),
-                // IP + Reputation
+                // IP + Reputation — eine IPv6-Adresse ist breiter als ein
+                // Telefon: die Texte dieser Zeilen brechen um.
                 Row(
                   children: [
                     const Icon(Icons.public, size: 14, color: Colors.grey),
                     const SizedBox(width: 4),
-                    Text('IP: ${session['ip_address'] ?? 'N/A'}'),
+                    Flexible(child: Text('IP: ${session['ip_address'] ?? 'N/A'}')),
                     const SizedBox(width: 6),
                     _buildIpReputationBadge(session['ip_reputation']),
                   ],
@@ -851,7 +869,7 @@ class _ProfileDialogState extends State<ProfileDialog> with SingleTickerProvider
                   children: [
                     const Icon(Icons.phone_android, size: 14, color: Colors.grey),
                     const SizedBox(width: 4),
-                    Text('${session['platform'] ?? l.unknown}'),
+                    Flexible(child: Text('${session['platform'] ?? l.unknown}')),
                   ],
                 ),
                 // Provider
@@ -861,9 +879,11 @@ class _ProfileDialogState extends State<ProfileDialog> with SingleTickerProvider
                       Icon(_getConnectionTypeIcon(session['ip_provider']['connection_type']),
                           size: 14, color: _getConnectionTypeColor(session['ip_provider']['connection_type'])),
                       const SizedBox(width: 4),
-                      Text(
-                        '${session['ip_provider']['provider']}${session['ip_provider']['connection_type'] != null ? ' (${session['ip_provider']['connection_type']})' : ''}',
-                        style: TextStyle(color: _getConnectionTypeColor(session['ip_provider']['connection_type'])),
+                      Flexible(
+                        child: Text(
+                          '${session['ip_provider']['provider']}${session['ip_provider']['connection_type'] != null ? ' (${session['ip_provider']['connection_type']})' : ''}',
+                          style: TextStyle(color: _getConnectionTypeColor(session['ip_provider']['connection_type'])),
+                        ),
                       ),
                     ],
                   ),
@@ -931,20 +951,20 @@ class _ProfileDialogState extends State<ProfileDialog> with SingleTickerProvider
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Stats row
+          // Stats row — vier Zähler passen auf kein Telefon nebeneinander:
+          // was nicht mehr passt, rutscht in die nächste Zeile.
           if (_verwarnungStats != null && _verwarnungStats!.total > 0)
             Padding(
               padding: const EdgeInsets.only(bottom: 12),
-              child: Row(
+              child: Wrap(
+                spacing: 8,
+                runSpacing: 8,
                 children: [
                   _buildStatChip(l.warningTypeTotal, _verwarnungStats!.total, Colors.grey),
-                  const SizedBox(width: 8),
                   if (_verwarnungStats!.ermahnung > 0)
                     _buildStatChip(l.warningTypeErmahnung, _verwarnungStats!.ermahnung, Colors.amber),
-                  if (_verwarnungStats!.ermahnung > 0) const SizedBox(width: 8),
                   if (_verwarnungStats!.abmahnung > 0)
                     _buildStatChip(l.warningTypeAbmahnung, _verwarnungStats!.abmahnung, Colors.orange),
-                  if (_verwarnungStats!.abmahnung > 0) const SizedBox(width: 8),
                   if (_verwarnungStats!.letzteAbmahnung > 0)
                     _buildStatChip(l.warningTypeLetzte, _verwarnungStats!.letzteAbmahnung, Colors.red),
                 ],
@@ -956,9 +976,11 @@ class _ProfileDialogState extends State<ProfileDialog> with SingleTickerProvider
             children: [
               Icon(Icons.list_alt, size: 20, color: Colors.grey.shade700),
               const SizedBox(width: 8),
-              Text(
-                l.myWarnings(_verwarnungen.length),
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+              Flexible(
+                child: Text(
+                  l.myWarnings(_verwarnungen.length),
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                ),
               ),
             ],
           ),
@@ -972,7 +994,7 @@ class _ProfileDialogState extends State<ProfileDialog> with SingleTickerProvider
                   children: [
                     Icon(Icons.check_circle, color: Colors.green.shade600),
                     const SizedBox(width: 12),
-                    Text(l.noWarningsAvailable),
+                    Flexible(child: Text(l.noWarningsAvailable)),
                   ],
                 ),
               ),
@@ -1004,7 +1026,11 @@ class _ProfileDialogState extends State<ProfileDialog> with SingleTickerProvider
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Row(
+                            // Art und Datum: auf dem Telefon notfalls untereinander.
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 4,
+                              crossAxisAlignment: WrapCrossAlignment.center,
                               children: [
                                 Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
@@ -1017,7 +1043,6 @@ class _ProfileDialogState extends State<ProfileDialog> with SingleTickerProvider
                                     style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: color.shade900),
                                   ),
                                 ),
-                                const SizedBox(width: 8),
                                 Text(
                                   DateFormat('dd.MM.yyyy').format(v.datum),
                                   style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
@@ -1070,11 +1095,12 @@ class _ProfileDialogState extends State<ProfileDialog> with SingleTickerProvider
             children: [
               Icon(Icons.folder_open, size: 20, color: Colors.blue.shade700),
               const SizedBox(width: 8),
-              Text(
-                l.myDocuments(_dokumente.length),
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+              Expanded(
+                child: Text(
+                  l.myDocuments(_dokumente.length),
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                ),
               ),
-              const Spacer(),
               if (_isLoadingDokumente)
                 const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)),
             ],
@@ -1090,7 +1116,7 @@ class _ProfileDialogState extends State<ProfileDialog> with SingleTickerProvider
                   children: [
                     Icon(Icons.folder_off, color: Colors.grey.shade500),
                     const SizedBox(width: 12),
-                    Text(l.noDocumentsAvailable),
+                    Flexible(child: Text(l.noDocumentsAvailable)),
                   ],
                 ),
               ),
@@ -1126,7 +1152,12 @@ class _ProfileDialogState extends State<ProfileDialog> with SingleTickerProvider
                           children: [
                             Text(doc.dokumentName, style: const TextStyle(fontWeight: FontWeight.bold)),
                             const SizedBox(height: 2),
-                            Row(
+                            // Typ, Größe, Datum: auf dem Telefon notfalls in
+                            // zwei Zeilen statt hinaus.
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 2,
+                              crossAxisAlignment: WrapCrossAlignment.center,
                               children: [
                                 Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
@@ -1136,9 +1167,7 @@ class _ProfileDialogState extends State<ProfileDialog> with SingleTickerProvider
                                   ),
                                   child: Text(ext, style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: color)),
                                 ),
-                                const SizedBox(width: 8),
                                 Text(doc.filesizeFormatted, style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
-                                const SizedBox(width: 8),
                                 Text(
                                   DateFormat('dd.MM.yyyy').format(doc.createdAt),
                                   style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
@@ -1359,23 +1388,49 @@ class _ProfileDialogState extends State<ProfileDialog> with SingleTickerProvider
     required String label,
     required Widget child,
   }) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        Icon(icon, size: 20, color: iconColor),
-        const SizedBox(width: 12),
-        SizedBox(
-          width: 140,
-          child: Text(
-            label,
-            style: TextStyle(
-              color: Colors.grey.shade600,
-              fontSize: 13,
-            ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final beschriftung = Text(
+          label,
+          style: TextStyle(
+            color: Colors.grey.shade600,
+            fontSize: 13,
           ),
-        ),
-        Expanded(child: child),
-      ],
+        );
+        // Schmal (Telefon unter 393 dp): Bezeichnung über dem Wert statt in
+        // einer festen 140-dp-Spalte daneben — sonst blieben dem Wert keine
+        // 100 dp, und „Debitare directă SEPA" bräche dreimal um.
+        if (constraints.maxWidth < 360) {
+          return Row(
+            children: [
+              Icon(icon, size: 20, color: iconColor),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    beschriftung,
+                    const SizedBox(height: 4),
+                    child,
+                  ],
+                ),
+              ),
+            ],
+          );
+        }
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Icon(icon, size: 20, color: iconColor),
+            const SizedBox(width: 12),
+            SizedBox(
+              width: 140,
+              child: beschriftung,
+            ),
+            Expanded(child: child),
+          ],
+        );
+      },
     );
   }
 
@@ -1484,7 +1539,12 @@ class _ProfileDialogState extends State<ProfileDialog> with SingleTickerProvider
             size: 24,
           ),
         ),
-        title: Row(
+        // Stufe und Status: passt beides nicht nebeneinander (Telefon,
+        // Rumänisch), rutscht der Status unter die Stufe.
+        title: Wrap(
+          spacing: 8,
+          runSpacing: 4,
+          crossAxisAlignment: WrapCrossAlignment.center,
           children: [
             Text(
               l.stageLabel(stufe, _stufeName(stufe)),
@@ -1494,7 +1554,6 @@ class _ProfileDialogState extends State<ProfileDialog> with SingleTickerProvider
                 color: isGeprueft ? Colors.green.shade700 : null,
               ),
             ),
-            const SizedBox(width: 8),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
               decoration: BoxDecoration(
@@ -1580,25 +1639,46 @@ class _ProfileDialogState extends State<ProfileDialog> with SingleTickerProvider
       children: fields.where((f) => f[1].isNotEmpty).map((f) {
         return Padding(
           padding: const EdgeInsets.only(bottom: 6),
-          child: Row(
-            children: [
-              SizedBox(
-                width: 120,
-                child: Text(
-                  f[0],
-                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-                ),
-              ),
-              Expanded(
-                child: Text(
-                  f[1],
-                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.green.shade800),
-                ),
-              ),
-            ],
+          child: _stufeZeile(
+            f[0],
+            Text(
+              f[1],
+              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.green.shade800),
+            ),
           ),
         );
       }).toList(),
+    );
+  }
+
+  /// Bezeichnung und Wert einer geprüften Stufe. Breit wie bisher: die
+  /// Bezeichnung in einer 120-dp-Spalte, der Wert daneben. Schmal (Telefon
+  /// unter 393 dp): die Bezeichnung über dem Wert — neben 120 dp blieb dem
+  /// Wert dort kaum Platz für „Bürgermeister-Hartmann-Straße".
+  Widget _stufeZeile(String label, Widget wert) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final beschriftung = Text(
+          label,
+          style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+        );
+        if (constraints.maxWidth < 300) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              beschriftung,
+              const SizedBox(height: 2),
+              wert,
+            ],
+          );
+        }
+        return Row(
+          children: [
+            SizedBox(width: 120, child: beschriftung),
+            Expanded(child: wert),
+          ],
+        );
+      },
     );
   }
 
@@ -1616,37 +1696,39 @@ class _ProfileDialogState extends State<ProfileDialog> with SingleTickerProvider
         if (_selectedZahlungsmethode != null && _selectedZahlungsmethode!.isNotEmpty)
           Padding(
             padding: const EdgeInsets.only(bottom: 6),
-            child: Row(
-              children: [
-                SizedBox(
-                  width: 120,
-                  child: Text(l.paymentMethod, style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
-                ),
-                Icon(Icons.payment, size: 16, color: Colors.green.shade700),
-                const SizedBox(width: 6),
-                Text(
-                  zahlungsLabels[_selectedZahlungsmethode] ?? _selectedZahlungsmethode!,
-                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.green.shade800),
-                ),
-              ],
+            child: _stufeZeile(
+              l.paymentMethod,
+              Row(
+                children: [
+                  Icon(Icons.payment, size: 16, color: Colors.green.shade700),
+                  const SizedBox(width: 6),
+                  Flexible(
+                    child: Text(
+                      zahlungsLabels[_selectedZahlungsmethode] ?? _selectedZahlungsmethode!,
+                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.green.shade800),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         if (_selectedZahlungstag != null)
           Padding(
             padding: const EdgeInsets.only(bottom: 6),
-            child: Row(
-              children: [
-                SizedBox(
-                  width: 120,
-                  child: Text(l.paymentDay, style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
-                ),
-                Icon(Icons.calendar_today, size: 16, color: Colors.green.shade700),
-                const SizedBox(width: 6),
-                Text(
-                  l.paymentDayReminder(_selectedZahlungstag!),
-                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.green.shade800),
-                ),
-              ],
+            child: _stufeZeile(
+              l.paymentDay,
+              Row(
+                children: [
+                  Icon(Icons.calendar_today, size: 16, color: Colors.green.shade700),
+                  const SizedBox(width: 6),
+                  Flexible(
+                    child: Text(
+                      l.paymentDayReminder(_selectedZahlungstag!),
+                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.green.shade800),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
       ],
@@ -1654,20 +1736,44 @@ class _ProfileDialogState extends State<ProfileDialog> with SingleTickerProvider
   }
 
   Widget _buildStufe1EditContent() {
+    return LayoutBuilder(
+      builder: (context, constraints) =>
+          _buildStufe1Felder(untereinander: constraints.maxWidth < 400),
+    );
+  }
+
+  /// Zwei Felder einer Zeile. [untereinander] (Telefon): jedes in voller
+  /// Breite — nebeneinander blieben für „Hausnummer" oder „Cod poștal"
+  /// keine 60 dp, und die Beschriftung stand nur noch als „Nu…" da.
+  Widget _feldPaar(bool untereinander, Widget a, Widget b,
+      {int flexA = 1, int flexB = 1}) {
+    if (untereinander) {
+      return Column(
+        children: [
+          a,
+          const SizedBox(height: 8),
+          b,
+        ],
+      );
+    }
+    return Row(
+      children: [
+        Expanded(flex: flexA, child: a),
+        const SizedBox(width: 8),
+        Expanded(flex: flexB, child: b),
+      ],
+    );
+  }
+
+  Widget _buildStufe1Felder({required bool untereinander}) {
     final l = AppLocalizations.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            Expanded(
-              child: _stufeTextField(_vornameController, l.firstName),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: _stufeTextField(_nachnameController, l.lastName),
-            ),
-          ],
+        _feldPaar(
+          untereinander,
+          _stufeTextField(_vornameController, l.firstName),
+          _stufeTextField(_nachnameController, l.lastName),
         ),
         const SizedBox(height: 8),
         // Geburtsdatum picker
@@ -1703,30 +1809,18 @@ class _ProfileDialogState extends State<ProfileDialog> with SingleTickerProvider
           ),
         ),
         const SizedBox(height: 8),
-        Row(
-          children: [
-            Expanded(
-              flex: 3,
-              child: _stufeTextField(_strasseController, l.street),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: _stufeTextField(_hausnummerController, l.houseNumber),
-            ),
-          ],
+        _feldPaar(
+          untereinander,
+          _stufeTextField(_strasseController, l.street),
+          _stufeTextField(_hausnummerController, l.houseNumber),
+          flexA: 3,
         ),
         const SizedBox(height: 8),
-        Row(
-          children: [
-            Expanded(
-              child: _stufeTextField(_plzController, l.postalCode),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              flex: 2,
-              child: _stufeTextField(_ortController, l.city),
-            ),
-          ],
+        _feldPaar(
+          untereinander,
+          _stufeTextField(_plzController, l.postalCode),
+          _stufeTextField(_ortController, l.city),
+          flexB: 2,
         ),
         const SizedBox(height: 8),
         _stufeTextField(_telefonMobilController, l.phoneNumber),
@@ -1785,11 +1879,14 @@ class _ProfileDialogState extends State<ProfileDialog> with SingleTickerProvider
               children: [
                 Icon(Icons.payment, color: Colors.green.shade700, size: 20),
                 const SizedBox(width: 8),
-                Text(
-                  zahlungsLabels[_selectedZahlungsmethode] ?? _selectedZahlungsmethode!,
-                  style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green.shade700),
+                // „Debitare directă SEPA" + „Modifică" passen auf dem
+                // Telefon nicht nebeneinander: der Name bricht um.
+                Expanded(
+                  child: Text(
+                    zahlungsLabels[_selectedZahlungsmethode] ?? _selectedZahlungsmethode!,
+                    style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green.shade700),
+                  ),
                 ),
-                const Spacer(),
                 TextButton(
                   onPressed: () => setState(() => _selectedZahlungsmethode = null),
                   child: Text(l.changeLabel, style: const TextStyle(fontSize: 12)),
@@ -2096,18 +2193,21 @@ class _ProfileDialogState extends State<ProfileDialog> with SingleTickerProvider
       children: [
         Icon(icon, color: Colors.grey.shade600, size: 20),
         const SizedBox(width: 12),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              label,
-              style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-            ),
-            Text(
-              value,
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
-            ),
-          ],
+        // Eine lange E-Mail-Adresse bricht um, statt hinauszulaufen.
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+              ),
+              Text(
+                value,
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+              ),
+            ],
+          ),
         ),
       ],
     );
@@ -2127,9 +2227,11 @@ class _ProfileDialogState extends State<ProfileDialog> with SingleTickerProvider
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                l.changeEmail,
-                style: const TextStyle(fontWeight: FontWeight.bold),
+              Expanded(
+                child: Text(
+                  l.changeEmail,
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
               ),
               IconButton(
                 icon: const Icon(Icons.close, size: 20),
@@ -2208,9 +2310,11 @@ class _ProfileDialogState extends State<ProfileDialog> with SingleTickerProvider
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                l.changePassword,
-                style: const TextStyle(fontWeight: FontWeight.bold),
+              Expanded(
+                child: Text(
+                  l.changePassword,
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
               ),
               IconButton(
                 icon: const Icon(Icons.close, size: 20),
@@ -2312,9 +2416,11 @@ class _ProfileDialogState extends State<ProfileDialog> with SingleTickerProvider
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                l.phoneNumber,
-                style: const TextStyle(fontWeight: FontWeight.bold),
+              Expanded(
+                child: Text(
+                  l.phoneNumber,
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
               ),
               IconButton(
                 icon: const Icon(Icons.close, size: 20),
@@ -2327,10 +2433,10 @@ class _ProfileDialogState extends State<ProfileDialog> with SingleTickerProvider
             ],
           ),
           const SizedBox(height: 12),
-          Row(
-            children: [
+          LayoutBuilder(
+            builder: (context, constraints) {
               // Country Code
-              SizedBox(
+              final vorwahl = SizedBox(
                 width: 120,
                 child: TextField(
                   controller: _countryCodeController,
@@ -2345,25 +2451,42 @@ class _ProfileDialogState extends State<ProfileDialog> with SingleTickerProvider
                   ),
                   keyboardType: TextInputType.phone,
                 ),
-              ),
-              const SizedBox(width: 12),
+              );
               // Phone Number
-              Expanded(
-                child: TextField(
-                  controller: _phoneNumberController,
-                  decoration: InputDecoration(
-                    labelText: l.phoneNumber,
-                    prefixIcon: const Icon(Icons.phone),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    filled: true,
-                    fillColor: Colors.white,
+              final nummer = TextField(
+                controller: _phoneNumberController,
+                decoration: InputDecoration(
+                  labelText: l.phoneNumber,
+                  prefixIcon: const Icon(Icons.phone),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
                   ),
-                  keyboardType: TextInputType.phone,
+                  filled: true,
+                  fillColor: Colors.white,
                 ),
-              ),
-            ],
+                keyboardType: TextInputType.phone,
+              );
+              // Schmal (Telefon): Nummer unter der Vorwahl — daneben
+              // blieb für die Nummer zu wenig Eingabefläche, sie war nur
+              // angeschnitten zu sehen.
+              if (constraints.maxWidth < 340) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    vorwahl,
+                    const SizedBox(height: 12),
+                    nummer,
+                  ],
+                );
+              }
+              return Row(
+                children: [
+                  vorwahl,
+                  const SizedBox(width: 12),
+                  Expanded(child: nummer),
+                ],
+              );
+            },
           ),
           const SizedBox(height: 16),
           ElevatedButton(

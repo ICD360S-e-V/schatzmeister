@@ -1035,55 +1035,79 @@ class _LiveChatDialogState extends State<LiveChatDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final l = AppLocalizations.of(context);
-    return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Container(
-        width: 500,
-        height: 550,
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            // Header
-            _buildHeader(),
-            // Support network status bar
-            if (_supportConnectionType != null) _buildNetworkStatusBar(),
-            const Divider(),
-
-            // Messages area
-            Expanded(
-              child: _isLoading
-                  ? const Center(child: CircularProgressIndicator())
-                  : _buildMessagesList(),
+    // Auf dem Telefon (unter 600 dp) füllt der Chat den ganzen Bildschirm:
+    // im 500 × 550 dp großen Fenster mit 40 dp Rand blieben neben Anruf-,
+    // Video- und Schließen-Knopf keine 80 dp für den Namen, und die Blasen
+    // wurden schmal wie Zettel. Auf dem Schreibtisch bleibt das Fenster.
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final telefon = constraints.maxWidth < 600;
+        final inhalt = _buildInhalt(telefon);
+        if (telefon) {
+          return Dialog.fullscreen(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+              child: inhalt,
             ),
+          );
+        }
+        return Dialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          child: Container(
+            width: 500,
+            height: 550,
+            padding: const EdgeInsets.all(16),
+            child: inhalt,
+          ),
+        );
+      },
+    );
+  }
 
-            // Typing indicator
-            if (_typingUser != null)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: Row(
-                  children: [
-                    const SizedBox(width: 12),
-                    Text(
-                      l.typingIndicator(_typingUser!),
-                      style: TextStyle(
-                        color: Colors.grey.shade600,
-                        fontSize: 12,
-                        fontStyle: FontStyle.italic,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+  Widget _buildInhalt(bool telefon) {
+    final l = AppLocalizations.of(context);
+    return Column(
+      children: [
+        // Header
+        _buildHeader(telefon),
+        // Support network status bar
+        if (_supportConnectionType != null) _buildNetworkStatusBar(),
+        const Divider(),
 
-            // Call overlay - moved to bottom (above input area)
-            if (_voiceCallService.callState != CallState.idle) _buildCallOverlay(),
-
-            // Input area
-            _buildInputArea(),
-          ],
+        // Messages area
+        Expanded(
+          child: _isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : _buildMessagesList(),
         ),
-      ),
+
+        // Typing indicator
+        if (_typingUser != null)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Row(
+              children: [
+                const SizedBox(width: 12),
+                Flexible(
+                  child: Text(
+                    l.typingIndicator(_typingUser!),
+                    style: TextStyle(
+                      color: Colors.grey.shade600,
+                      fontSize: 12,
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+        // Call overlay - moved to bottom (above input area)
+        if (_voiceCallService.callState != CallState.idle) _buildCallOverlay(),
+
+        // Input area
+        _buildInputArea(),
+      ],
     );
   }
 
@@ -1185,75 +1209,109 @@ class _LiveChatDialogState extends State<LiveChatDialog> {
     );
   }
 
-  Widget _buildHeader() {
+  Widget _buildHeader(bool telefon) {
     final l = AppLocalizations.of(context);
+    // Ein langer Name (Direktchat zwischen Vorstandsmitgliedern) lief schon
+    // auf dem Schreibtisch hinaus — der Titel kürzt jetzt mit „…".
+    final titel = Text(
+      widget.gegenueber ?? 'Live Chat',
+      style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+      // Telefon: zwei Zeilen, sonst bliebe vom Namen nur „Alexandru-Co…".
+      maxLines: telefon ? 2 : 1,
+      overflow: TextOverflow.ellipsis,
+    );
+
+    final anrufKnoepfe = <Widget>[
+      // Voice call button
+      if (_voiceCallService.callState == CallState.idle)
+        IconButton(
+          icon: const Icon(Icons.call, color: Colors.green),
+          onPressed: _isConnected ? () => _startCall() : null,
+          tooltip: l.callSupport,
+        ),
+
+      // Videoanruf — derselbe Weg, nur mit Kamera.
+      if (_voiceCallService.callState == CallState.idle)
+        IconButton(
+          icon: const Icon(Icons.videocam, color: Colors.green),
+          onPressed: _isConnected ? () => _startCall(video: true) : null,
+          tooltip: tr('Videoanruf', 'Apel video'),
+        ),
+    ];
+
+    // Connection status
+    final status = Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: _isConnected ? Colors.green.shade100 : Colors.orange.shade100,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 8,
+            height: 8,
+            decoration: BoxDecoration(
+              color: _isConnected ? Colors.green : Colors.orange,
+              shape: BoxShape.circle,
+            ),
+          ),
+          const SizedBox(width: 6),
+          Text(
+            _isConnected ? l.connected : l.offline,
+            style: TextStyle(
+              color: _isConnected ? Colors.green.shade700 : Colors.orange.shade700,
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
+
+    final schliessen = IconButton(
+      icon: const Icon(Icons.close),
+      onPressed: () {
+        if (_voiceCallService.callState != CallState.idle) {
+          _endCall();
+        }
+        Navigator.pop(context);
+      },
+      tooltip: l.close,
+    );
+
+    if (telefon) {
+      // Telefon: der Verbindungsstatus steht unter dem Namen statt daneben,
+      // sonst bliebe dem Namen neben den drei Knöpfen kaum Platz.
+      return Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                titel,
+                const SizedBox(height: 4),
+                status,
+              ],
+            ),
+          ),
+          ...anrufKnoepfe,
+          schliessen,
+        ],
+      );
+    }
+
     return Row(
       children: [
         const Icon(Icons.chat, color: Color(0xFF4a90d9), size: 28),
         const SizedBox(width: 12),
-        Text(
-          widget.gegenueber ?? 'Live Chat',
-          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-        ),
-        const Spacer(),
-
-        // Voice call button
-        if (_voiceCallService.callState == CallState.idle)
-          IconButton(
-            icon: const Icon(Icons.call, color: Colors.green),
-            onPressed: _isConnected ? () => _startCall() : null,
-            tooltip: l.callSupport,
-          ),
-
-        // Videoanruf — derselbe Weg, nur mit Kamera.
-        if (_voiceCallService.callState == CallState.idle)
-          IconButton(
-            icon: const Icon(Icons.videocam, color: Colors.green),
-            onPressed: _isConnected ? () => _startCall(video: true) : null,
-            tooltip: tr('Videoanruf', 'Apel video'),
-          ),
-
-        // Connection status
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-          decoration: BoxDecoration(
-            color: _isConnected ? Colors.green.shade100 : Colors.orange.shade100,
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 8,
-                height: 8,
-                decoration: BoxDecoration(
-                  color: _isConnected ? Colors.green : Colors.orange,
-                  shape: BoxShape.circle,
-                ),
-              ),
-              const SizedBox(width: 6),
-              Text(
-                _isConnected ? l.connected : l.offline,
-                style: TextStyle(
-                  color: _isConnected ? Colors.green.shade700 : Colors.orange.shade700,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ],
-          ),
-        ),
+        Expanded(child: titel),
+        ...anrufKnoepfe,
+        status,
         const SizedBox(width: 8),
-        IconButton(
-          icon: const Icon(Icons.close),
-          onPressed: () {
-            if (_voiceCallService.callState != CallState.idle) {
-              _endCall();
-            }
-            Navigator.pop(context);
-          },
-          tooltip: l.close,
-        ),
+        schliessen,
       ],
     );
   }
@@ -1376,12 +1434,16 @@ class _LiveChatDialogState extends State<LiveChatDialog> {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(
-                      msg['sender_name'] ?? tr('Support', 'Suport'),
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 12,
-                        color: isAdmin ? Colors.purple.shade700 : const Color(0xFF4a90d9),
+                    // Ein langer Absendername bricht um, statt die Blase
+                    // samt „Support"-Marke hinauszuschieben.
+                    Flexible(
+                      child: Text(
+                        msg['sender_name'] ?? tr('Support', 'Suport'),
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                          color: isAdmin ? Colors.purple.shade700 : const Color(0xFF4a90d9),
+                        ),
                       ),
                     ),
                     if (isAdmin) ...[

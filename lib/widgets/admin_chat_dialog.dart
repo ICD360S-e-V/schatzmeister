@@ -104,6 +104,21 @@ class _AdminChatDialogState extends State<AdminChatDialog> {
   // Disposal flag to prevent setState after dispose starts
   bool _isDisposed = false;
 
+  /// Ab dieser Inhaltsbreite stehen Gesprächsliste (250 dp) und Gespräch
+  /// nebeneinander wie auf dem Schreibtisch. Darunter — auf dem Telefon —
+  /// sind es zwei Seiten nacheinander: erst die Liste, nach dem Antippen
+  /// das Gespräch, mit „Zurück" wieder die Liste. Nebeneinander blieb dem
+  /// Gespräch dort ein 30 dp breiter Streifen, ein Buchstabe je Zeile.
+  static const double _kZweiSpaltenAb = 600;
+
+  /// Nur die Anzeige auf dem Telefon: zeigt die Seite das Gespräch statt
+  /// der Liste? `_selectedConversation` bleibt davon unberührt — wer zur
+  /// Liste zurückgeht und ein anderes Gespräch wählt, verlässt das alte
+  /// genau wie auf dem Schreibtisch.
+  bool _gespraechSeite = false;
+
+  bool get _zeigeGespraech => _gespraechSeite && _selectedConversation != null;
+
   // Safe setState that checks both mounted and _isDisposed
   void _safeSetState(VoidCallback fn) {
     if (mounted && !_isDisposed) {
@@ -306,6 +321,7 @@ class _AdminChatDialogState extends State<AdminChatDialog> {
     if (!mounted) return;
     _safeSetState(() {
       _selectedConversation = conversation;
+      _gespraechSeite = true;
       _isLoadingMessages = true;
       _messages = [];
     });
@@ -1272,7 +1288,7 @@ class _AdminChatDialogState extends State<AdminChatDialog> {
           children: [
             const Icon(Icons.add_comment, color: Colors.green),
             const SizedBox(width: 8),
-            Text(l.newConversation),
+            Flexible(child: Text(l.newConversation)),
           ],
         ),
         content: SizedBox(
@@ -1376,99 +1392,213 @@ class _AdminChatDialogState extends State<AdminChatDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Container(
-        width: 800,
-        height: 600,
-        padding: const EdgeInsets.all(16),
-        child: Column(
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // Telefon (unter 600 dp): Vollbild statt 800 × 600 dp mit Rand.
+        final telefon = constraints.maxWidth < 600;
+        final inhalt = Column(
           children: [
             _buildHeader(),
             const Divider(),
 
             Expanded(
-              child: Row(
-                children: [
-                  SizedBox(
-                    width: 250,
-                    child: _buildConversationList(),
-                  ),
-                  const VerticalDivider(width: 1),
-                  Expanded(
-                    child: _selectedConversation == null
-                        ? _buildNoConversationSelected()
-                        : _buildChatArea(),
-                  ),
-                ],
+              child: LayoutBuilder(
+                builder: (context, bereich) {
+                  if (bereich.maxWidth < _kZweiSpaltenAb) {
+                    return _zeigeGespraech
+                        ? _buildChatArea()
+                        : _buildConversationList();
+                  }
+                  return Row(
+                    children: [
+                      SizedBox(
+                        width: 250,
+                        child: _buildConversationList(),
+                      ),
+                      const VerticalDivider(width: 1),
+                      Expanded(
+                        child: _selectedConversation == null
+                            ? _buildNoConversationSelected()
+                            : _buildChatArea(),
+                      ),
+                    ],
+                  );
+                },
               ),
             ),
 
             // In-call overlay - moved to bottom (above footer)
             if (_voiceCallService.callState == CallState.inCall) _buildInCallOverlay(),
           ],
-        ),
-      ),
+        );
+
+        if (telefon) {
+          // Die Zurück-Taste des Telefons führt vom Gespräch zur Liste
+          // zurück, statt den ganzen Chat zu schließen.
+          return PopScope(
+            canPop: !_zeigeGespraech,
+            onPopInvokedWithResult: (didPop, _) {
+              if (!didPop) _safeSetState(() => _gespraechSeite = false);
+            },
+            child: Dialog.fullscreen(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+                child: inhalt,
+              ),
+            ),
+          );
+        }
+
+        return Dialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          child: Container(
+            width: 800,
+            height: 600,
+            padding: const EdgeInsets.all(16),
+            child: inhalt,
+          ),
+        );
+      },
     );
   }
 
   Widget _buildHeader() {
     final l = AppLocalizations.of(context);
-    return Row(
-      children: [
-        const Icon(Icons.support_agent, color: Color(0xFF1a1a2e), size: 28),
-        const SizedBox(width: 12),
-        Text(
-          l.liveChatSupport,
-          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-        ),
-        const Spacer(),
-        if (_stats != null) ...[
-          StatBadge(label: l.statusOpen, count: _stats!['open'] ?? 0, color: Colors.orange),
-          const SizedBox(width: 8),
-          StatBadge(label: l.total, count: _stats!['total'] ?? 0, color: Colors.blue),
-          const SizedBox(width: 16),
-        ],
-        ConnectionStatus(isConnected: _isConnected),
-        const SizedBox(width: 8),
-        IconButton(
-          icon: const Icon(Icons.add_comment, color: Colors.green),
-          onPressed: _showStartConversationDialog,
-          tooltip: l.startNewConversation,
-        ),
-        IconButton(
-          icon: Badge(
-            isLabelVisible: _statusMessage != null,
-            backgroundColor: Colors.red,
-            smallSize: 8,
-            child: Icon(
-              Icons.campaign,
-              color: _statusMessage != null ? Colors.red : Colors.grey,
-            ),
-          ),
-          onPressed: _showStatusMessageSettings,
-          tooltip: l.statusMessageManage,
-        ),
-        IconButton(
-          icon: Icon(Icons.edit_calendar, color: Colors.teal.shade600),
-          onPressed: _showScheduledMessagesDialog,
-          tooltip: l.manageMessages,
-        ),
-        IconButton(
-          icon: const Icon(Icons.refresh),
-          onPressed: () => _loadConversations(),
-          tooltip: l.refresh,
-        ),
-        IconButton(
-          icon: const Icon(Icons.close),
-          onPressed: () {
-            if (_voiceCallService.callState != CallState.idle) {
-              _endCall();
-            }
-            Navigator.pop(context);
-          },
-        ),
+    const titelStil = TextStyle(fontSize: 20, fontWeight: FontWeight.bold);
+
+    final statistik = <Widget>[
+      if (_stats != null) ...[
+        StatBadge(label: l.statusOpen, count: _stats!['open'] ?? 0, color: Colors.orange),
+        StatBadge(label: l.total, count: _stats!['total'] ?? 0, color: Colors.blue),
       ],
+    ];
+
+    final aktionen = <Widget>[
+      IconButton(
+        icon: const Icon(Icons.add_comment, color: Colors.green),
+        onPressed: _showStartConversationDialog,
+        tooltip: l.startNewConversation,
+      ),
+      IconButton(
+        icon: Badge(
+          isLabelVisible: _statusMessage != null,
+          backgroundColor: Colors.red,
+          smallSize: 8,
+          child: Icon(
+            Icons.campaign,
+            color: _statusMessage != null ? Colors.red : Colors.grey,
+          ),
+        ),
+        onPressed: _showStatusMessageSettings,
+        tooltip: l.statusMessageManage,
+      ),
+      IconButton(
+        icon: Icon(Icons.edit_calendar, color: Colors.teal.shade600),
+        onPressed: _showScheduledMessagesDialog,
+        tooltip: l.manageMessages,
+      ),
+      IconButton(
+        icon: const Icon(Icons.refresh),
+        onPressed: () => _loadConversations(),
+        tooltip: l.refresh,
+      ),
+    ];
+
+    final schliessen = IconButton(
+      icon: const Icon(Icons.close),
+      onPressed: () {
+        if (_voiceCallService.callState != CallState.idle) {
+          _endCall();
+        }
+        Navigator.pop(context);
+      },
+    );
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth >= _kZweiSpaltenAb) {
+          return Row(
+            children: [
+              const Icon(Icons.support_agent, color: Color(0xFF1a1a2e), size: 28),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  l.liveChatSupport,
+                  style: titelStil,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              if (statistik.isNotEmpty) ...[
+                statistik[0],
+                const SizedBox(width: 8),
+                statistik[1],
+                const SizedBox(width: 16),
+              ],
+              ConnectionStatus(isConnected: _isConnected),
+              const SizedBox(width: 8),
+              ...aktionen,
+              schliessen,
+            ],
+          );
+        }
+
+        // Telefon, Gesprächsseite: zurück zur Liste, Titel, Schließen.
+        if (_zeigeGespraech) {
+          return Row(
+            children: [
+              IconButton(
+                icon: const Icon(Icons.arrow_back),
+                onPressed: () => _safeSetState(() => _gespraechSeite = false),
+                tooltip: l.back,
+              ),
+              Expanded(
+                child: Text(
+                  l.liveChatSupport,
+                  style: titelStil,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              ConnectionStatus(isConnected: _isConnected),
+              schliessen,
+            ],
+          );
+        }
+
+        // Telefon, Listenseite: Titel und Schließen oben, darunter Zähler,
+        // Verbindung und die vier Knöpfe — umbrechend, wo es eng wird.
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.support_agent, color: Color(0xFF1a1a2e), size: 28),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    l.liveChatSupport,
+                    style: titelStil,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                schliessen,
+              ],
+            ),
+            Wrap(
+              spacing: 8,
+              runSpacing: 4,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                ...statistik,
+                ConnectionStatus(isConnected: _isConnected),
+                ...aktionen,
+              ],
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -1635,7 +1765,7 @@ class _AdminChatDialogState extends State<AdminChatDialog> {
           children: [
             Icon(Icons.warning_amber_rounded, color: Colors.red.shade700),
             const SizedBox(width: 8),
-            Text(l.statusMessageLabel),
+            Flexible(child: Text(l.statusMessageLabel)),
           ],
         ),
         content: SizedBox(
@@ -1713,8 +1843,9 @@ class _AdminChatDialogState extends State<AdminChatDialog> {
               children: [
                 Icon(Icons.schedule_send, color: Colors.teal.shade600),
                 const SizedBox(width: 8),
-                Text(l.automaticMessages, style: const TextStyle(fontSize: 16)),
-                const Spacer(),
+                Expanded(
+                  child: Text(l.automaticMessages, style: const TextStyle(fontSize: 16)),
+                ),
                 IconButton(
                   icon: const Icon(Icons.add_circle, color: Colors.green),
                   onPressed: () async {
@@ -1744,107 +1875,129 @@ class _AdminChatDialogState extends State<AdminChatDialog> {
                             ],
                           ),
                         )
-                      : ListView.separated(
-                          itemCount: messages.length,
-                          separatorBuilder: (_, __) => const Divider(height: 1),
-                          itemBuilder: (_, i) {
-                            final m = messages[i];
-                            final time = (m['send_time'] as String? ?? '').substring(0, 5);
-                            final isActive = m['is_active'] == true;
-                            final category = m['category'] as String? ?? 'mahlzeit';
-                            final daysStr = m['days_of_week'] as String? ?? '1,2,3,4,5,6,7';
+                      : LayoutBuilder(
+                          // Telefon: Schalter und Knöpfe unter dem Text statt
+                          // daneben — daneben blieben dem Text keine 40 dp.
+                          builder: (_, bereich) {
+                            final eng = bereich.maxWidth < 400;
+                            return ListView.separated(
+                              itemCount: messages.length,
+                              separatorBuilder: (_, __) => const Divider(height: 1),
+                              itemBuilder: (_, i) {
+                                final m = messages[i];
+                                final time = (m['send_time'] as String? ?? '').substring(0, 5);
+                                final isActive = m['is_active'] == true;
+                                final category = m['category'] as String? ?? 'mahlzeit';
+                                final daysStr = m['days_of_week'] as String? ?? '1,2,3,4,5,6,7';
 
-                            IconData catIcon;
-                            Color catColor;
-                            switch (category) {
-                              case 'fruehstueck':
-                                catIcon = Icons.free_breakfast;
-                                catColor = Colors.orange;
-                                break;
-                              case 'mittagessen':
-                                catIcon = Icons.lunch_dining;
-                                catColor = Colors.green;
-                                break;
-                              case 'abendessen':
-                                catIcon = Icons.dinner_dining;
-                                catColor = Colors.indigo;
-                                break;
-                              case 'medikament':
-                                catIcon = Icons.medication;
-                                catColor = Colors.red;
-                                break;
-                              default:
-                                catIcon = Icons.restaurant;
-                                catColor = Colors.teal;
-                            }
+                                IconData catIcon;
+                                Color catColor;
+                                switch (category) {
+                                  case 'fruehstueck':
+                                    catIcon = Icons.free_breakfast;
+                                    catColor = Colors.orange;
+                                    break;
+                                  case 'mittagessen':
+                                    catIcon = Icons.lunch_dining;
+                                    catColor = Colors.green;
+                                    break;
+                                  case 'abendessen':
+                                    catIcon = Icons.dinner_dining;
+                                    catColor = Colors.indigo;
+                                    break;
+                                  case 'medikament':
+                                    catIcon = Icons.medication;
+                                    catColor = Colors.red;
+                                    break;
+                                  default:
+                                    catIcon = Icons.restaurant;
+                                    catColor = Colors.teal;
+                                }
 
-                            return ListTile(
-                              leading: CircleAvatar(
-                                backgroundColor: catColor.withValues(alpha: 0.15),
-                                child: Icon(catIcon, color: catColor, size: 20),
-                              ),
-                              title: Text(m['message'] ?? '', maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 13)),
-                              subtitle: Row(
-                                children: [
-                                  Icon(Icons.access_time, size: 12, color: Colors.grey.shade500),
-                                  const SizedBox(width: 4),
-                                  Text(time, style: TextStyle(fontSize: 11, color: Colors.grey.shade600, fontWeight: FontWeight.w600)),
-                                  const SizedBox(width: 8),
-                                  Text(_formatDays(daysStr), style: TextStyle(fontSize: 10, color: Colors.grey.shade500)),
-                                ],
-                              ),
-                              trailing: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Switch(
-                                    value: isActive,
-                                    activeTrackColor: Colors.green.shade200,
-                                    activeThumbColor: Colors.green,
-                                    onChanged: (val) async {
-                                      await _apiService.updateScheduledMessage(id: m['id'], isActive: val);
-                                      setDialogState(() {
-                                        messages[i]['is_active'] = val;
-                                        isLoading = false;
-                                      });
-                                    },
-                                  ),
-                                  IconButton(
-                                    icon: Icon(Icons.edit, size: 18, color: Colors.blue.shade400),
-                                    onPressed: () async {
-                                      Navigator.pop(ctx);
-                                      await _showEditScheduledMessageDialog(m);
-                                      if (mounted) _showScheduledMessagesDialog();
-                                    },
-                                  ),
-                                  IconButton(
-                                    icon: Icon(Icons.delete_outline, size: 18, color: Colors.red.shade400),
-                                    onPressed: () async {
-                                      final confirm = await showDialog<bool>(
-                                        context: ctx,
-                                        builder: (c) => AlertDialog(
-                                          title: Text(l.deleteMessageTitle),
-                                          content: Text(l.messageWillBeDeleted(m['message'] ?? '')),
-                                          actions: [
-                                            TextButton(onPressed: () => Navigator.pop(c, false), child: Text(l.cancel)),
-                                            TextButton(
-                                              onPressed: () => Navigator.pop(c, true),
-                                              style: TextButton.styleFrom(foregroundColor: Colors.red),
-                                              child: Text(l.delete),
-                                            ),
-                                          ],
-                                        ),
-                                      );
-                                      if (confirm == true) {
-                                        await _apiService.deleteScheduledMessage(m['id']);
+                                final zeit = Row(
+                                  children: [
+                                    Icon(Icons.access_time, size: 12, color: Colors.grey.shade500),
+                                    const SizedBox(width: 4),
+                                    Text(time, style: TextStyle(fontSize: 11, color: Colors.grey.shade600, fontWeight: FontWeight.w600)),
+                                    const SizedBox(width: 8),
+                                    Flexible(
+                                      child: Text(_formatDays(daysStr), style: TextStyle(fontSize: 10, color: Colors.grey.shade500)),
+                                    ),
+                                  ],
+                                );
+                                final steuerung = Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Switch(
+                                      value: isActive,
+                                      activeTrackColor: Colors.green.shade200,
+                                      activeThumbColor: Colors.green,
+                                      onChanged: (val) async {
+                                        await _apiService.updateScheduledMessage(id: m['id'], isActive: val);
                                         setDialogState(() {
-                                          messages.removeAt(i);
+                                          messages[i]['is_active'] = val;
                                           isLoading = false;
                                         });
-                                      }
-                                    },
+                                      },
+                                    ),
+                                    IconButton(
+                                      icon: Icon(Icons.edit, size: 18, color: Colors.blue.shade400),
+                                      onPressed: () async {
+                                        Navigator.pop(ctx);
+                                        await _showEditScheduledMessageDialog(m);
+                                        if (mounted) _showScheduledMessagesDialog();
+                                      },
+                                    ),
+                                    IconButton(
+                                      icon: Icon(Icons.delete_outline, size: 18, color: Colors.red.shade400),
+                                      onPressed: () async {
+                                        final confirm = await showDialog<bool>(
+                                          context: ctx,
+                                          builder: (c) => AlertDialog(
+                                            title: Text(l.deleteMessageTitle),
+                                            content: Text(l.messageWillBeDeleted(m['message'] ?? '')),
+                                            actions: [
+                                              TextButton(onPressed: () => Navigator.pop(c, false), child: Text(l.cancel)),
+                                              TextButton(
+                                                onPressed: () => Navigator.pop(c, true),
+                                                style: TextButton.styleFrom(foregroundColor: Colors.red),
+                                                child: Text(l.delete),
+                                              ),
+                                            ],
+                                          ),
+                                        );
+                                        if (confirm == true) {
+                                          await _apiService.deleteScheduledMessage(m['id']);
+                                          setDialogState(() {
+                                            messages.removeAt(i);
+                                            isLoading = false;
+                                          });
+                                        }
+                                      },
+                                    ),
+                                  ],
+                                );
+
+                                final eintrag = ListTile(
+                                  leading: CircleAvatar(
+                                    backgroundColor: catColor.withValues(alpha: 0.15),
+                                    child: Icon(catIcon, color: catColor, size: 20),
                                   ),
-                                ],
-                              ),
+                                  title: Text(m['message'] ?? '', maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 13)),
+                                  subtitle: zeit,
+                                  trailing: eng ? null : steuerung,
+                                );
+                                if (!eng) return eintrag;
+                                return Column(
+                                  children: [
+                                    eintrag,
+                                    Align(
+                                      alignment: AlignmentDirectional.centerEnd,
+                                      child: steuerung,
+                                    ),
+                                  ],
+                                );
+                              },
                             );
                           },
                         ),
@@ -1902,11 +2055,16 @@ class _AdminChatDialogState extends State<AdminChatDialog> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) => AlertDialog(
+          // Auf dem Telefon sind Kategorien und Wochentage mehrzeilig — der
+          // Inhalt wird höher als der Bildschirm und muss rollen können.
+          scrollable: true,
           title: Row(
             children: [
               Icon(Icons.add_circle, color: Colors.green.shade600),
               const SizedBox(width: 8),
-              Text(l.newAutomaticMessage, style: const TextStyle(fontSize: 15)),
+              Flexible(
+                child: Text(l.newAutomaticMessage, style: const TextStyle(fontSize: 15)),
+              ),
             ],
           ),
           content: SizedBox(
@@ -2030,11 +2188,16 @@ class _AdminChatDialogState extends State<AdminChatDialog> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) => AlertDialog(
+          // Auf dem Telefon sind Kategorien und Wochentage mehrzeilig — der
+          // Inhalt wird höher als der Bildschirm und muss rollen können.
+          scrollable: true,
           title: Row(
             children: [
               Icon(Icons.edit, color: Colors.blue.shade600),
               const SizedBox(width: 8),
-              Text(l.editMessage, style: const TextStyle(fontSize: 15)),
+              Flexible(
+                child: Text(l.editMessage, style: const TextStyle(fontSize: 15)),
+              ),
             ],
           ),
           content: SizedBox(
@@ -2181,68 +2344,56 @@ class _AdminChatDialogState extends State<AdminChatDialog> {
                             ],
                           ),
                         )
-                      : ListView.builder(
-                          itemCount: messages.length,
-                          itemBuilder: (_, i) {
-                            final m = messages[i];
-                            final category = m['category'] ?? 'mahlzeit';
-                            final time = (m['send_time'] ?? '').toString();
-                            final timeShort = time.length >= 5 ? time.substring(0, 5) : time;
-                            final daysStr = m['days_of_week'] ?? '1,2,3,4,5,6,7';
-                            final isEnabled = m['is_enabled'] == true;
+                      : LayoutBuilder(
+                          // Telefon: der Schalter unter dem Text statt daneben.
+                          builder: (_, bereich) {
+                            final eng = bereich.maxWidth < 400;
+                            return ListView.builder(
+                              itemCount: messages.length,
+                              itemBuilder: (_, i) {
+                                final m = messages[i];
+                                final category = m['category'] ?? 'mahlzeit';
+                                final time = (m['send_time'] ?? '').toString();
+                                final timeShort = time.length >= 5 ? time.substring(0, 5) : time;
+                                final daysStr = m['days_of_week'] ?? '1,2,3,4,5,6,7';
+                                final isEnabled = m['is_enabled'] == true;
 
-                            IconData catIcon;
-                            Color catColor;
-                            switch (category) {
-                              case 'fruehstueck':
-                                catIcon = Icons.free_breakfast;
-                                catColor = Colors.orange;
-                                break;
-                              case 'mittagessen':
-                                catIcon = Icons.lunch_dining;
-                                catColor = Colors.green;
-                                break;
-                              case 'abendessen':
-                                catIcon = Icons.dinner_dining;
-                                catColor = Colors.indigo;
-                                break;
-                              case 'medikament':
-                                catIcon = Icons.medication;
-                                catColor = Colors.red;
-                                break;
-                              default:
-                                catIcon = Icons.restaurant;
-                                catColor = Colors.teal;
-                            }
+                                IconData catIcon;
+                                Color catColor;
+                                switch (category) {
+                                  case 'fruehstueck':
+                                    catIcon = Icons.free_breakfast;
+                                    catColor = Colors.orange;
+                                    break;
+                                  case 'mittagessen':
+                                    catIcon = Icons.lunch_dining;
+                                    catColor = Colors.green;
+                                    break;
+                                  case 'abendessen':
+                                    catIcon = Icons.dinner_dining;
+                                    catColor = Colors.indigo;
+                                    break;
+                                  case 'medikament':
+                                    catIcon = Icons.medication;
+                                    catColor = Colors.red;
+                                    break;
+                                  default:
+                                    catIcon = Icons.restaurant;
+                                    catColor = Colors.teal;
+                                }
 
-                            return Card(
-                              elevation: isEnabled ? 2 : 0,
-                              color: isEnabled ? null : Colors.grey.shade50,
-                              margin: const EdgeInsets.only(bottom: 8),
-                              child: ListTile(
-                                leading: CircleAvatar(
-                                  backgroundColor: catColor.withValues(alpha: isEnabled ? 0.15 : 0.06),
-                                  child: Icon(catIcon, color: isEnabled ? catColor : Colors.grey, size: 20),
-                                ),
-                                title: Text(
-                                  m['message'] ?? '',
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    color: isEnabled ? null : Colors.grey,
-                                  ),
-                                ),
-                                subtitle: Row(
+                                final zeit = Row(
                                   children: [
                                     Icon(Icons.access_time, size: 12, color: Colors.grey.shade500),
                                     const SizedBox(width: 4),
                                     Text(timeShort, style: TextStyle(fontSize: 11, color: Colors.grey.shade600, fontWeight: FontWeight.w600)),
                                     const SizedBox(width: 8),
-                                    Text(_formatDays(daysStr), style: TextStyle(fontSize: 10, color: Colors.grey.shade500)),
+                                    Flexible(
+                                      child: Text(_formatDays(daysStr), style: TextStyle(fontSize: 10, color: Colors.grey.shade500)),
+                                    ),
                                   ],
-                                ),
-                                trailing: Switch(
+                                );
+                                final schalter = Switch(
                                   value: isEnabled,
                                   activeTrackColor: Colors.green.shade200,
                                   activeThumbColor: Colors.green,
@@ -2252,8 +2403,42 @@ class _AdminChatDialogState extends State<AdminChatDialog> {
                                       messages[i]['is_enabled'] = val;
                                     });
                                   },
-                                ),
-                              ),
+                                );
+
+                                return Card(
+                                  elevation: isEnabled ? 2 : 0,
+                                  color: isEnabled ? null : Colors.grey.shade50,
+                                  margin: const EdgeInsets.only(bottom: 8),
+                                  child: ListTile(
+                                    leading: CircleAvatar(
+                                      backgroundColor: catColor.withValues(alpha: isEnabled ? 0.15 : 0.06),
+                                      child: Icon(catIcon, color: isEnabled ? catColor : Colors.grey, size: 20),
+                                    ),
+                                    title: Text(
+                                      m['message'] ?? '',
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        color: isEnabled ? null : Colors.grey,
+                                      ),
+                                    ),
+                                    subtitle: eng
+                                        ? Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              zeit,
+                                              Align(
+                                                alignment: AlignmentDirectional.centerEnd,
+                                                child: schalter,
+                                              ),
+                                            ],
+                                          )
+                                        : zeit,
+                                    trailing: eng ? null : schalter,
+                                  ),
+                                );
+                              },
                             );
                           },
                         ),
