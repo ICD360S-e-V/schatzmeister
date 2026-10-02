@@ -11,6 +11,7 @@ import '../services/chat_service.dart';
 import '../services/voice_call_service.dart';
 import '../services/notification_service.dart';
 import '../services/logger_service.dart';
+import '../services/language_service.dart';
 import '../l10n/app_localizations.dart';
 import 'incoming_call_dialog.dart';
 import 'conversation_list_item.dart';
@@ -1210,7 +1211,8 @@ class _AdminChatDialogState extends State<AdminChatDialog> {
     if (!mounted) return;
 
     // For critical errors (NO_MICROPHONE), show persistent SnackBar
-    final isCritical = message.contains('Mikrofon') || message.contains('Microphone');
+    // ('microfon' = rumänischer Text von noMicrophoneFound)
+    final isCritical = message.contains('Mikrofon') || message.contains('Microphone') || message.contains('microfon');
     final duration = isCritical ? const Duration(seconds: 15) : const Duration(seconds: 4);
 
     ScaffoldMessenger.of(context).showSnackBar(
@@ -1859,13 +1861,25 @@ class _AdminChatDialogState extends State<AdminChatDialog> {
     );
   }
 
+  /// Kurznamen der Wochentage; Schlüssel = Wert in `days_of_week` (1 = Montag).
+  /// Getter statt Feld, damit ein Sprachwechsel sofort greift.
+  Map<String, String> get _dayShortNames => {
+        '1': tr('Mo', 'Lu'),
+        '2': tr('Di', 'Ma'),
+        '3': tr('Mi', 'Mi'),
+        '4': tr('Do', 'Jo'),
+        '5': tr('Fr', 'Vi'),
+        '6': tr('Sa', 'Sâ'),
+        '7': tr('So', 'Du'),
+      };
+
   String _formatDays(String daysStr) {
     final l = AppLocalizations.of(context);
-    final dayNames = {'1': 'Mo', '2': 'Di', '3': 'Mi', '4': 'Do', '5': 'Fr', '6': 'Sa', '7': 'So'};
+    final dayNames = _dayShortNames;
     final days = daysStr.split(',').map((d) => d.trim()).toList();
     if (days.length == 7) return l.daily;
-    if (days.join(',') == '1,2,3,4,5') return 'Mo-Fr';
-    if (days.join(',') == '6,7') return 'Sa-So';
+    if (days.join(',') == '1,2,3,4,5') return tr('Mo-Fr', 'Lu-Vi');
+    if (days.join(',') == '6,7') return tr('Sa-So', 'Sâ-Du');
     return days.map((d) => dayNames[d] ?? d).join(', ');
   }
 
@@ -1938,7 +1952,7 @@ class _AdminChatDialogState extends State<AdminChatDialog> {
                 Wrap(
                   spacing: 4,
                   children: [
-                    for (final entry in {'1': 'Mo', '2': 'Di', '3': 'Mi', '4': 'Do', '5': 'Fr', '6': 'Sa', '7': 'So'}.entries)
+                    for (final entry in _dayShortNames.entries)
                       FilterChip(
                         label: Text(entry.value, style: const TextStyle(fontSize: 11)),
                         selected: selectedDays.contains(int.parse(entry.key)),
@@ -2063,7 +2077,7 @@ class _AdminChatDialogState extends State<AdminChatDialog> {
                 Wrap(
                   spacing: 4,
                   children: [
-                    for (final entry in {'1': 'Mo', '2': 'Di', '3': 'Mi', '4': 'Do', '5': 'Fr', '6': 'Sa', '7': 'So'}.entries)
+                    for (final entry in _dayShortNames.entries)
                       FilterChip(
                         label: Text(entry.value, style: const TextStyle(fontSize: 11)),
                         selected: selectedDays.contains(int.parse(entry.key)),

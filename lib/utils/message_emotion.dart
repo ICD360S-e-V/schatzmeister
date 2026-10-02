@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../services/language_service.dart';
 
 /// WhatsApp-style reaction for a chat message.
 ///
@@ -63,35 +64,35 @@ extension MessageEmotionX on MessageEmotion {
     }
   }
 
-  /// German tooltip label. Doubles as the screen-reader text, deshalb eine
+  /// Tooltip label (Deutsch/Rumänisch). Doubles as the screen-reader text, deshalb eine
   /// Aussage und kein Emoji-Name: „Verstanden" sagt, was gemeint ist,
   /// „Daumen hoch" nur, was zu sehen ist.
   String get label {
     switch (this) {
       case MessageEmotion.thumbsUp:
-        return 'Verstanden';
+        return tr('Verstanden', 'Am înțeles');
       case MessageEmotion.love:
-        return 'Herz';
+        return tr('Herz', 'Inimă');
       case MessageEmotion.laugh:
-        return 'Lustig';
+        return tr('Lustig', 'Amuzant');
       case MessageEmotion.wow:
-        return 'Überrascht';
+        return tr('Überrascht', 'Surprins');
       case MessageEmotion.sad:
-        return 'Traurig';
+        return tr('Traurig', 'Trist');
       case MessageEmotion.thanks:
-        return 'Danke';
+        return tr('Danke', 'Mulțumesc');
       case MessageEmotion.done:
-        return 'Erledigt';
+        return tr('Erledigt', 'Finalizat');
       case MessageEmotion.question:
-        return 'Frage dazu';
+        return tr('Frage dazu', 'Am o întrebare');
       case MessageEmotion.clap:
         return 'Bravo';
       case MessageEmotion.happy:
-        return 'Freude';
+        return tr('Freude', 'Bucurie');
       case MessageEmotion.thumbsDown:
-        return 'Nicht einverstanden';
+        return tr('Nicht einverstanden', 'Nu sunt de acord');
       case MessageEmotion.angry:
-        return 'Ärgerlich';
+        return tr('Ärgerlich', 'Supărat');
     }
   }
 
@@ -247,7 +248,7 @@ Future<EmotionPick?> showEmotionPicker(
                   ),
                 if (current != null)
                   Tooltip(
-                    message: 'Reaktion entfernen',
+                    message: tr('Reaktion entfernen', 'Elimină reacția'),
                     child: InkWell(
                       onTap: () =>
                           Navigator.pop(context, const EmotionPick(null)),
@@ -365,7 +366,8 @@ class UnbekannteReaktionBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Tooltip(
-      message: 'Reaktion erhalten — bitte App aktualisieren',
+      message: tr('Reaktion erhalten — bitte App aktualisieren',
+          'Reacție primită — vă rugăm actualizați aplicația'),
       child: Container(
         padding: const EdgeInsets.all(4),
         decoration: BoxDecoration(
@@ -415,7 +417,7 @@ class AddReactionButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Tooltip(
-      message: 'Reaktion wählen',
+      message: tr('Reaktion wählen', 'Alege reacția'),
       child: Container(
         padding: const EdgeInsets.all(3),
         decoration: BoxDecoration(

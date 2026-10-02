@@ -8,6 +8,7 @@ import 'notification_service.dart';
 import 'logger_service.dart';
 import 'http_client_factory.dart';
 import 'api_service.dart';
+import 'language_service.dart';
 
 final _log = LoggerService();
 
@@ -558,7 +559,7 @@ class ChatService {
           _newDeviceLoginController.add(newDeviceEvent);
           // Show native notification
           NotificationService().show(
-            title: 'Neue Anmeldung erkannt',
+            title: tr('Neue Anmeldung erkannt', 'Autentificare nouă detectată'),
             body: '${newDeviceEvent.deviceName} • ${newDeviceEvent.ipAddress}',
           );
           break;
@@ -873,9 +874,9 @@ class NewDeviceLoginEvent {
 
   factory NewDeviceLoginEvent.fromJson(Map<String, dynamic> json) {
     return NewDeviceLoginEvent(
-      deviceName: json['device_name'] ?? 'Unbekanntes Gerät',
-      ipAddress: json['ip_address'] ?? 'Unbekannt',
-      platform: json['platform'] ?? 'Unbekannt',
+      deviceName: json['device_name'] ?? tr('Unbekanntes Gerät', 'Dispozitiv necunoscut'),
+      ipAddress: json['ip_address'] ?? tr('Unbekannt', 'Necunoscut'),
+      platform: json['platform'] ?? tr('Unbekannt', 'Necunoscut'),
       timestamp: DateTime.tryParse(json['timestamp'] ?? '') ?? DateTime.now(),
     );
   }
@@ -905,7 +906,7 @@ class TicketNotificationEvent {
     return TicketNotificationEvent(
       ticketId: json['ticket_id'] ?? 0,
       notificationType: json['notification_type'] ?? 'comment_added',
-      title: json['title'] ?? 'Ticket Update',
+      title: json['title'] ?? tr('Ticket Update', 'Actualizare tichet'),
       message: json['message'] ?? '',
       ticketSubject: json['ticket_subject'] ?? '',
       senderName: json['sender_name'] ?? 'Unknown',

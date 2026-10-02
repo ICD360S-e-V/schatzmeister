@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../services/language_service.dart';
 
 /// A single attachment item in a chat message
 class ChatAttachmentItem extends StatelessWidget {
@@ -15,7 +16,7 @@ class ChatAttachmentItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final filename = attachment['filename'] ?? 'Datei';
+    final filename = attachment['filename'] ?? tr('Datei', 'Fișier');
     final extension = attachment['extension'] ?? '';
     final size = attachment['size'] ?? 0;
 
