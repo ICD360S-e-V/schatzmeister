@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import 'package:http/io_client.dart';
 import 'api_service.dart';
 import 'device_key_service.dart';
+import 'language_service.dart';
 import 'logger_service.dart';
 
 final _log = LoggerService();
@@ -142,11 +143,11 @@ enum TimeCategory {
   String get display {
     switch (this) {
       case TimeCategory.fahrzeit:
-        return 'Fahrzeit';
+        return tr('Fahrzeit', 'Timp de deplasare');
       case TimeCategory.arbeitszeit:
-        return 'Arbeitszeit';
+        return tr('Arbeitszeit', 'Timp de lucru');
       case TimeCategory.wartezeit:
-        return 'Wartezeit';
+        return tr('Wartezeit', 'Timp de așteptare');
     }
   }
 
@@ -455,19 +456,19 @@ class Ticket {
   String get statusDisplay {
     switch (status) {
       case 'open':
-        return 'Offen';
+        return tr('Offen', 'Deschis');
       case 'in_progress':
-        return 'In Bearbeitung';
+        return tr('In Bearbeitung', 'În lucru');
       case 'waiting_member':
-        return 'Warten auf Benutzer';
+        return tr('Warten auf Benutzer', 'Așteptare utilizator');
       case 'waiting_staff':
-        return 'Warten auf Mitarbeiter';
+        return tr('Warten auf Mitarbeiter', 'Așteptare personal');
       case 'waiting_authority':
-        return 'Warten auf Behörde';
+        return tr('Warten auf Behörde', 'Așteptare autoritate');
       case 'waiting_documents':
-        return 'Warten auf Unterlagen';
+        return tr('Warten auf Unterlagen', 'Așteptare documente');
       case 'done':
-        return 'Erledigt';
+        return tr('Erledigt', 'Finalizat');
       default:
         return status;
     }
@@ -476,11 +477,11 @@ class Ticket {
   String get priorityDisplay {
     switch (priority) {
       case 'low':
-        return 'Niedrig';
+        return tr('Niedrig', 'Scăzută');
       case 'medium':
-        return 'Mittel';
+        return tr('Mittel', 'Medie');
       case 'high':
-        return 'Hoch';
+        return tr('Hoch', 'Ridicată');
       default:
         return priority;
     }
@@ -649,10 +650,14 @@ class TicketService {
       }
 
       // Weekly limit or other error
-      final msg = data['message'] ?? 'Fehler beim Erstellen des Tickets';
+      final msg = data['message'] ??
+          tr('Fehler beim Erstellen des Tickets', 'Eroare la crearea tichetului');
       return {'error': msg};
     } catch (e) {
-      return {'error': 'Fehler beim Erstellen des Tickets'};
+      return {
+        'error': tr('Fehler beim Erstellen des Tickets',
+            'Eroare la crearea tichetului'),
+      };
     }
   }
 

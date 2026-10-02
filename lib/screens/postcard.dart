@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../services/api_service.dart';
+import '../services/language_service.dart';
 import 'webview_screen.dart';
 
 /// Self-contained POSTCARD card management widget.
@@ -70,12 +71,12 @@ class _PostcardViewState extends State<PostcardView> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
-                        'POSTCARD Karten',
-                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      Text(
+                        tr('POSTCARD Karten', 'Carduri POSTCARD'),
+                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                       ),
                       Text(
-                        'Geschäftskundenkarten',
+                        tr('Geschäftskundenkarten', 'Carduri clienți business'),
                         style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
                       ),
                     ],
@@ -89,7 +90,7 @@ class _PostcardViewState extends State<PostcardView> {
                 IconButton(
                   icon: Icon(Icons.add_circle_outline, color: color),
                   onPressed: _showAddPostcardDialog,
-                  tooltip: 'Karte hinzufügen',
+                  tooltip: tr('Karte hinzufügen', 'Adaugă card'),
                   constraints: const BoxConstraints(),
                   padding: const EdgeInsets.all(4),
                 ),
@@ -97,7 +98,7 @@ class _PostcardViewState extends State<PostcardView> {
                 IconButton(
                   icon: Icon(Icons.settings, color: Colors.grey.shade600, size: 20),
                   onPressed: _showPostcardAccountDialog,
-                  tooltip: 'Konto-Einstellungen',
+                  tooltip: tr('Konto-Einstellungen', 'Setări cont'),
                   constraints: const BoxConstraints(),
                   padding: const EdgeInsets.all(4),
                 ),
@@ -115,22 +116,22 @@ class _PostcardViewState extends State<PostcardView> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Bargeldlos bezahlen - sicher & kostenlos',
+                    tr('Bargeldlos bezahlen - sicher & kostenlos', 'Plată fără numerar - sigur și gratuit'),
                     style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.deepPurple.shade800),
                   ),
                   const SizedBox(height: 6),
-                  _postcardInfoRow(Icons.check_circle, 'Kostenlos, ohne Mindestumsatz'),
-                  _postcardInfoRow(Icons.check_circle, 'Fast alle Post-Produkte bargeldlos bezahlen'),
-                  _postcardInfoRow(Icons.check_circle, 'Tägliches Kartenlimit (Sicherheit)'),
-                  _postcardInfoRow(Icons.check_circle, 'Taggenau Abrechnung per Lastschrift'),
-                  _postcardInfoRow(Icons.check_circle, 'Transaktionsübersicht im Shop'),
+                  _postcardInfoRow(Icons.check_circle, tr('Kostenlos, ohne Mindestumsatz', 'Gratuit, fără rulaj minim')),
+                  _postcardInfoRow(Icons.check_circle, tr('Fast alle Post-Produkte bargeldlos bezahlen', 'Plată fără numerar pentru aproape toate produsele Post')),
+                  _postcardInfoRow(Icons.check_circle, tr('Tägliches Kartenlimit (Sicherheit)', 'Limită zilnică pe card (siguranță)')),
+                  _postcardInfoRow(Icons.check_circle, tr('Taggenau Abrechnung per Lastschrift', 'Decontare zilnică prin debit direct')),
+                  _postcardInfoRow(Icons.check_circle, tr('Transaktionsübersicht im Shop', 'Istoric tranzacții în magazinul online')),
                   const SizedBox(height: 6),
                   Row(
                     children: [
                       InkWell(
                         onTap: () => launchUrl(Uri.parse('https://www.deutschepost.de/de/p/postcard.html')),
                         child: Text(
-                          'Mehr erfahren',
+                          tr('Mehr erfahren', 'Aflați mai multe'),
                           style: TextStyle(fontSize: 10, color: Colors.deepPurple.shade700, decoration: TextDecoration.underline),
                         ),
                       ),
@@ -138,7 +139,7 @@ class _PostcardViewState extends State<PostcardView> {
                       InkWell(
                         onTap: () => launchUrl(Uri.parse('https://shop.deutschepost.de')),
                         child: Text(
-                          'Zum Shop',
+                          tr('Zum Shop', 'Spre magazin'),
                           style: TextStyle(fontSize: 10, color: Colors.deepPurple.shade700, decoration: TextDecoration.underline),
                         ),
                       ),
@@ -151,9 +152,9 @@ class _PostcardViewState extends State<PostcardView> {
             // Unsere Karten header
             Row(
               children: [
-                Text('Unsere Karten', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.grey.shade700)),
+                Text(tr('Unsere Karten', 'Cardurile noastre'), style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.grey.shade700)),
                 const Spacer(),
-                Text('${_postcards.length} Karten', style: TextStyle(fontSize: 11, color: Colors.grey.shade500)),
+                Text(tr('${_postcards.length} Karten', _postcards.length == 1 ? '1 card' : '${_postcards.length} carduri'), style: TextStyle(fontSize: 11, color: Colors.grey.shade500)),
               ],
             ),
             const SizedBox(height: 8),
@@ -169,7 +170,7 @@ class _PostcardViewState extends State<PostcardView> {
                               Icon(Icons.credit_card, size: 40, color: Colors.grey.shade300),
                               const SizedBox(height: 8),
                               Text(
-                                'Keine Karten',
+                                tr('Keine Karten', 'Niciun card'),
                                 style: TextStyle(color: Colors.grey.shade400, fontSize: 13),
                               ),
                             ],
@@ -194,7 +195,7 @@ class _PostcardViewState extends State<PostcardView> {
                                 size: 20,
                               ),
                               title: Text(
-                                bezeichnung.isNotEmpty ? bezeichnung : 'Karte ${index + 1}',
+                                bezeichnung.isNotEmpty ? bezeichnung : tr('Karte ${index + 1}', 'Card ${index + 1}'),
                                 style: TextStyle(
                                   fontSize: 13,
                                   fontWeight: FontWeight.w500,
@@ -218,7 +219,7 @@ class _PostcardViewState extends State<PostcardView> {
                                       borderRadius: BorderRadius.circular(6),
                                     ),
                                     child: Text(
-                                      '${limit.toStringAsFixed(0)}€/Tag',
+                                      tr('${limit.toStringAsFixed(0)}€/Tag', '${limit.toStringAsFixed(0)}€/zi'),
                                       style: TextStyle(fontSize: 10, color: Colors.green.shade700, fontWeight: FontWeight.w600),
                                     ),
                                   ),
@@ -231,7 +232,7 @@ class _PostcardViewState extends State<PostcardView> {
                                         borderRadius: BorderRadius.circular(6),
                                       ),
                                       child: Text(
-                                        'Inaktiv',
+                                        tr('Inaktiv', 'Inactiv'),
                                         style: TextStyle(fontSize: 10, color: Colors.red.shade700),
                                       ),
                                     ),
@@ -275,7 +276,7 @@ class _PostcardViewState extends State<PostcardView> {
           children: [
             Icon(Icons.credit_card, color: Colors.deepPurple.shade700),
             const SizedBox(width: 8),
-            const Text('Karte hinzufügen', style: TextStyle(fontSize: 16)),
+            Text(tr('Karte hinzufügen', 'Adaugă card'), style: const TextStyle(fontSize: 16)),
           ],
         ),
         content: SizedBox(
@@ -285,20 +286,20 @@ class _PostcardViewState extends State<PostcardView> {
             children: [
               TextField(
                 controller: bezCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Bezeichnung',
-                  hintText: 'z.B. Karte 1 - Vorsitzer',
-                  border: OutlineInputBorder(),
+                decoration: InputDecoration(
+                  labelText: tr('Bezeichnung', 'Denumire'),
+                  hintText: tr('z.B. Karte 1 - Vorsitzer', 'de ex. Card 1 - președinte'),
+                  border: const OutlineInputBorder(),
                   isDense: true,
                 ),
               ),
               const SizedBox(height: 12),
               TextField(
                 controller: nummerCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Kartennummer *',
-                  hintText: '17-stellige Postcard-Nummer',
-                  border: OutlineInputBorder(),
+                decoration: InputDecoration(
+                  labelText: tr('Kartennummer *', 'Număr card *'),
+                  hintText: tr('17-stellige Postcard-Nummer', 'Număr Postcard din 17 cifre'),
+                  border: const OutlineInputBorder(),
                   isDense: true,
                 ),
               ),
@@ -306,10 +307,10 @@ class _PostcardViewState extends State<PostcardView> {
               TextField(
                 controller: pinCtrl,
                 obscureText: true,
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   labelText: 'PIN',
-                  hintText: '4-stellige PIN',
-                  border: OutlineInputBorder(),
+                  hintText: tr('4-stellige PIN', 'PIN din 4 cifre'),
+                  border: const OutlineInputBorder(),
                   isDense: true,
                 ),
               ),
@@ -317,9 +318,9 @@ class _PostcardViewState extends State<PostcardView> {
               TextField(
                 controller: limitCtrl,
                 keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                  labelText: 'Tageslimit (€)',
-                  border: OutlineInputBorder(),
+                decoration: InputDecoration(
+                  labelText: tr('Tageslimit (€)', 'Limită zilnică (€)'),
+                  border: const OutlineInputBorder(),
                   isDense: true,
                 ),
               ),
@@ -329,7 +330,7 @@ class _PostcardViewState extends State<PostcardView> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Abbrechen'),
+            child: Text(tr('Abbrechen', 'Anulare')),
           ),
           ElevatedButton(
             onPressed: () async {
@@ -344,12 +345,12 @@ class _PostcardViewState extends State<PostcardView> {
               if (ctx.mounted) Navigator.pop(ctx, res['success'] == true);
               if (res['success'] != true) {
                 messenger.showSnackBar(
-                  SnackBar(content: Text(res['message'] ?? 'Fehler'), backgroundColor: Colors.red),
+                  SnackBar(content: Text(res['message'] ?? tr('Fehler', 'Eroare')), backgroundColor: Colors.red),
                 );
               }
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.deepPurple.shade700),
-            child: const Text('Speichern', style: TextStyle(color: Colors.white)),
+            child: Text(tr('Speichern', 'Salvează'), style: const TextStyle(color: Colors.white)),
           ),
         ],
       ),
@@ -495,7 +496,7 @@ class _PostcardViewState extends State<PostcardView> {
                                         ),
                                       ),
                                       child: Text(
-                                        aktiv ? 'AKTIV' : 'INAKTIV',
+                                        aktiv ? tr('AKTIV', 'ACTIV') : tr('INAKTIV', 'INACTIV'),
                                         style: TextStyle(
                                           fontSize: 9,
                                           fontWeight: FontWeight.w700,
@@ -551,7 +552,7 @@ class _PostcardViewState extends State<PostcardView> {
                                       ),
                                     ),
                                     Text(
-                                      'Limit: ${limitCtrl.text} EUR',
+                                      tr('Limit: ${limitCtrl.text} EUR', 'Limită: ${limitCtrl.text} EUR'),
                                       style: const TextStyle(
                                         fontSize: 11,
                                         fontWeight: FontWeight.w500,
@@ -582,7 +583,7 @@ class _PostcardViewState extends State<PostcardView> {
                                   IconButton(
                                     icon: Icon(obscurePin ? Icons.visibility_off : Icons.visibility, size: 18, color: Colors.grey.shade600),
                                     onPressed: () => setDialogState(() => obscurePin = !obscurePin),
-                                    tooltip: obscurePin ? 'PIN anzeigen' : 'PIN verbergen',
+                                    tooltip: obscurePin ? tr('PIN anzeigen', 'Afișează PIN') : tr('PIN verbergen', 'Ascunde PIN'),
                                     constraints: const BoxConstraints(),
                                     padding: const EdgeInsets.all(4),
                                   ),
@@ -593,10 +594,10 @@ class _PostcardViewState extends State<PostcardView> {
                                     onPressed: () {
                                       Clipboard.setData(ClipboardData(text: pin));
                                       ScaffoldMessenger.of(context).showSnackBar(
-                                        const SnackBar(content: Text('PIN kopiert'), duration: Duration(seconds: 1)),
+                                        SnackBar(content: Text(tr('PIN kopiert', 'PIN copiat')), duration: const Duration(seconds: 1)),
                                       );
                                     },
-                                    tooltip: 'PIN kopieren',
+                                    tooltip: tr('PIN kopieren', 'Copiază PIN'),
                                     constraints: const BoxConstraints(),
                                     padding: const EdgeInsets.all(4),
                                   ),
@@ -606,17 +607,17 @@ class _PostcardViewState extends State<PostcardView> {
                           const Divider(height: 16),
                           // Kartennummer copyable
                           _cardDetailRow(
-                            'Kartennummer',
+                            tr('Kartennummer', 'Număr card'),
                             nummerCtrl.text,
                             trailing: IconButton(
                               icon: Icon(Icons.copy, size: 16, color: Colors.grey.shade500),
                               onPressed: () {
                                 Clipboard.setData(ClipboardData(text: nummerCtrl.text));
                                 ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text('Kartennummer kopiert'), duration: Duration(seconds: 1)),
+                                  SnackBar(content: Text(tr('Kartennummer kopiert', 'Număr card copiat')), duration: const Duration(seconds: 1)),
                                 );
                               },
-                              tooltip: 'Kopieren',
+                              tooltip: tr('Kopieren', 'Copiază'),
                               constraints: const BoxConstraints(),
                               padding: const EdgeInsets.all(4),
                             ),
@@ -632,19 +633,19 @@ class _PostcardViewState extends State<PostcardView> {
                 TextButton(
                   onPressed: () => Navigator.pop(ctx, 'delete'),
                   style: TextButton.styleFrom(foregroundColor: Colors.red),
-                  child: const Text('Löschen'),
+                  child: Text(tr('Löschen', 'Șterge')),
                 ),
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     TextButton(
                       onPressed: () => Navigator.pop(ctx),
-                      child: const Text('Schließen'),
+                      child: Text(tr('Schließen', 'Închide')),
                     ),
                     const SizedBox(width: 8),
                     ElevatedButton.icon(
                       icon: const Icon(Icons.edit, size: 16),
-                      label: const Text('Bearbeiten', style: TextStyle(color: Colors.white)),
+                      label: Text(tr('Bearbeiten', 'Editează'), style: const TextStyle(color: Colors.white)),
                       style: ElevatedButton.styleFrom(backgroundColor: color),
                       onPressed: () => setDialogState(() => isEditing = true),
                     ),
@@ -660,7 +661,7 @@ class _PostcardViewState extends State<PostcardView> {
               children: [
                 Icon(Icons.edit, color: color),
                 const SizedBox(width: 8),
-                const Text('Karte bearbeiten', style: TextStyle(fontSize: 16)),
+                Text(tr('Karte bearbeiten', 'Editare card'), style: const TextStyle(fontSize: 16)),
               ],
             ),
             content: SizedBox(
@@ -670,18 +671,18 @@ class _PostcardViewState extends State<PostcardView> {
                 children: [
                   TextField(
                     controller: bezCtrl,
-                    decoration: const InputDecoration(
-                      labelText: 'Bezeichnung',
-                      border: OutlineInputBorder(),
+                    decoration: InputDecoration(
+                      labelText: tr('Bezeichnung', 'Denumire'),
+                      border: const OutlineInputBorder(),
                       isDense: true,
                     ),
                   ),
                   const SizedBox(height: 12),
                   TextField(
                     controller: nummerCtrl,
-                    decoration: const InputDecoration(
-                      labelText: 'Kartennummer',
-                      border: OutlineInputBorder(),
+                    decoration: InputDecoration(
+                      labelText: tr('Kartennummer', 'Număr card'),
+                      border: const OutlineInputBorder(),
                       isDense: true,
                     ),
                   ),
@@ -703,9 +704,9 @@ class _PostcardViewState extends State<PostcardView> {
                   TextField(
                     controller: limitCtrl,
                     keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(
-                      labelText: 'Tageslimit (EUR)',
-                      border: OutlineInputBorder(),
+                    decoration: InputDecoration(
+                      labelText: tr('Tageslimit (EUR)', 'Limită zilnică (EUR)'),
+                      border: const OutlineInputBorder(),
                       isDense: true,
                     ),
                   ),
@@ -715,12 +716,12 @@ class _PostcardViewState extends State<PostcardView> {
             actions: [
               TextButton(
                 onPressed: () => setDialogState(() => isEditing = false),
-                child: const Text('Zurück'),
+                child: Text(tr('Zurück', 'Înapoi')),
               ),
               ElevatedButton(
                 onPressed: () => Navigator.pop(ctx, 'save'),
                 style: ElevatedButton.styleFrom(backgroundColor: color),
-                child: const Text('Speichern', style: TextStyle(color: Colors.white)),
+                child: Text(tr('Speichern', 'Salvează'), style: const TextStyle(color: Colors.white)),
               ),
             ],
           );
@@ -753,7 +754,7 @@ class _PostcardViewState extends State<PostcardView> {
           _loadPostcards();
         } else {
           messenger.showSnackBar(
-            SnackBar(content: Text(res['message'] ?? 'Fehler'), backgroundColor: Colors.red),
+            SnackBar(content: Text(res['message'] ?? tr('Fehler', 'Eroare')), backgroundColor: Colors.red),
           );
         }
       }
@@ -811,7 +812,7 @@ class _PostcardViewState extends State<PostcardView> {
               children: [
                 Icon(Icons.settings, color: Colors.deepPurple.shade700),
                 const SizedBox(width: 8),
-                const Text('Deutsche Post Konto', style: TextStyle(fontSize: 16)),
+                Text(tr('Deutsche Post Konto', 'Cont Deutsche Post'), style: const TextStyle(fontSize: 16)),
               ],
             ),
             content: SizedBox(
@@ -826,28 +827,28 @@ class _PostcardViewState extends State<PostcardView> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Zugangsdaten für das Deutsche Post Geschäftskundenportal',
+                          tr('Zugangsdaten für das Deutsche Post Geschäftskundenportal', 'Date de acces pentru portalul clienților business Deutsche Post'),
                           style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
                         ),
                         const SizedBox(height: 16),
                         TextField(
                           controller: websiteCtrl,
-                          decoration: const InputDecoration(
-                            labelText: 'Website / Login-URL',
-                            hintText: 'z.B. https://geschaeftskunden.deutschepost.de',
-                            prefixIcon: Icon(Icons.language),
-                            border: OutlineInputBorder(),
+                          decoration: InputDecoration(
+                            labelText: tr('Website / Login-URL', 'Website / URL de autentificare'),
+                            hintText: tr('z.B. https://geschaeftskunden.deutschepost.de', 'de ex. https://geschaeftskunden.deutschepost.de'),
+                            prefixIcon: const Icon(Icons.language),
+                            border: const OutlineInputBorder(),
                             isDense: true,
                           ),
                         ),
                         const SizedBox(height: 12),
                         TextField(
                           controller: usernameCtrl,
-                          decoration: const InputDecoration(
-                            labelText: 'Benutzername / E-Mail',
-                            hintText: 'Ihr Login-Name',
-                            prefixIcon: Icon(Icons.person),
-                            border: OutlineInputBorder(),
+                          decoration: InputDecoration(
+                            labelText: tr('Benutzername / E-Mail', 'Nume de utilizator / e-mail'),
+                            hintText: tr('Ihr Login-Name', 'Numele dvs. de utilizator'),
+                            prefixIcon: const Icon(Icons.person),
+                            border: const OutlineInputBorder(),
                             isDense: true,
                           ),
                         ),
@@ -856,7 +857,7 @@ class _PostcardViewState extends State<PostcardView> {
                           controller: passwordCtrl,
                           obscureText: obscurePassword,
                           decoration: InputDecoration(
-                            labelText: 'Passwort',
+                            labelText: tr('Passwort', 'Parolă'),
                             prefixIcon: const Icon(Icons.lock),
                             border: const OutlineInputBorder(),
                             isDense: true,
@@ -879,7 +880,7 @@ class _PostcardViewState extends State<PostcardView> {
                               const SizedBox(width: 8),
                               Expanded(
                                 child: Text(
-                                  'Alle Daten werden mit AES-256 verschlüsselt gespeichert.',
+                                  tr('Alle Daten werden mit AES-256 verschlüsselt gespeichert.', 'Toate datele sunt stocate criptat cu AES-256.'),
                                   style: TextStyle(fontSize: 11, color: Colors.blue.shade700),
                                 ),
                               ),
@@ -894,12 +895,12 @@ class _PostcardViewState extends State<PostcardView> {
                 : [
                     TextButton(
                       onPressed: () => Navigator.pop(ctx),
-                      child: const Text('Abbrechen'),
+                      child: Text(tr('Abbrechen', 'Anulare')),
                     ),
                     if (websiteCtrl.text.isNotEmpty || usernameCtrl.text.isNotEmpty)
                       TextButton.icon(
                         icon: const Icon(Icons.language, size: 14),
-                        label: const Text('Zum Login'),
+                        label: Text(tr('Zum Login', 'Spre autentificare')),
                         onPressed: () {
                           final url = websiteCtrl.text.trim();
                           if (url.isNotEmpty) {
@@ -909,7 +910,7 @@ class _PostcardViewState extends State<PostcardView> {
                             Navigator.of(context).push(
                               MaterialPageRoute(
                                 builder: (_) => WebViewScreen(
-                                  title: 'Deutsche Post Login',
+                                  title: tr('Deutsche Post Login', 'Autentificare Deutsche Post'),
                                   url: url.startsWith('http') ? url : 'https://$url',
                                   autoFillUsername: user.isNotEmpty ? user : null,
                                   autoFillPassword: pass.isNotEmpty ? pass : null,
@@ -921,7 +922,7 @@ class _PostcardViewState extends State<PostcardView> {
                       ),
                     ElevatedButton.icon(
                       icon: const Icon(Icons.save, size: 16),
-                      label: const Text('Speichern', style: TextStyle(color: Colors.white)),
+                      label: Text(tr('Speichern', 'Salvează'), style: const TextStyle(color: Colors.white)),
                       style: ElevatedButton.styleFrom(backgroundColor: Colors.deepPurple.shade700),
                       onPressed: () async {
                         final messenger = ScaffoldMessenger.of(context);
@@ -933,11 +934,11 @@ class _PostcardViewState extends State<PostcardView> {
                         if (ctx.mounted) Navigator.pop(ctx, res['success'] == true);
                         if (res['success'] == true) {
                           messenger.showSnackBar(
-                            const SnackBar(content: Text('Kontodaten gespeichert'), backgroundColor: Colors.green),
+                            SnackBar(content: Text(tr('Kontodaten gespeichert', 'Date cont salvate')), backgroundColor: Colors.green),
                           );
                         } else {
                           messenger.showSnackBar(
-                            SnackBar(content: Text(res['message'] ?? 'Fehler'), backgroundColor: Colors.red),
+                            SnackBar(content: Text(res['message'] ?? tr('Fehler', 'Eroare')), backgroundColor: Colors.red),
                           );
                         }
                       },

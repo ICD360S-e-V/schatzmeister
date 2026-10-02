@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
+import '../services/language_service.dart';
 import '../services/ticket_service.dart';
 import '../models/user.dart';
 
@@ -113,14 +114,14 @@ class _StatistikScreenState extends State<StatistikScreen> {
             children: [
               Icon(Icons.bar_chart, size: 28, color: Colors.blue.shade700),
               const SizedBox(width: 12),
-              const Text(
-                'Statistik',
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+              Text(
+                tr('Statistik', 'Statistică'),
+                style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
               ),
               const Spacer(),
               IconButton(
                 icon: const Icon(Icons.refresh),
-                tooltip: 'Aktualisieren',
+                tooltip: tr('Aktualisieren', 'Actualizează'),
                 onPressed: () {
                   setState(() {
                     _beitragLoading = true;
@@ -184,20 +185,20 @@ class _StatistikScreenState extends State<StatistikScreen> {
     final foerdermitglied = users.where((u) => u.role == 'foerdermitglied').length;
 
     return _buildStatCard(
-      title: 'Mitglieder',
+      title: tr('Mitglieder', 'Membri'),
       icon: Icons.people,
       color: Colors.blue,
       children: [
-        _statRow(Icons.people, 'Gesamt Benutzer', '$total', Colors.blue),
-        _statRow(Icons.check_circle, 'Aktiv', '$aktiv', Colors.green),
-        _statRow(Icons.fiber_new, 'Neu', '$neu', Colors.amber.shade700),
-        _statRow(Icons.pause_circle, 'Gesperrt', '$gesperrt', Colors.orange),
-        _statRow(Icons.exit_to_app, 'Gekündigt', '$gekuendigt', Colors.brown),
+        _statRow(Icons.people, tr('Gesamt Benutzer', 'Total utilizatori'), '$total', Colors.blue),
+        _statRow(Icons.check_circle, tr('Aktiv', 'Activi'), '$aktiv', Colors.green),
+        _statRow(Icons.fiber_new, tr('Neu', 'Noi'), '$neu', Colors.amber.shade700),
+        _statRow(Icons.pause_circle, tr('Gesperrt', 'Suspendați'), '$gesperrt', Colors.orange),
+        _statRow(Icons.exit_to_app, tr('Gekündigt', 'Reziliați'), '$gekuendigt', Colors.brown),
         const Divider(height: 24),
         Padding(
           padding: const EdgeInsets.only(bottom: 8),
           child: Text(
-            'Rollen',
+            tr('Rollen', 'Roluri'),
             style: TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w600,
@@ -205,14 +206,14 @@ class _StatistikScreenState extends State<StatistikScreen> {
             ),
           ),
         ),
-        _statRow(Icons.person, 'Mitglieder', '$mitglieder', Colors.blue),
-        _statRow(Icons.admin_panel_settings, 'Vorsitzer', '$vorsitzer', Colors.purple),
-        _statRow(Icons.account_balance, 'Schatzmeister', '$schatzmeister', Colors.indigo),
-        _statRow(Icons.point_of_sale, 'Kassierer', '$kassierer', Colors.teal),
+        _statRow(Icons.person, tr('Mitglieder', 'Membri'), '$mitglieder', Colors.blue),
+        _statRow(Icons.admin_panel_settings, tr('Vorsitzer', 'Președinți'), '$vorsitzer', Colors.purple),
+        _statRow(Icons.account_balance, tr('Schatzmeister', 'Trezorieri'), '$schatzmeister', Colors.indigo),
+        _statRow(Icons.point_of_sale, tr('Kassierer', 'Casieri'), '$kassierer', Colors.teal),
         if (ehrenmitglied > 0)
-          _statRow(Icons.star, 'Ehrenmitglieder', '$ehrenmitglied', Colors.amber),
+          _statRow(Icons.star, tr('Ehrenmitglieder', 'Membri de onoare'), '$ehrenmitglied', Colors.amber),
         if (foerdermitglied > 0)
-          _statRow(Icons.favorite, 'Fördermitglieder', '$foerdermitglied', Colors.pink),
+          _statRow(Icons.favorite, tr('Fördermitglieder', 'Membri susținători'), '$foerdermitglied', Colors.pink),
       ],
     );
   }
@@ -222,7 +223,7 @@ class _StatistikScreenState extends State<StatistikScreen> {
   Widget _buildBeitragCard() {
     if (_beitragLoading) {
       return _buildStatCard(
-        title: 'Mitgliedsbeitrag',
+        title: tr('Mitgliedsbeitrag', 'Cotizație'),
         icon: Icons.euro,
         color: Colors.indigo,
         children: [
@@ -242,16 +243,16 @@ class _StatistikScreenState extends State<StatistikScreen> {
     final totalBezahlt = (_beitragsStats['total_bezahlt'] ?? 0).toDouble();
 
     return _buildStatCard(
-      title: 'Mitgliedsbeitrag',
+      title: tr('Mitgliedsbeitrag', 'Cotizație'),
       icon: Icons.euro,
       color: Colors.indigo,
       children: [
-        _statRow(Icons.payments, 'Beitrag/Monat', '${_beitragProMonat.toStringAsFixed(2)} €', Colors.indigo),
+        _statRow(Icons.payments, tr('Beitrag/Monat', 'Contribuție/lună'), '${_beitragProMonat.toStringAsFixed(2)} €', Colors.indigo),
         const Divider(height: 24),
-        _statRow(Icons.people, 'Beitragspflichtig', '$gesamtMitglieder', Colors.blue),
-        _statRow(Icons.check_circle, 'Bezahlt gesamt', '${totalBezahlt.toStringAsFixed(2)} €', Colors.green),
-        _statRow(Icons.warning_amber, 'Offene Schulden', '${totalSchulden.toStringAsFixed(2)} €', totalSchulden > 0 ? Colors.red : Colors.green),
-        _statRow(Icons.person_off, 'Mitglieder mit Schulden', '$mitSchulden', mitSchulden > 0 ? Colors.orange : Colors.green),
+        _statRow(Icons.people, tr('Beitragspflichtig', 'Supuși contribuției'), '$gesamtMitglieder', Colors.blue),
+        _statRow(Icons.check_circle, tr('Bezahlt gesamt', 'Total plătit'), '${totalBezahlt.toStringAsFixed(2)} €', Colors.green),
+        _statRow(Icons.warning_amber, tr('Offene Schulden', 'Datorii restante'), '${totalSchulden.toStringAsFixed(2)} €', totalSchulden > 0 ? Colors.red : Colors.green),
+        _statRow(Icons.person_off, tr('Mitglieder mit Schulden', 'Membri cu datorii'), '$mitSchulden', mitSchulden > 0 ? Colors.orange : Colors.green),
       ],
     );
   }
@@ -261,7 +262,7 @@ class _StatistikScreenState extends State<StatistikScreen> {
   Widget _buildSpendenCard() {
     if (_spendenLoading) {
       return _buildStatCard(
-        title: 'Spenden',
+        title: tr('Spenden', 'Donații'),
         icon: Icons.volunteer_activism,
         color: Colors.purple,
         children: [
@@ -278,14 +279,14 @@ class _StatistikScreenState extends State<StatistikScreen> {
     final durchschnitt = _spendenAnzahl > 0 ? _spendenTotal / _spendenAnzahl : 0.0;
 
     return _buildStatCard(
-      title: 'Spenden',
+      title: tr('Spenden', 'Donații'),
       icon: Icons.volunteer_activism,
       color: Colors.purple,
       children: [
-        _statRow(Icons.tag, 'Anzahl Spenden', '$_spendenAnzahl', Colors.purple),
-        _statRow(Icons.euro, 'Gesamtbetrag', '${_spendenTotal.toStringAsFixed(2)} €', Colors.purple.shade700),
-        _statRow(Icons.receipt_long, 'Mit Quittung (>300€)', '$_spendenMitQuittung', Colors.green),
-        _statRow(Icons.analytics, 'Durchschnitt/Spende', '${durchschnitt.toStringAsFixed(2)} €', Colors.blue),
+        _statRow(Icons.tag, tr('Anzahl Spenden', 'Număr de donații'), '$_spendenAnzahl', Colors.purple),
+        _statRow(Icons.euro, tr('Gesamtbetrag', 'Suma totală'), '${_spendenTotal.toStringAsFixed(2)} €', Colors.purple.shade700),
+        _statRow(Icons.receipt_long, tr('Mit Quittung (>300€)', 'Cu chitanță (>300€)'), '$_spendenMitQuittung', Colors.green),
+        _statRow(Icons.analytics, tr('Durchschnitt/Spende', 'Medie/donație'), '${durchschnitt.toStringAsFixed(2)} €', Colors.blue),
       ],
     );
   }
@@ -295,7 +296,7 @@ class _StatistikScreenState extends State<StatistikScreen> {
   Widget _buildArbeitszeitCard() {
     if (_arbeitszeitLoading) {
       return _buildStatCard(
-        title: 'Arbeitszeit',
+        title: tr('Arbeitszeit', 'Timp de lucru'),
         icon: Icons.timer,
         color: Colors.green,
         children: [
@@ -312,11 +313,11 @@ class _StatistikScreenState extends State<StatistikScreen> {
     final wt = _weeklyTime;
     if (wt == null) {
       return _buildStatCard(
-        title: 'Arbeitszeit',
+        title: tr('Arbeitszeit', 'Timp de lucru'),
         icon: Icons.timer,
         color: Colors.green,
         children: [
-          _statRow(Icons.info_outline, 'Keine Daten', 'N/A', Colors.grey),
+          _statRow(Icons.info_outline, tr('Keine Daten', 'Nu există date'), 'N/A', Colors.grey),
         ],
       );
     }
@@ -325,7 +326,7 @@ class _StatistikScreenState extends State<StatistikScreen> {
     final progressValue = wt.progressPercent.clamp(0.0, 1.0);
 
     return _buildStatCard(
-      title: 'Arbeitszeit',
+      title: tr('Arbeitszeit', 'Timp de lucru'),
       icon: Icons.timer,
       color: Colors.green,
       children: [
@@ -339,7 +340,7 @@ class _StatistikScreenState extends State<StatistikScreen> {
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text(
-                'KW ${wt.kw}',
+                tr('KW ${wt.kw}', 'Săpt. ${wt.kw}'),
                 style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.blue.shade700),
               ),
             ),
@@ -361,7 +362,7 @@ class _StatistikScreenState extends State<StatistikScreen> {
                   children: [
                     Icon(Icons.warning_amber, size: 12, color: Colors.red.shade700),
                     const SizedBox(width: 3),
-                    Text('Limit', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.red.shade700)),
+                    Text(tr('Limit', 'Limită'), style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.red.shade700)),
                   ],
                 ),
               ),
@@ -395,17 +396,17 @@ class _StatistikScreenState extends State<StatistikScreen> {
         ),
         const Divider(height: 24),
         // Category breakdown
-        _statRow(Icons.directions_car, 'Fahrzeit', wt.summary.fahrzeitDisplay, Colors.blue),
-        _statRow(Icons.work, 'Arbeitszeit', wt.summary.arbeitszeitDisplay, Colors.green),
-        _statRow(Icons.hourglass_empty, 'Wartezeit', wt.summary.wartezeitDisplay, Colors.orange),
-        _statRow(Icons.functions, 'Gesamt', wt.summary.gesamtDisplay, Colors.grey.shade700),
+        _statRow(Icons.directions_car, tr('Fahrzeit', 'Timp de deplasare'), wt.summary.fahrzeitDisplay, Colors.blue),
+        _statRow(Icons.work, tr('Arbeitszeit', 'Timp de lucru'), wt.summary.arbeitszeitDisplay, Colors.green),
+        _statRow(Icons.hourglass_empty, tr('Wartezeit', 'Timp de așteptare'), wt.summary.wartezeitDisplay, Colors.orange),
+        _statRow(Icons.functions, tr('Gesamt', 'Total'), wt.summary.gesamtDisplay, Colors.grey.shade700),
         // Daily breakdown
         if (wt.daily.isNotEmpty) ...[
           const Divider(height: 24),
           Padding(
             padding: const EdgeInsets.only(bottom: 8),
             child: Text(
-              'Tagesübersicht',
+              tr('Tagesübersicht', 'Prezentare pe zile'),
               style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w600,

@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:tray_manager/tray_manager.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:windows_taskbar/windows_taskbar.dart';
+import 'language_service.dart';
 import 'logger_service.dart';
 import 'platform_service.dart';
 
@@ -69,26 +70,15 @@ class TrayService with TrayListener {
 
       // Initialize tray icon
       await _trayManager.setIcon(iconPath);
-      await _trayManager.setToolTip('ICD360S e.V - Schatzmeister Portal');
 
-      // Create context menu
-      final menu = Menu(
-        items: [
-          MenuItem(
-            key: 'open',
-            label: 'Öffnen',
-          ),
-          MenuItem.separator(),
-          MenuItem(
-            key: 'exit',
-            label: 'Beenden',
-          ),
-        ],
-      );
-      await _trayManager.setContextMenu(menu);
+      // Tooltip + context menu in the current language
+      await _setTexts();
 
       // Register event listener
       _trayManager.addListener(this);
+      // Die Sprache wird beim ersten Start erst NACH dem Tray gewählt —
+      // Tooltip und Menü bei jedem Wechsel neu setzen.
+      LanguageService.instance.localeNotifier.addListener(_setTexts);
 
       _isInitialized = true;
       _log.info('System Tray initialisiert (${PlatformService.platformName})', tag: 'TRAY');
@@ -96,6 +86,34 @@ class TrayService with TrayListener {
       _log.error('System Tray Initialisierung fehlgeschlagen: $e', tag: 'TRAY');
     }
   }
+
+  /// Tooltip and context menu labels in the selected language
+  Future<void> _setTexts() async {
+    try {
+      await _trayManager.setToolTip(_tooltip(_unreadCount));
+      final menu = Menu(
+        items: [
+          MenuItem(
+            key: 'open',
+            label: tr('Öffnen', 'Deschide'),
+          ),
+          MenuItem.separator(),
+          MenuItem(
+            key: 'exit',
+            label: tr('Beenden', 'Ieșire'),
+          ),
+        ],
+      );
+      await _trayManager.setContextMenu(menu);
+    } catch (e) {
+      _log.error('Tray-Texte konnten nicht gesetzt werden: $e', tag: 'TRAY');
+    }
+  }
+
+  String _tooltip(int count) => count > 0
+      ? tr('ICD360S e.V - $count neue Nachricht${count > 1 ? 'en' : ''}',
+          'ICD360S e.V - $count ${count > 1 ? 'mesaje noi' : 'mesaj nou'}')
+      : tr('ICD360S e.V - Schatzmeister Portal', 'ICD360S e.V - Portal Trezorier');
 
   /// TrayListener: Handle left click on tray icon
   @override
@@ -152,9 +170,7 @@ class TrayService with TrayListener {
     if (!isSupported || !_isInitialized) return;
 
     _unreadCount = count;
-    final tooltip = count > 0
-        ? 'ICD360S e.V - $count neue Nachricht${count > 1 ? 'en' : ''}'
-        : 'ICD360S e.V - Schatzmeister Portal';
+    final tooltip = _tooltip(count);
 
     try {
       // Update tooltip
@@ -180,7 +196,8 @@ class TrayService with TrayListener {
           _log.debug('Setze Taskbar-Badge: $badgePath', tag: 'TRAY');
           await WindowsTaskbar.setOverlayIcon(
             ThumbnailToolbarAssetIcon(badgePath),
-            tooltip: '$count neue Nachricht${count > 1 ? 'en' : ''}',
+            tooltip: tr('$count neue Nachricht${count > 1 ? 'en' : ''}',
+                '$count ${count > 1 ? 'mesaje noi' : 'mesaj nou'}'),
           );
         } else {
           await WindowsTaskbar.resetOverlayIcon();
@@ -248,6 +265,7 @@ class TrayService with TrayListener {
 
     try {
       _trayManager.removeListener(this);
+      LanguageService.instance.localeNotifier.removeListener(_setTexts);
       await _trayManager.destroy();
       _isInitialized = false;
     } catch (e) {

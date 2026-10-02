@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import '../l10n/app_localizations.dart';
+import '../services/language_service.dart';
 import '../services/termin_service.dart';
 import '../services/api_service.dart';
 
@@ -144,7 +145,8 @@ class _TerminverwaltungScreenState extends State<TerminverwaltungScreen> {
     final dayOfYear = int.parse(DateFormat('D').format(_currentWeekStart));
     final weekNumber = ((dayOfYear - _currentWeekStart.weekday + 10) / 7).floor();
     final weekEnd = _currentWeekStart.add(const Duration(days: 6));
-    final weekRange = '${DateFormat('dd.').format(_currentWeekStart)} - ${DateFormat('dd. MMMM yyyy', 'de_DE').format(weekEnd)}';
+    // Monatsname in der gewählten Sprache; rumänisch ohne Punkt nach dem Tag.
+    final weekRange = '${DateFormat(tr('dd.', 'dd')).format(_currentWeekStart)} - ${DateFormat(tr('dd. MMMM yyyy', 'dd MMMM yyyy'), tr('de_DE', 'ro')).format(weekEnd)}';
 
     // Build holidays map from API data
     final holidays = <String, String>{};
@@ -189,7 +191,7 @@ class _TerminverwaltungScreenState extends State<TerminverwaltungScreen> {
                     border: Border.all(color: Colors.green.shade200),
                   ),
                   child: Text(
-                    'KW $weekNumber • $weekRange',
+                    '${tr('KW', 'Săpt.')} $weekNumber • $weekRange',
                     style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green.shade900),
                   ),
                 ),

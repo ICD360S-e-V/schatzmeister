@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../services/routine_service.dart';
+import '../services/language_service.dart';
 import '../models/user.dart';
 
 class RoutinenaufgabenScreen extends StatefulWidget {
@@ -76,7 +77,9 @@ class _RoutinenaufgabenScreenState extends State<RoutinenaufgabenScreen> {
   Widget build(BuildContext context) {
     final weekNumber = _getWeekNumber(_currentWeekStart);
     final weekEnd = _currentWeekStart.add(const Duration(days: 4));
-    final weekRange = '${DateFormat('dd.').format(_currentWeekStart)} - ${DateFormat('dd. MMMM yyyy', 'de_DE').format(weekEnd)}';
+    final weekRange = LanguageService.instance.isRomanian
+        ? '${DateFormat('dd').format(_currentWeekStart)} - ${DateFormat('dd MMMM yyyy', 'ro').format(weekEnd)}'
+        : '${DateFormat('dd.').format(_currentWeekStart)} - ${DateFormat('dd. MMMM yyyy', 'de_DE').format(weekEnd)}';
 
     return Padding(
       padding: const EdgeInsets.all(24),
@@ -88,16 +91,16 @@ class _RoutinenaufgabenScreenState extends State<RoutinenaufgabenScreen> {
             children: [
               Icon(Icons.repeat, size: 32, color: Colors.teal.shade700),
               const SizedBox(width: 12),
-              const Text('Routinenaufgaben',
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+              Text(tr('Routinenaufgaben', 'Sarcini de rutină'),
+                style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
               const Spacer(),
               // Stats
               if (_stats != null) ...[
-                _buildStatBadge('Gesamt', '${_stats!.total}', Colors.blue),
+                _buildStatBadge(tr('Gesamt', 'Total'), '${_stats!.total}', Colors.blue),
                 const SizedBox(width: 8),
-                _buildStatBadge('Erledigt', '${_stats!.done}', Colors.green),
+                _buildStatBadge(tr('Erledigt', 'Finalizate'), '${_stats!.done}', Colors.green),
                 const SizedBox(width: 8),
-                _buildStatBadge('Offen', '${_stats!.pending}', Colors.orange),
+                _buildStatBadge(tr('Offen', 'Deschise'), '${_stats!.pending}', Colors.orange),
                 const SizedBox(width: 16),
                 // Progress
                 SizedBox(
@@ -127,7 +130,7 @@ class _RoutinenaufgabenScreenState extends State<RoutinenaufgabenScreen> {
               ElevatedButton.icon(
                 onPressed: _showCreateRoutineDialog,
                 icon: const Icon(Icons.add, size: 18),
-                label: const Text('Neue Routine'),
+                label: Text(tr('Neue Routine', 'Rutină nouă')),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.teal.shade600,
                   foregroundColor: Colors.white,
@@ -138,13 +141,13 @@ class _RoutinenaufgabenScreenState extends State<RoutinenaufgabenScreen> {
               OutlinedButton.icon(
                 onPressed: _showManageRoutinesDialog,
                 icon: const Icon(Icons.settings, size: 18),
-                label: const Text('Verwalten'),
+                label: Text(tr('Verwalten', 'Administrează')),
               ),
               const SizedBox(width: 8),
               IconButton(
                 onPressed: _loadData,
                 icon: const Icon(Icons.refresh),
-                tooltip: 'Aktualisieren',
+                tooltip: tr('Aktualisieren', 'Actualizează'),
               ),
             ],
           ),
@@ -160,14 +163,14 @@ class _RoutinenaufgabenScreenState extends State<RoutinenaufgabenScreen> {
                   initialValue: _filterUserId,
                   isExpanded: true,
                   decoration: InputDecoration(
-                    labelText: 'Mitglied',
+                    labelText: tr('Mitglied', 'Membru'),
                     prefixIcon: const Icon(Icons.person, size: 20),
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
                     contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     isDense: true,
                   ),
                   items: [
-                    const DropdownMenuItem<int?>(value: null, child: Text('Alle Mitglieder')),
+                    DropdownMenuItem<int?>(value: null, child: Text(tr('Alle Mitglieder', 'Toți membrii'))),
                     ...widget.users
                         .where((u) => !u.isDeleted && !u.isSuspended && !u.isVerstorben && !u.isAusgeschlossen)
                         .map((u) => DropdownMenuItem<int?>(
@@ -190,14 +193,14 @@ class _RoutinenaufgabenScreenState extends State<RoutinenaufgabenScreen> {
                     initialValue: _filterCategory,
                     isExpanded: true,
                     decoration: InputDecoration(
-                      labelText: 'Kategorie',
+                      labelText: tr('Kategorie', 'Categorie'),
                       prefixIcon: const Icon(Icons.category, size: 20),
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
                       contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                       isDense: true,
                     ),
                     items: [
-                      const DropdownMenuItem<String?>(value: null, child: Text('Alle')),
+                      DropdownMenuItem<String?>(value: null, child: Text(tr('Alle', 'Toate'))),
                       ..._categories.map((c) => DropdownMenuItem<String?>(value: c, child: Text(c))),
                     ],
                     onChanged: (val) {
@@ -214,7 +217,7 @@ class _RoutinenaufgabenScreenState extends State<RoutinenaufgabenScreen> {
                   _loadData();
                 },
                 icon: const Icon(Icons.chevron_left),
-                tooltip: 'Vorherige Woche',
+                tooltip: tr('Vorherige Woche', 'Săptămâna anterioară'),
               ),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -224,7 +227,7 @@ class _RoutinenaufgabenScreenState extends State<RoutinenaufgabenScreen> {
                   border: Border.all(color: Colors.teal.shade200),
                 ),
                 child: Text(
-                  'KW $weekNumber  •  $weekRange',
+                  tr('KW $weekNumber  •  $weekRange', 'Săpt. $weekNumber  •  $weekRange'),
                   style: TextStyle(fontWeight: FontWeight.w600, color: Colors.teal.shade800),
                 ),
               ),
@@ -234,7 +237,7 @@ class _RoutinenaufgabenScreenState extends State<RoutinenaufgabenScreen> {
                   _loadData();
                 },
                 icon: const Icon(Icons.chevron_right),
-                tooltip: 'Nächste Woche',
+                tooltip: tr('Nächste Woche', 'Săptămâna următoare'),
               ),
               TextButton(
                 onPressed: () {
@@ -245,7 +248,7 @@ class _RoutinenaufgabenScreenState extends State<RoutinenaufgabenScreen> {
                   });
                   _loadData();
                 },
-                child: const Text('Heute'),
+                child: Text(tr('Heute', 'Astăzi')),
               ),
             ],
           ),
@@ -263,7 +266,10 @@ class _RoutinenaufgabenScreenState extends State<RoutinenaufgabenScreen> {
   }
 
   Widget _buildWeeklyGrid() {
-    const dayNames = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag'];
+    final dayNames = [
+      tr('Montag', 'Luni'), tr('Dienstag', 'Marți'), tr('Mittwoch', 'Miercuri'),
+      tr('Donnerstag', 'Joi'), tr('Freitag', 'Vineri'),
+    ];
     final today = DateTime.now();
 
     return Row(
@@ -344,7 +350,7 @@ class _RoutinenaufgabenScreenState extends State<RoutinenaufgabenScreen> {
                   child: dayExecs.isEmpty
                       ? Center(
                           child: Text(
-                            'Keine Aufgaben',
+                            tr('Keine Aufgaben', 'Nicio sarcină'),
                             style: TextStyle(color: Colors.grey.shade400, fontSize: 12),
                           ),
                         )
@@ -427,7 +433,7 @@ class _RoutinenaufgabenScreenState extends State<RoutinenaufgabenScreen> {
                       Icon(Icons.access_time, size: 12, color: Colors.blue.shade400),
                       const SizedBox(width: 3),
                       Text(
-                        '${exec.preferredTimeShort} Uhr',
+                        tr('${exec.preferredTimeShort} Uhr', 'ora ${exec.preferredTimeShort}'),
                         style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.blue.shade700),
                       ),
                       const SizedBox(width: 8),
@@ -540,7 +546,7 @@ class _RoutinenaufgabenScreenState extends State<RoutinenaufgabenScreen> {
                 children: [
                   Expanded(
                     child: Text(
-                      exec.routineTitle ?? 'Routine',
+                      exec.routineTitle ?? tr('Routine', 'Rutină'),
                       style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                     ),
                   ),
@@ -554,7 +560,7 @@ class _RoutinenaufgabenScreenState extends State<RoutinenaufgabenScreen> {
                       }
                     },
                     icon: Icon(Icons.edit, color: Colors.teal.shade600),
-                    tooltip: 'Routine bearbeiten',
+                    tooltip: tr('Routine bearbeiten', 'Editează rutina'),
                   ),
                 ],
               ),
@@ -565,14 +571,14 @@ class _RoutinenaufgabenScreenState extends State<RoutinenaufgabenScreen> {
               ),
               if (exec.routineCategory != null) ...[
                 const SizedBox(height: 4),
-                Text('Kategorie: ${exec.routineCategory}', style: TextStyle(color: Colors.grey.shade600)),
+                Text(tr('Kategorie: ${exec.routineCategory}', 'Categorie: ${exec.routineCategory}'), style: TextStyle(color: Colors.grey.shade600)),
               ],
               const SizedBox(height: 16),
               TextField(
                 controller: notesController,
                 decoration: InputDecoration(
-                  labelText: 'Notizen',
-                  hintText: 'Optional: Notizen hinzufügen...',
+                  labelText: tr('Notizen', 'Note'),
+                  hintText: tr('Optional: Notizen hinzufügen...', 'Opțional: adăugați note...'),
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
                 ),
                 maxLines: 3,
@@ -592,7 +598,7 @@ class _RoutinenaufgabenScreenState extends State<RoutinenaufgabenScreen> {
                         _loadData();
                       },
                       icon: const Icon(Icons.check_circle, size: 18),
-                      label: const Text('Erledigt'),
+                      label: Text(tr('Erledigt', 'Finalizat')),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.green,
                         foregroundColor: Colors.white,
@@ -612,7 +618,7 @@ class _RoutinenaufgabenScreenState extends State<RoutinenaufgabenScreen> {
                         _loadData();
                       },
                       icon: const Icon(Icons.skip_next, size: 18),
-                      label: const Text('Überspringen'),
+                      label: Text(tr('Überspringen', 'Omite')),
                       style: OutlinedButton.styleFrom(foregroundColor: Colors.orange),
                     ),
                   ),
@@ -630,7 +636,7 @@ class _RoutinenaufgabenScreenState extends State<RoutinenaufgabenScreen> {
                           _loadData();
                         },
                         icon: const Icon(Icons.undo, size: 18),
-                        label: const Text('Zurücksetzen'),
+                        label: Text(tr('Zurücksetzen', 'Resetează')),
                       ),
                     ),
                   ],
@@ -666,7 +672,7 @@ class _RoutinenaufgabenScreenState extends State<RoutinenaufgabenScreen> {
             children: [
               Icon(Icons.add_task, color: Colors.teal.shade600),
               const SizedBox(width: 8),
-              const Text('Neue Routine erstellen'),
+              Text(tr('Neue Routine erstellen', 'Creează rutină nouă')),
             ],
           ),
           content: SizedBox(
@@ -680,10 +686,10 @@ class _RoutinenaufgabenScreenState extends State<RoutinenaufgabenScreen> {
                   DropdownButtonFormField<int?>(
                     initialValue: selectedUserId,
                     isExpanded: true,
-                    decoration: const InputDecoration(
-                      labelText: 'Mitglied *',
-                      prefixIcon: Icon(Icons.person),
-                      border: OutlineInputBorder(),
+                    decoration: InputDecoration(
+                      labelText: tr('Mitglied *', 'Membru *'),
+                      prefixIcon: const Icon(Icons.person),
+                      border: const OutlineInputBorder(),
                     ),
                     items: widget.users
                         .where((u) => !u.isDeleted && !u.isSuspended && !u.isVerstorben && !u.isAusgeschlossen)
@@ -699,11 +705,11 @@ class _RoutinenaufgabenScreenState extends State<RoutinenaufgabenScreen> {
                   // Title
                   TextField(
                     controller: titleController,
-                    decoration: const InputDecoration(
-                      labelText: 'Titel *',
-                      hintText: 'z.B. Jobcenter Konto prüfen',
-                      prefixIcon: Icon(Icons.title),
-                      border: OutlineInputBorder(),
+                    decoration: InputDecoration(
+                      labelText: tr('Titel *', 'Titlu *'),
+                      hintText: tr('z.B. Jobcenter Konto prüfen', 'de ex. Verificare cont Jobcenter'),
+                      prefixIcon: const Icon(Icons.title),
+                      border: const OutlineInputBorder(),
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -711,11 +717,11 @@ class _RoutinenaufgabenScreenState extends State<RoutinenaufgabenScreen> {
                   // Description
                   TextField(
                     controller: descController,
-                    decoration: const InputDecoration(
-                      labelText: 'Beschreibung',
-                      hintText: 'Optional: Details zur Routine',
-                      prefixIcon: Icon(Icons.description),
-                      border: OutlineInputBorder(),
+                    decoration: InputDecoration(
+                      labelText: tr('Beschreibung', 'Descriere'),
+                      hintText: tr('Optional: Details zur Routine', 'Opțional: detalii despre rutină'),
+                      prefixIcon: const Icon(Icons.description),
+                      border: const OutlineInputBorder(),
                     ),
                     maxLines: 2,
                   ),
@@ -733,11 +739,11 @@ class _RoutinenaufgabenScreenState extends State<RoutinenaufgabenScreen> {
                       return TextField(
                         controller: controller,
                         focusNode: focusNode,
-                        decoration: const InputDecoration(
-                          labelText: 'Kategorie',
-                          hintText: 'z.B. Jobcenter, Bewerbung',
-                          prefixIcon: Icon(Icons.category),
-                          border: OutlineInputBorder(),
+                        decoration: InputDecoration(
+                          labelText: tr('Kategorie', 'Categorie'),
+                          hintText: tr('z.B. Jobcenter, Bewerbung', 'de ex. Jobcenter, Candidatură'),
+                          prefixIcon: const Icon(Icons.category),
+                          border: const OutlineInputBorder(),
                         ),
                         onChanged: (v) => categoryController.text = v,
                       );
@@ -758,13 +764,14 @@ class _RoutinenaufgabenScreenState extends State<RoutinenaufgabenScreen> {
                       }
                     },
                     child: InputDecorator(
-                      decoration: const InputDecoration(
-                        labelText: 'Uhrzeit',
-                        prefixIcon: Icon(Icons.access_time),
-                        border: OutlineInputBorder(),
+                      decoration: InputDecoration(
+                        labelText: tr('Uhrzeit', 'Ora'),
+                        prefixIcon: const Icon(Icons.access_time),
+                        border: const OutlineInputBorder(),
                       ),
                       child: Text(
-                        '${selectedTime.hour.toString().padLeft(2, '0')}:${selectedTime.minute.toString().padLeft(2, '0')} Uhr',
+                        tr('${selectedTime.hour.toString().padLeft(2, '0')}:${selectedTime.minute.toString().padLeft(2, '0')} Uhr',
+                            'ora ${selectedTime.hour.toString().padLeft(2, '0')}:${selectedTime.minute.toString().padLeft(2, '0')}'),
                         style: const TextStyle(fontSize: 16),
                       ),
                     ),
@@ -774,16 +781,16 @@ class _RoutinenaufgabenScreenState extends State<RoutinenaufgabenScreen> {
                   // Frequency
                   DropdownButtonFormField<String>(
                     initialValue: frequency,
-                    decoration: const InputDecoration(
-                      labelText: 'Frequenz *',
-                      prefixIcon: Icon(Icons.repeat),
-                      border: OutlineInputBorder(),
+                    decoration: InputDecoration(
+                      labelText: tr('Frequenz *', 'Frecvență *'),
+                      prefixIcon: const Icon(Icons.repeat),
+                      border: const OutlineInputBorder(),
                     ),
-                    items: const [
-                      DropdownMenuItem(value: 'daily', child: Text('Täglich (Mo-Fr)')),
-                      DropdownMenuItem(value: 'weekly', child: Text('Wöchentlich')),
-                      DropdownMenuItem(value: 'monthly', child: Text('Monatlich')),
-                      DropdownMenuItem(value: 'yearly', child: Text('Jährlich')),
+                    items: [
+                      DropdownMenuItem(value: 'daily', child: Text(tr('Täglich (Mo-Fr)', 'Zilnic (Lu-Vi)'))),
+                      DropdownMenuItem(value: 'weekly', child: Text(tr('Wöchentlich', 'Săptămânal'))),
+                      DropdownMenuItem(value: 'monthly', child: Text(tr('Monatlich', 'Lunar'))),
+                      DropdownMenuItem(value: 'yearly', child: Text(tr('Jährlich', 'Anual'))),
                     ],
                     onChanged: (val) => setDialogState(() => frequency = val!),
                   ),
@@ -793,17 +800,17 @@ class _RoutinenaufgabenScreenState extends State<RoutinenaufgabenScreen> {
                   if (frequency == 'weekly')
                     DropdownButtonFormField<int>(
                       initialValue: dayOfWeek,
-                      decoration: const InputDecoration(
-                        labelText: 'Wochentag *',
-                        prefixIcon: Icon(Icons.calendar_today),
-                        border: OutlineInputBorder(),
+                      decoration: InputDecoration(
+                        labelText: tr('Wochentag *', 'Ziua săptămânii *'),
+                        prefixIcon: const Icon(Icons.calendar_today),
+                        border: const OutlineInputBorder(),
                       ),
-                      items: const [
-                        DropdownMenuItem(value: 1, child: Text('Montag')),
-                        DropdownMenuItem(value: 2, child: Text('Dienstag')),
-                        DropdownMenuItem(value: 3, child: Text('Mittwoch')),
-                        DropdownMenuItem(value: 4, child: Text('Donnerstag')),
-                        DropdownMenuItem(value: 5, child: Text('Freitag')),
+                      items: [
+                        DropdownMenuItem(value: 1, child: Text(tr('Montag', 'Luni'))),
+                        DropdownMenuItem(value: 2, child: Text(tr('Dienstag', 'Marți'))),
+                        DropdownMenuItem(value: 3, child: Text(tr('Mittwoch', 'Miercuri'))),
+                        DropdownMenuItem(value: 4, child: Text(tr('Donnerstag', 'Joi'))),
+                        DropdownMenuItem(value: 5, child: Text(tr('Freitag', 'Vineri'))),
                       ],
                       onChanged: (val) => setDialogState(() => dayOfWeek = val!),
                     ),
@@ -811,10 +818,10 @@ class _RoutinenaufgabenScreenState extends State<RoutinenaufgabenScreen> {
                   if (frequency == 'monthly' || frequency == 'yearly')
                     DropdownButtonFormField<int>(
                       initialValue: dayOfMonth,
-                      decoration: const InputDecoration(
-                        labelText: 'Tag des Monats *',
-                        prefixIcon: Icon(Icons.calendar_today),
-                        border: OutlineInputBorder(),
+                      decoration: InputDecoration(
+                        labelText: tr('Tag des Monats *', 'Ziua lunii *'),
+                        prefixIcon: const Icon(Icons.calendar_today),
+                        border: const OutlineInputBorder(),
                       ),
                       items: List.generate(28, (i) => DropdownMenuItem(
                         value: i + 1,
@@ -827,24 +834,24 @@ class _RoutinenaufgabenScreenState extends State<RoutinenaufgabenScreen> {
                     const SizedBox(height: 16),
                     DropdownButtonFormField<int>(
                       initialValue: monthOfYear,
-                      decoration: const InputDecoration(
-                        labelText: 'Monat *',
-                        prefixIcon: Icon(Icons.date_range),
-                        border: OutlineInputBorder(),
+                      decoration: InputDecoration(
+                        labelText: tr('Monat *', 'Luna *'),
+                        prefixIcon: const Icon(Icons.date_range),
+                        border: const OutlineInputBorder(),
                       ),
-                      items: const [
-                        DropdownMenuItem(value: 1, child: Text('Januar')),
-                        DropdownMenuItem(value: 2, child: Text('Februar')),
-                        DropdownMenuItem(value: 3, child: Text('März')),
-                        DropdownMenuItem(value: 4, child: Text('April')),
-                        DropdownMenuItem(value: 5, child: Text('Mai')),
-                        DropdownMenuItem(value: 6, child: Text('Juni')),
-                        DropdownMenuItem(value: 7, child: Text('Juli')),
-                        DropdownMenuItem(value: 8, child: Text('August')),
-                        DropdownMenuItem(value: 9, child: Text('September')),
-                        DropdownMenuItem(value: 10, child: Text('Oktober')),
-                        DropdownMenuItem(value: 11, child: Text('November')),
-                        DropdownMenuItem(value: 12, child: Text('Dezember')),
+                      items: [
+                        DropdownMenuItem(value: 1, child: Text(tr('Januar', 'Ianuarie'))),
+                        DropdownMenuItem(value: 2, child: Text(tr('Februar', 'Februarie'))),
+                        DropdownMenuItem(value: 3, child: Text(tr('März', 'Martie'))),
+                        DropdownMenuItem(value: 4, child: Text(tr('April', 'Aprilie'))),
+                        DropdownMenuItem(value: 5, child: Text(tr('Mai', 'Mai'))),
+                        DropdownMenuItem(value: 6, child: Text(tr('Juni', 'Iunie'))),
+                        DropdownMenuItem(value: 7, child: Text(tr('Juli', 'Iulie'))),
+                        DropdownMenuItem(value: 8, child: Text(tr('August', 'August'))),
+                        DropdownMenuItem(value: 9, child: Text(tr('September', 'Septembrie'))),
+                        DropdownMenuItem(value: 10, child: Text(tr('Oktober', 'Octombrie'))),
+                        DropdownMenuItem(value: 11, child: Text(tr('November', 'Noiembrie'))),
+                        DropdownMenuItem(value: 12, child: Text(tr('Dezember', 'Decembrie'))),
                       ],
                       onChanged: (val) => setDialogState(() => monthOfYear = val!),
                     ),
@@ -856,13 +863,13 @@ class _RoutinenaufgabenScreenState extends State<RoutinenaufgabenScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: const Text('Abbrechen'),
+              child: Text(tr('Abbrechen', 'Anulare')),
             ),
             ElevatedButton(
               onPressed: () async {
                 if (selectedUserId == null || titleController.text.trim().isEmpty) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Mitglied und Titel sind erforderlich'), backgroundColor: Colors.red),
+                    SnackBar(content: Text(tr('Mitglied und Titel sind erforderlich', 'Membrul și titlul sunt obligatorii')), backgroundColor: Colors.red),
                   );
                   return;
                 }
@@ -885,14 +892,14 @@ class _RoutinenaufgabenScreenState extends State<RoutinenaufgabenScreen> {
                 if (result != null) {
                   if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Routine "${result.title}" erstellt'), backgroundColor: Colors.green),
+                      SnackBar(content: Text(tr('Routine "${result.title}" erstellt', 'Rutina "${result.title}" a fost creată')), backgroundColor: Colors.green),
                     );
                   }
                   _loadData();
                 } else {
                   if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Fehler beim Erstellen der Routine'), backgroundColor: Colors.red),
+                      SnackBar(content: Text(tr('Fehler beim Erstellen der Routine', 'Eroare la crearea rutinei')), backgroundColor: Colors.red),
                     );
                   }
                 }
@@ -901,7 +908,7 @@ class _RoutinenaufgabenScreenState extends State<RoutinenaufgabenScreen> {
                 backgroundColor: Colors.teal.shade600,
                 foregroundColor: Colors.white,
               ),
-              child: const Text('Erstellen'),
+              child: Text(tr('Erstellen', 'Creează')),
             ),
           ],
         ),
@@ -937,7 +944,7 @@ class _RoutinenaufgabenScreenState extends State<RoutinenaufgabenScreen> {
               children: [
                 Icon(Icons.edit, color: Colors.teal.shade600),
                 const SizedBox(width: 8),
-                const Text('Routine bearbeiten'),
+                Text(tr('Routine bearbeiten', 'Editează rutina')),
               ],
             ),
             content: SizedBox(
@@ -951,10 +958,10 @@ class _RoutinenaufgabenScreenState extends State<RoutinenaufgabenScreen> {
                     DropdownButtonFormField<int>(
                       initialValue: selectedUserId,
                       isExpanded: true,
-                      decoration: const InputDecoration(
-                        labelText: 'Mitglied *',
-                        prefixIcon: Icon(Icons.person),
-                        border: OutlineInputBorder(),
+                      decoration: InputDecoration(
+                        labelText: tr('Mitglied *', 'Membru *'),
+                        prefixIcon: const Icon(Icons.person),
+                        border: const OutlineInputBorder(),
                       ),
                       items: widget.users
                           .where((u) => !u.isDeleted && !u.isSuspended && !u.isVerstorben && !u.isAusgeschlossen)
@@ -970,10 +977,10 @@ class _RoutinenaufgabenScreenState extends State<RoutinenaufgabenScreen> {
                     // Title
                     TextField(
                       controller: titleController,
-                      decoration: const InputDecoration(
-                        labelText: 'Titel *',
-                        prefixIcon: Icon(Icons.title),
-                        border: OutlineInputBorder(),
+                      decoration: InputDecoration(
+                        labelText: tr('Titel *', 'Titlu *'),
+                        prefixIcon: const Icon(Icons.title),
+                        border: const OutlineInputBorder(),
                       ),
                     ),
                     const SizedBox(height: 16),
@@ -981,10 +988,10 @@ class _RoutinenaufgabenScreenState extends State<RoutinenaufgabenScreen> {
                     // Description
                     TextField(
                       controller: descController,
-                      decoration: const InputDecoration(
-                        labelText: 'Beschreibung',
-                        prefixIcon: Icon(Icons.description),
-                        border: OutlineInputBorder(),
+                      decoration: InputDecoration(
+                        labelText: tr('Beschreibung', 'Descriere'),
+                        prefixIcon: const Icon(Icons.description),
+                        border: const OutlineInputBorder(),
                       ),
                       maxLines: 2,
                     ),
@@ -1003,10 +1010,10 @@ class _RoutinenaufgabenScreenState extends State<RoutinenaufgabenScreen> {
                         return TextField(
                           controller: controller,
                           focusNode: focusNode,
-                          decoration: const InputDecoration(
-                            labelText: 'Kategorie',
-                            prefixIcon: Icon(Icons.category),
-                            border: OutlineInputBorder(),
+                          decoration: InputDecoration(
+                            labelText: tr('Kategorie', 'Categorie'),
+                            prefixIcon: const Icon(Icons.category),
+                            border: const OutlineInputBorder(),
                           ),
                           onChanged: (v) => categoryController.text = v,
                         );
@@ -1027,13 +1034,14 @@ class _RoutinenaufgabenScreenState extends State<RoutinenaufgabenScreen> {
                         }
                       },
                       child: InputDecorator(
-                        decoration: const InputDecoration(
-                          labelText: 'Uhrzeit',
-                          prefixIcon: Icon(Icons.access_time),
-                          border: OutlineInputBorder(),
+                        decoration: InputDecoration(
+                          labelText: tr('Uhrzeit', 'Ora'),
+                          prefixIcon: const Icon(Icons.access_time),
+                          border: const OutlineInputBorder(),
                         ),
                         child: Text(
-                          '${selectedTime.hour.toString().padLeft(2, '0')}:${selectedTime.minute.toString().padLeft(2, '0')} Uhr',
+                          tr('${selectedTime.hour.toString().padLeft(2, '0')}:${selectedTime.minute.toString().padLeft(2, '0')} Uhr',
+                              'ora ${selectedTime.hour.toString().padLeft(2, '0')}:${selectedTime.minute.toString().padLeft(2, '0')}'),
                           style: const TextStyle(fontSize: 16),
                         ),
                       ),
@@ -1043,16 +1051,16 @@ class _RoutinenaufgabenScreenState extends State<RoutinenaufgabenScreen> {
                     // Frequency
                     DropdownButtonFormField<String>(
                       initialValue: frequency,
-                      decoration: const InputDecoration(
-                        labelText: 'Frequenz *',
-                        prefixIcon: Icon(Icons.repeat),
-                        border: OutlineInputBorder(),
+                      decoration: InputDecoration(
+                        labelText: tr('Frequenz *', 'Frecvență *'),
+                        prefixIcon: const Icon(Icons.repeat),
+                        border: const OutlineInputBorder(),
                       ),
-                      items: const [
-                        DropdownMenuItem(value: 'daily', child: Text('Täglich (Mo-Fr)')),
-                        DropdownMenuItem(value: 'weekly', child: Text('Wöchentlich')),
-                        DropdownMenuItem(value: 'monthly', child: Text('Monatlich')),
-                        DropdownMenuItem(value: 'yearly', child: Text('Jährlich')),
+                      items: [
+                        DropdownMenuItem(value: 'daily', child: Text(tr('Täglich (Mo-Fr)', 'Zilnic (Lu-Vi)'))),
+                        DropdownMenuItem(value: 'weekly', child: Text(tr('Wöchentlich', 'Săptămânal'))),
+                        DropdownMenuItem(value: 'monthly', child: Text(tr('Monatlich', 'Lunar'))),
+                        DropdownMenuItem(value: 'yearly', child: Text(tr('Jährlich', 'Anual'))),
                       ],
                       onChanged: (val) => setDialogState(() => frequency = val!),
                     ),
@@ -1062,17 +1070,17 @@ class _RoutinenaufgabenScreenState extends State<RoutinenaufgabenScreen> {
                     if (frequency == 'weekly')
                       DropdownButtonFormField<int>(
                         initialValue: dayOfWeek,
-                        decoration: const InputDecoration(
-                          labelText: 'Wochentag *',
-                          prefixIcon: Icon(Icons.calendar_today),
-                          border: OutlineInputBorder(),
+                        decoration: InputDecoration(
+                          labelText: tr('Wochentag *', 'Ziua săptămânii *'),
+                          prefixIcon: const Icon(Icons.calendar_today),
+                          border: const OutlineInputBorder(),
                         ),
-                        items: const [
-                          DropdownMenuItem(value: 1, child: Text('Montag')),
-                          DropdownMenuItem(value: 2, child: Text('Dienstag')),
-                          DropdownMenuItem(value: 3, child: Text('Mittwoch')),
-                          DropdownMenuItem(value: 4, child: Text('Donnerstag')),
-                          DropdownMenuItem(value: 5, child: Text('Freitag')),
+                        items: [
+                          DropdownMenuItem(value: 1, child: Text(tr('Montag', 'Luni'))),
+                          DropdownMenuItem(value: 2, child: Text(tr('Dienstag', 'Marți'))),
+                          DropdownMenuItem(value: 3, child: Text(tr('Mittwoch', 'Miercuri'))),
+                          DropdownMenuItem(value: 4, child: Text(tr('Donnerstag', 'Joi'))),
+                          DropdownMenuItem(value: 5, child: Text(tr('Freitag', 'Vineri'))),
                         ],
                         onChanged: (val) => setDialogState(() => dayOfWeek = val!),
                       ),
@@ -1080,10 +1088,10 @@ class _RoutinenaufgabenScreenState extends State<RoutinenaufgabenScreen> {
                     if (frequency == 'monthly' || frequency == 'yearly')
                       DropdownButtonFormField<int>(
                         initialValue: dayOfMonth,
-                        decoration: const InputDecoration(
-                          labelText: 'Tag des Monats *',
-                          prefixIcon: Icon(Icons.calendar_today),
-                          border: OutlineInputBorder(),
+                        decoration: InputDecoration(
+                          labelText: tr('Tag des Monats *', 'Ziua lunii *'),
+                          prefixIcon: const Icon(Icons.calendar_today),
+                          border: const OutlineInputBorder(),
                         ),
                         items: List.generate(28, (i) => DropdownMenuItem(
                           value: i + 1,
@@ -1096,24 +1104,24 @@ class _RoutinenaufgabenScreenState extends State<RoutinenaufgabenScreen> {
                       const SizedBox(height: 16),
                       DropdownButtonFormField<int>(
                         initialValue: monthOfYear,
-                        decoration: const InputDecoration(
-                          labelText: 'Monat *',
-                          prefixIcon: Icon(Icons.date_range),
-                          border: OutlineInputBorder(),
+                        decoration: InputDecoration(
+                          labelText: tr('Monat *', 'Luna *'),
+                          prefixIcon: const Icon(Icons.date_range),
+                          border: const OutlineInputBorder(),
                         ),
-                        items: const [
-                          DropdownMenuItem(value: 1, child: Text('Januar')),
-                          DropdownMenuItem(value: 2, child: Text('Februar')),
-                          DropdownMenuItem(value: 3, child: Text('März')),
-                          DropdownMenuItem(value: 4, child: Text('April')),
-                          DropdownMenuItem(value: 5, child: Text('Mai')),
-                          DropdownMenuItem(value: 6, child: Text('Juni')),
-                          DropdownMenuItem(value: 7, child: Text('Juli')),
-                          DropdownMenuItem(value: 8, child: Text('August')),
-                          DropdownMenuItem(value: 9, child: Text('September')),
-                          DropdownMenuItem(value: 10, child: Text('Oktober')),
-                          DropdownMenuItem(value: 11, child: Text('November')),
-                          DropdownMenuItem(value: 12, child: Text('Dezember')),
+                        items: [
+                          DropdownMenuItem(value: 1, child: Text(tr('Januar', 'Ianuarie'))),
+                          DropdownMenuItem(value: 2, child: Text(tr('Februar', 'Februarie'))),
+                          DropdownMenuItem(value: 3, child: Text(tr('März', 'Martie'))),
+                          DropdownMenuItem(value: 4, child: Text(tr('April', 'Aprilie'))),
+                          DropdownMenuItem(value: 5, child: Text(tr('Mai', 'Mai'))),
+                          DropdownMenuItem(value: 6, child: Text(tr('Juni', 'Iunie'))),
+                          DropdownMenuItem(value: 7, child: Text(tr('Juli', 'Iulie'))),
+                          DropdownMenuItem(value: 8, child: Text(tr('August', 'August'))),
+                          DropdownMenuItem(value: 9, child: Text(tr('September', 'Septembrie'))),
+                          DropdownMenuItem(value: 10, child: Text(tr('Oktober', 'Octombrie'))),
+                          DropdownMenuItem(value: 11, child: Text(tr('November', 'Noiembrie'))),
+                          DropdownMenuItem(value: 12, child: Text(tr('Dezember', 'Decembrie'))),
                         ],
                         onChanged: (val) => setDialogState(() => monthOfYear = val!),
                       ),
@@ -1125,13 +1133,13 @@ class _RoutinenaufgabenScreenState extends State<RoutinenaufgabenScreen> {
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(ctx),
-                child: const Text('Abbrechen'),
+                child: Text(tr('Abbrechen', 'Anulare')),
               ),
               ElevatedButton(
                 onPressed: () async {
                   if (titleController.text.trim().isEmpty) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Titel ist erforderlich'), backgroundColor: Colors.red),
+                      SnackBar(content: Text(tr('Titel ist erforderlich', 'Titlul este obligatoriu')), backgroundColor: Colors.red),
                     );
                     return;
                   }
@@ -1162,13 +1170,13 @@ class _RoutinenaufgabenScreenState extends State<RoutinenaufgabenScreen> {
                     _loadData();
                     if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Routine "${result.title}" aktualisiert'), backgroundColor: Colors.green),
+                        SnackBar(content: Text(tr('Routine "${result.title}" aktualisiert', 'Rutina "${result.title}" a fost actualizată')), backgroundColor: Colors.green),
                       );
                     }
                   } else {
                     if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Fehler beim Aktualisieren der Routine'), backgroundColor: Colors.red),
+                        SnackBar(content: Text(tr('Fehler beim Aktualisieren der Routine', 'Eroare la actualizarea rutinei')), backgroundColor: Colors.red),
                       );
                     }
                   }
@@ -1177,7 +1185,7 @@ class _RoutinenaufgabenScreenState extends State<RoutinenaufgabenScreen> {
                   backgroundColor: Colors.teal.shade600,
                   foregroundColor: Colors.white,
                 ),
-                child: const Text('Speichern'),
+                child: Text(tr('Speichern', 'Salvează')),
               ),
             ],
           ),
@@ -1198,9 +1206,9 @@ class _RoutinenaufgabenScreenState extends State<RoutinenaufgabenScreen> {
               children: [
                 Icon(Icons.settings, color: Colors.teal.shade600),
                 const SizedBox(width: 8),
-                const Text('Routinen verwalten'),
+                Text(tr('Routinen verwalten', 'Administrare rutine')),
                 const Spacer(),
-                Text('${_routines.length} Routinen',
+                Text(tr('${_routines.length} Routinen', 'Rutine: ${_routines.length}'),
                     style: TextStyle(fontSize: 13, color: Colors.grey.shade600, fontWeight: FontWeight.normal)),
               ],
             ),
@@ -1208,7 +1216,7 @@ class _RoutinenaufgabenScreenState extends State<RoutinenaufgabenScreen> {
               width: 700,
               height: 500,
               child: _routines.isEmpty
-                  ? const Center(child: Text('Keine Routinen vorhanden'))
+                  ? Center(child: Text(tr('Keine Routinen vorhanden', 'Nu există rutine')))
                   : ListView.separated(
                       itemCount: _routines.length,
                       separatorBuilder: (_, __) => const Divider(height: 1),
@@ -1240,7 +1248,7 @@ class _RoutinenaufgabenScreenState extends State<RoutinenaufgabenScreen> {
                               IconButton(
                                 onPressed: () => _showEditRoutineDialog(r, setDialogState),
                                 icon: Icon(Icons.edit_outlined, color: Colors.teal.shade600),
-                                tooltip: 'Bearbeiten',
+                                tooltip: tr('Bearbeiten', 'Editează'),
                               ),
                               // Active toggle
                               Switch(
@@ -1263,14 +1271,15 @@ class _RoutinenaufgabenScreenState extends State<RoutinenaufgabenScreen> {
                                   final confirm = await showDialog<bool>(
                                     context: ctx,
                                     builder: (c) => AlertDialog(
-                                      title: const Text('Routine löschen?'),
-                                      content: Text('Routine "${r.title}" und alle Ausführungen werden gelöscht.'),
+                                      title: Text(tr('Routine löschen?', 'Ștergeți rutina?')),
+                                      content: Text(tr('Routine "${r.title}" und alle Ausführungen werden gelöscht.',
+                                          'Rutina "${r.title}" și toate execuțiile ei vor fi șterse.')),
                                       actions: [
-                                        TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Abbrechen')),
+                                        TextButton(onPressed: () => Navigator.pop(c, false), child: Text(tr('Abbrechen', 'Anulare'))),
                                         ElevatedButton(
                                           onPressed: () => Navigator.pop(c, true),
                                           style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
-                                          child: const Text('Löschen'),
+                                          child: Text(tr('Löschen', 'Șterge')),
                                         ),
                                       ],
                                     ),
@@ -1286,7 +1295,7 @@ class _RoutinenaufgabenScreenState extends State<RoutinenaufgabenScreen> {
                                   }
                                 },
                                 icon: const Icon(Icons.delete_outline, color: Colors.red),
-                                tooltip: 'Löschen',
+                                tooltip: tr('Löschen', 'Șterge'),
                               ),
                             ],
                           ),
@@ -1297,7 +1306,7 @@ class _RoutinenaufgabenScreenState extends State<RoutinenaufgabenScreen> {
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(ctx),
-                child: const Text('Schließen'),
+                child: Text(tr('Schließen', 'Închide')),
               ),
             ],
           );

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../l10n/app_localizations.dart';
+import '../services/language_service.dart';
 
 /// Helper function to get icon for document type
 IconData getDokumentIcon(String typ) {
@@ -26,14 +27,14 @@ String getDokumentTypLabel(String typ, {BuildContext? context}) {
       default: return l.documentSonstiges;
     }
   }
-  // Fallback without context (German only)
+  // Fallback without context
   switch (typ) {
-    case 'urkunde': return 'Urkunde';
-    case 'vollmacht': return 'Vollmacht';
-    case 'satzung': return 'Satzung';
-    case 'protokoll': return 'Protokoll';
-    case 'antrag': return 'Antrag';
-    default: return 'Sonstiges';
+    case 'urkunde': return tr('Urkunde', 'Act notarial');
+    case 'vollmacht': return tr('Vollmacht', 'Procură');
+    case 'satzung': return tr('Satzung', 'Statut');
+    case 'protokoll': return tr('Protokoll', 'Proces-verbal');
+    case 'antrag': return tr('Antrag', 'Cerere');
+    default: return tr('Sonstiges', 'Altele');
   }
 }
 

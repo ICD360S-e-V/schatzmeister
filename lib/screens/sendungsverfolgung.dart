@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../services/api_service.dart';
+import '../services/language_service.dart';
 
 /// Self-contained Sendungsverfolgung (DHL Tracking) widget.
 /// Extracted from deutschepost_screen.dart for cleaner architecture.
@@ -32,7 +33,10 @@ class _SendungsverfolgungViewState extends State<SendungsverfolgungView> {
 
   // DHL API status
   String _apiStatus = 'yellow';
-  String _apiStatusText = 'Prüfe...';
+  // Ergebnis der letzten Prüfung als Schlüssel; der Text entsteht erst in
+  // _apiStatusText, damit er nach einem Sprachwechsel mitwechselt.
+  String _apiStatusKey = 'pruefe';
+  String _apiStatusMessage = '';
   bool _isCheckingApi = false;
   Timer? _apiCheckTimer;
 
@@ -65,6 +69,21 @@ class _SendungsverfolgungViewState extends State<SendungsverfolgungView> {
     }
   }
 
+  String get _apiStatusText {
+    switch (_apiStatusKey) {
+      case 'aktiv':
+        return tr('API aktiv', 'API activ');
+      case 'nicht_autorisiert':
+        return tr('Nicht autorisiert', 'Neautorizat');
+      case 'fehler':
+        return _apiStatusMessage.isNotEmpty ? _apiStatusMessage : tr('API Fehler', 'Eroare API');
+      case 'verbindung':
+        return tr('Verbindungsfehler', 'Eroare de conexiune');
+      default:
+        return tr('Prüfe...', 'Se verifică...');
+    }
+  }
+
   void _notifyApiStatus() {
     widget.onApiStatusChanged?.call(_apiStatusColor, _apiStatusText);
   }
@@ -80,7 +99,7 @@ class _SendungsverfolgungViewState extends State<SendungsverfolgungView> {
       if (result['success'] == true) {
         setState(() {
           _apiStatus = 'green';
-          _apiStatusText = 'API aktiv';
+          _apiStatusKey = 'aktiv';
           _isCheckingApi = false;
         });
       } else {
@@ -88,13 +107,14 @@ class _SendungsverfolgungViewState extends State<SendungsverfolgungView> {
         if (msg.contains('Autorisierung') || msg.contains('401')) {
           setState(() {
             _apiStatus = 'yellow';
-            _apiStatusText = 'Nicht autorisiert';
+            _apiStatusKey = 'nicht_autorisiert';
             _isCheckingApi = false;
           });
         } else {
           setState(() {
             _apiStatus = 'red';
-            _apiStatusText = msg.isNotEmpty ? msg : 'API Fehler';
+            _apiStatusKey = 'fehler';
+            _apiStatusMessage = msg;
             _isCheckingApi = false;
           });
         }
@@ -103,7 +123,7 @@ class _SendungsverfolgungViewState extends State<SendungsverfolgungView> {
       if (mounted) {
         setState(() {
           _apiStatus = 'red';
-          _apiStatusText = 'Verbindungsfehler';
+          _apiStatusKey = 'verbindung';
           _isCheckingApi = false;
         });
       }
@@ -189,9 +209,9 @@ class _SendungsverfolgungViewState extends State<SendungsverfolgungView> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
-                        'Sendungsverfolgung',
-                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      Text(
+                        tr('Sendungsverfolgung', 'Urmărire colet'),
+                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                       ),
                       const SizedBox(height: 4),
                       // API Status indicator (clickable)
@@ -240,7 +260,7 @@ class _SendungsverfolgungViewState extends State<SendungsverfolgungView> {
                 IconButton(
                   icon: Icon(Icons.add_circle_outline, color: color),
                   onPressed: _showAddShipmentDialog,
-                  tooltip: 'Sendung hinzufügen',
+                  tooltip: tr('Sendung hinzufügen', 'Adaugă expediere'),
                   constraints: const BoxConstraints(),
                   padding: const EdgeInsets.all(4),
                 ),
@@ -248,7 +268,7 @@ class _SendungsverfolgungViewState extends State<SendungsverfolgungView> {
                 IconButton(
                   icon: Icon(Icons.settings, color: Colors.grey.shade600, size: 20),
                   onPressed: _showDhlSettingsDialog,
-                  tooltip: 'DHL Portal Einstellungen',
+                  tooltip: tr('DHL Portal Einstellungen', 'Setări portal DHL'),
                   constraints: const BoxConstraints(),
                   padding: const EdgeInsets.all(4),
                 ),
@@ -267,7 +287,7 @@ class _SendungsverfolgungViewState extends State<SendungsverfolgungView> {
                               Icon(Icons.track_changes, size: 40, color: Colors.grey.shade300),
                               const SizedBox(height: 8),
                               Text(
-                                'Keine Sendungen',
+                                tr('Keine Sendungen', 'Nicio expediere'),
                                 style: TextStyle(color: Colors.grey.shade400, fontSize: 13),
                               ),
                             ],
@@ -308,7 +328,7 @@ class _SendungsverfolgungViewState extends State<SendungsverfolgungView> {
                                   IconButton(
                                     icon: Icon(Icons.refresh, size: 16, color: Colors.grey.shade400),
                                     onPressed: () => _trackShipment(s),
-                                    tooltip: 'Status aktualisieren',
+                                    tooltip: tr('Status aktualisieren', 'Actualizează statusul'),
                                     constraints: const BoxConstraints(),
                                     padding: const EdgeInsets.all(4),
                                   ),
@@ -385,7 +405,7 @@ class _SendungsverfolgungViewState extends State<SendungsverfolgungView> {
             children: [
               Icon(Icons.settings, color: Colors.blue.shade700),
               const SizedBox(width: 8),
-              const Text('DHL Portal Einstellungen', style: TextStyle(fontSize: 16)),
+              Text(tr('DHL Portal Einstellungen', 'Setări portal DHL'), style: const TextStyle(fontSize: 16)),
             ],
           ),
           content: SizedBox(
@@ -397,26 +417,26 @@ class _SendungsverfolgungViewState extends State<SendungsverfolgungView> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Zugangsdaten für das DHL Developer Portal',
+                        tr('Zugangsdaten für das DHL Developer Portal', 'Date de acces pentru DHL Developer Portal'),
                         style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
                       ),
                       const SizedBox(height: 16),
                       TextField(
                         controller: emailController,
                         decoration: InputDecoration(
-                          labelText: 'E-Mail',
-                          hintText: 'DHL Portal E-Mail',
+                          labelText: tr('E-Mail', 'E-mail'),
+                          hintText: tr('DHL Portal E-Mail', 'E-mail portal DHL'),
                           prefixIcon: const Icon(Icons.email_outlined),
                           border: const OutlineInputBorder(),
                           isDense: true,
                           suffixIcon: IconButton(
                             icon: const Icon(Icons.copy, size: 18),
-                            tooltip: 'E-Mail kopieren',
+                            tooltip: tr('E-Mail kopieren', 'Copiază e-mailul'),
                             onPressed: () {
                               if (emailController.text.trim().isNotEmpty) {
                                 Clipboard.setData(ClipboardData(text: emailController.text.trim()));
                                 ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text('E-Mail kopiert'), duration: Duration(seconds: 1)),
+                                  SnackBar(content: Text(tr('E-Mail kopiert', 'E-mail copiat')), duration: const Duration(seconds: 1)),
                                 );
                               }
                             },
@@ -429,8 +449,8 @@ class _SendungsverfolgungViewState extends State<SendungsverfolgungView> {
                         controller: passwordController,
                         obscureText: obscurePassword,
                         decoration: InputDecoration(
-                          labelText: 'Passwort',
-                          hintText: 'DHL Portal Passwort',
+                          labelText: tr('Passwort', 'Parolă'),
+                          hintText: tr('DHL Portal Passwort', 'Parolă portal DHL'),
                           prefixIcon: const Icon(Icons.lock_outlined),
                           border: const OutlineInputBorder(),
                           isDense: true,
@@ -443,12 +463,12 @@ class _SendungsverfolgungViewState extends State<SendungsverfolgungView> {
                               ),
                               IconButton(
                                 icon: const Icon(Icons.copy, size: 18),
-                                tooltip: 'Passwort kopieren',
+                                tooltip: tr('Passwort kopieren', 'Copiază parola'),
                                 onPressed: () {
                                   if (passwordController.text.trim().isNotEmpty) {
                                     Clipboard.setData(ClipboardData(text: passwordController.text.trim()));
                                     ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(content: Text('Passwort kopiert'), duration: Duration(seconds: 1)),
+                                      SnackBar(content: Text(tr('Passwort kopiert', 'Parolă copiată')), duration: const Duration(seconds: 1)),
                                     );
                                   }
                                 },
@@ -463,7 +483,7 @@ class _SendungsverfolgungViewState extends State<SendungsverfolgungView> {
                         width: double.infinity,
                         child: OutlinedButton.icon(
                           icon: const Icon(Icons.open_in_new, size: 16),
-                          label: const Text('DHL Developer Portal öffnen'),
+                          label: Text(tr('DHL Developer Portal öffnen', 'Deschide DHL Developer Portal')),
                           onPressed: () {
                             launchUrl(Uri.parse('https://developer.dhl.com/user/login?destination=/node/102'));
                           },
@@ -475,11 +495,11 @@ class _SendungsverfolgungViewState extends State<SendungsverfolgungView> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: const Text('Abbrechen'),
+              child: Text(tr('Abbrechen', 'Anulare')),
             ),
             ElevatedButton.icon(
               icon: const Icon(Icons.save, size: 16),
-              label: const Text('Speichern'),
+              label: Text(tr('Speichern', 'Salvează')),
               onPressed: () async {
                 final email = emailController.text.trim();
                 final password = passwordController.text.trim();
@@ -497,7 +517,7 @@ class _SendungsverfolgungViewState extends State<SendungsverfolgungView> {
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text(res['success'] == true ? 'Einstellungen gespeichert' : 'Fehler beim Speichern'),
+                      content: Text(res['success'] == true ? tr('Einstellungen gespeichert', 'Setări salvate') : tr('Fehler beim Speichern', 'Eroare la salvare')),
                       backgroundColor: res['success'] == true ? Colors.green : Colors.red,
                     ),
                   );
@@ -524,7 +544,7 @@ class _SendungsverfolgungViewState extends State<SendungsverfolgungView> {
           children: [
             Icon(Icons.track_changes, color: Colors.blue.shade700),
             const SizedBox(width: 8),
-            const Text('Sendung hinzufügen'),
+            Text(tr('Sendung hinzufügen', 'Adaugă expediere')),
           ],
         ),
         content: SizedBox(
@@ -534,19 +554,19 @@ class _SendungsverfolgungViewState extends State<SendungsverfolgungView> {
             children: [
               TextField(
                 controller: numberController,
-                decoration: const InputDecoration(
-                  labelText: 'Sendungsnummer *',
-                  hintText: 'z.B. 00340434161094042557',
-                  border: OutlineInputBorder(),
+                decoration: InputDecoration(
+                  labelText: tr('Sendungsnummer *', 'Număr de expediere *'),
+                  hintText: tr('z.B. 00340434161094042557', 'de ex. 00340434161094042557'),
+                  border: const OutlineInputBorder(),
                 ),
               ),
               const SizedBox(height: 12),
               TextField(
                 controller: descController,
-                decoration: const InputDecoration(
-                  labelText: 'Beschreibung',
-                  hintText: 'z.B. Brief an Notar',
-                  border: OutlineInputBorder(),
+                decoration: InputDecoration(
+                  labelText: tr('Beschreibung', 'Descriere'),
+                  hintText: tr('z.B. Brief an Notar', 'de ex. scrisoare către notar'),
+                  border: const OutlineInputBorder(),
                 ),
               ),
             ],
@@ -555,7 +575,7 @@ class _SendungsverfolgungViewState extends State<SendungsverfolgungView> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Abbrechen'),
+            child: Text(tr('Abbrechen', 'Anulare')),
           ),
           ElevatedButton(
             onPressed: () async {
@@ -569,7 +589,7 @@ class _SendungsverfolgungViewState extends State<SendungsverfolgungView> {
               }
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.blue.shade700),
-            child: const Text('Speichern', style: TextStyle(color: Colors.white)),
+            child: Text(tr('Speichern', 'Salvează'), style: const TextStyle(color: Colors.white)),
           ),
         ],
       ),
@@ -591,12 +611,12 @@ class _SendungsverfolgungViewState extends State<SendungsverfolgungView> {
           _showTrackingResult(tracking[0], shipment);
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Sendung nicht gefunden oder DHL API noch nicht freigeschaltet'), backgroundColor: Colors.orange),
+            SnackBar(content: Text(tr('Sendung nicht gefunden oder DHL API noch nicht freigeschaltet', 'Expediere negăsită sau API-ul DHL nu este încă activat')), backgroundColor: Colors.orange),
           );
         }
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(result['message'] ?? 'Fehler beim Tracking'), backgroundColor: Colors.red),
+          SnackBar(content: Text(result['message'] ?? tr('Fehler beim Tracking', 'Eroare la urmărire')), backgroundColor: Colors.red),
         );
       }
     }
@@ -656,7 +676,7 @@ class _SendungsverfolgungViewState extends State<SendungsverfolgungView> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            tracking['statusText'] ?? 'Unbekannt',
+                            tracking['statusText'] ?? tr('Unbekannt', 'Necunoscut'),
                             style: TextStyle(fontWeight: FontWeight.bold, color: _statusColor(tracking['status'])),
                           ),
                           if (tracking['description'] != null && tracking['description'].toString().isNotEmpty)
@@ -670,16 +690,16 @@ class _SendungsverfolgungViewState extends State<SendungsverfolgungView> {
                 ),
               ),
               const SizedBox(height: 12),
-              Text('Sendungsnummer: ${tracking['trackingNumber']}', style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+              Text(tr('Sendungsnummer: ${tracking['trackingNumber']}', 'Număr de expediere: ${tracking['trackingNumber']}'), style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
               if (tracking['productName'] != null && tracking['productName'].toString().isNotEmpty)
-                Text('Produkt: ${tracking['productName']}', style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+                Text(tr('Produkt: ${tracking['productName']}', 'Produs: ${tracking['productName']}'), style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
               const SizedBox(height: 8),
-              const Text('Sendungsverlauf:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+              Text(tr('Sendungsverlauf:', 'Istoricul expedierii:'), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
               const SizedBox(height: 8),
               // Events timeline
               Expanded(
                 child: events.isEmpty
-                    ? const Center(child: Text('Keine Ereignisse'))
+                    ? Center(child: Text(tr('Keine Ereignisse', 'Niciun eveniment')))
                     : ListView.builder(
                         itemCount: events.length,
                         itemBuilder: (_, i) {
@@ -740,7 +760,7 @@ class _SendungsverfolgungViewState extends State<SendungsverfolgungView> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Schließen'),
+            child: Text(tr('Schließen', 'Închide')),
           ),
         ],
       ),
@@ -770,11 +790,11 @@ class _SendungsverfolgungViewState extends State<SendungsverfolgungView> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _detailRow('Sendungsnummer', shipment['tracking_number'] ?? '-'),
-              _detailRow('Beschreibung', shipment['beschreibung'] ?? '-'),
-              _detailRow('Status', shipment['last_status_text'] ?? 'Noch nicht abgefragt'),
-              _detailRow('Letzte Prüfung', shipment['last_checked'] ?? '-'),
-              _detailRow('Erstellt', shipment['created_at'] ?? '-'),
+              _detailRow(tr('Sendungsnummer', 'Număr de expediere'), shipment['tracking_number'] ?? '-'),
+              _detailRow(tr('Beschreibung', 'Descriere'), shipment['beschreibung'] ?? '-'),
+              _detailRow('Status', shipment['last_status_text'] ?? tr('Noch nicht abgefragt', 'Încă neverificat')),
+              _detailRow(tr('Letzte Prüfung', 'Ultima verificare'), shipment['last_checked'] ?? '-'),
+              _detailRow(tr('Erstellt', 'Creat la'), shipment['created_at'] ?? '-'),
             ],
           ),
         ),
@@ -782,16 +802,16 @@ class _SendungsverfolgungViewState extends State<SendungsverfolgungView> {
           TextButton(
             onPressed: () => Navigator.pop(ctx, 'delete'),
             style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Löschen'),
+            child: Text(tr('Löschen', 'Șterge')),
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Schließen'),
+            child: Text(tr('Schließen', 'Închide')),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, 'track'),
             style: ElevatedButton.styleFrom(backgroundColor: Colors.blue.shade700),
-            child: const Text('Status abfragen', style: TextStyle(color: Colors.white)),
+            child: Text(tr('Status abfragen', 'Verifică statusul'), style: const TextStyle(color: Colors.white)),
           ),
         ],
       ),

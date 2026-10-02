@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import 'package:http/io_client.dart';
 import 'api_service.dart';
 import 'device_key_service.dart';
+import 'language_service.dart';
 import 'logger_service.dart';
 
 final _log = LoggerService();
@@ -104,21 +105,21 @@ class Routine {
 
   String get frequencyLabel {
     switch (frequency) {
-      case 'daily': return 'Täglich';
-      case 'weekly': return 'Wöchentlich';
-      case 'monthly': return 'Monatlich';
-      case 'yearly': return 'Jährlich';
+      case 'daily': return tr('Täglich', 'Zilnic');
+      case 'weekly': return tr('Wöchentlich', 'Săptămânal');
+      case 'monthly': return tr('Monatlich', 'Lunar');
+      case 'yearly': return tr('Jährlich', 'Anual');
       default: return frequency;
     }
   }
 
   String get dayOfWeekLabel {
     switch (dayOfWeek) {
-      case 1: return 'Montag';
-      case 2: return 'Dienstag';
-      case 3: return 'Mittwoch';
-      case 4: return 'Donnerstag';
-      case 5: return 'Freitag';
+      case 1: return tr('Montag', 'Luni');
+      case 2: return tr('Dienstag', 'Marți');
+      case 3: return tr('Mittwoch', 'Miercuri');
+      case 4: return tr('Donnerstag', 'Joi');
+      case 5: return tr('Freitag', 'Vineri');
       default: return '';
     }
   }

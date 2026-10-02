@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:intl/intl.dart';
 import '../services/api_service.dart';
+import '../services/language_service.dart';
 
 class StifterHelfenScreen extends StatefulWidget {
   final ApiService apiService;
@@ -89,8 +90,8 @@ class _StifterHelfenScreenState extends State<StifterHelfenScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(result['success'] == true
-                ? 'Zugangsdaten gespeichert (verschlüsselt)'
-                : 'Fehler: ${result['message'] ?? 'Unbekannter Fehler'}'),
+                ? tr('Zugangsdaten gespeichert (verschlüsselt)', 'Date de acces salvate (criptate)')
+                : tr('Fehler: ${result['message'] ?? 'Unbekannter Fehler'}', 'Eroare: ${result['message'] ?? 'Eroare necunoscută'}')),
             backgroundColor: result['success'] == true ? Colors.green : Colors.red,
           ),
         );
@@ -98,7 +99,7 @@ class _StifterHelfenScreenState extends State<StifterHelfenScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Fehler: $e'), backgroundColor: Colors.red),
+          SnackBar(content: Text(tr('Fehler: $e', 'Eroare: $e')), backgroundColor: Colors.red),
         );
       }
     }
@@ -108,7 +109,7 @@ class _StifterHelfenScreenState extends State<StifterHelfenScreen> {
   void _copyToClipboard(String text, String label) {
     Clipboard.setData(ClipboardData(text: text));
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('$label kopiert!')),
+      SnackBar(content: Text(tr('$label kopiert!', 'Copiat: $label'))),
     );
   }
 
@@ -119,7 +120,7 @@ class _StifterHelfenScreenState extends State<StifterHelfenScreen> {
     } else {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Website konnte nicht geöffnet werden'), backgroundColor: Colors.red),
+          SnackBar(content: Text(tr('Website konnte nicht geöffnet werden', 'Website-ul nu a putut fi deschis')), backgroundColor: Colors.red),
         );
       }
     }
@@ -143,7 +144,7 @@ class _StifterHelfenScreenState extends State<StifterHelfenScreen> {
             children: [
               Icon(Icons.add_task, color: Colors.orange.shade700),
               const SizedBox(width: 8),
-              const Text('Neue Aufgabe'),
+              Text(tr('Neue Aufgabe', 'Sarcină nouă')),
             ],
           ),
           content: SizedBox(
@@ -153,20 +154,20 @@ class _StifterHelfenScreenState extends State<StifterHelfenScreen> {
               children: [
                 TextField(
                   controller: titelController,
-                  decoration: const InputDecoration(
-                    labelText: 'Titel *',
-                    hintText: 'z.B. Gemeinnützigkeitsnachweis einreichen',
-                    border: OutlineInputBorder(),
+                  decoration: InputDecoration(
+                    labelText: tr('Titel *', 'Titlu *'),
+                    hintText: tr('z.B. Gemeinnützigkeitsnachweis einreichen', 'de ex. depunere dovadă de statut nonprofit'),
+                    border: const OutlineInputBorder(),
                   ),
                 ),
                 const SizedBox(height: 12),
                 TextField(
                   controller: beschreibungController,
                   maxLines: 3,
-                  decoration: const InputDecoration(
-                    labelText: 'Beschreibung (optional)',
-                    hintText: 'Details zur Aufgabe...',
-                    border: OutlineInputBorder(),
+                  decoration: InputDecoration(
+                    labelText: tr('Beschreibung (optional)', 'Descriere (opțional)'),
+                    hintText: tr('Details zur Aufgabe...', 'Detalii despre sarcină...'),
+                    border: const OutlineInputBorder(),
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -181,17 +182,16 @@ class _StifterHelfenScreenState extends State<StifterHelfenScreen> {
                             initialDate: selectedDate,
                             firstDate: DateTime.now(),
                             lastDate: DateTime.now().add(const Duration(days: 365 * 3)),
-                            locale: const Locale('de'),
                           );
                           if (picked != null) {
                             setDialogState(() => selectedDate = picked);
                           }
                         },
                         child: InputDecorator(
-                          decoration: const InputDecoration(
-                            labelText: 'Fällig am',
-                            border: OutlineInputBorder(),
-                            suffixIcon: Icon(Icons.calendar_today, size: 18),
+                          decoration: InputDecoration(
+                            labelText: tr('Fällig am', 'Termen limită'),
+                            border: const OutlineInputBorder(),
+                            suffixIcon: const Icon(Icons.calendar_today, size: 18),
                           ),
                           child: Text(DateFormat('dd.MM.yyyy').format(selectedDate)),
                         ),
@@ -210,10 +210,10 @@ class _StifterHelfenScreenState extends State<StifterHelfenScreen> {
                           }
                         },
                         child: InputDecorator(
-                          decoration: const InputDecoration(
-                            labelText: 'Uhrzeit',
-                            border: OutlineInputBorder(),
-                            suffixIcon: Icon(Icons.access_time, size: 18),
+                          decoration: InputDecoration(
+                            labelText: tr('Uhrzeit', 'Ora'),
+                            border: const OutlineInputBorder(),
+                            suffixIcon: const Icon(Icons.access_time, size: 18),
                           ),
                           child: Text('${selectedTime.hour.toString().padLeft(2, '0')}:${selectedTime.minute.toString().padLeft(2, '0')}'),
                         ),
@@ -227,20 +227,20 @@ class _StifterHelfenScreenState extends State<StifterHelfenScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Abbrechen'),
+              child: Text(tr('Abbrechen', 'Anulare')),
             ),
             ElevatedButton.icon(
               onPressed: () {
                 if (titelController.text.trim().isEmpty) {
                   ScaffoldMessenger.of(ctx).showSnackBar(
-                    const SnackBar(content: Text('Bitte Titel eingeben'), backgroundColor: Colors.orange),
+                    SnackBar(content: Text(tr('Bitte Titel eingeben', 'Vă rugăm introduceți titlul')), backgroundColor: Colors.orange),
                   );
                   return;
                 }
                 Navigator.pop(ctx, true);
               },
               icon: const Icon(Icons.add, size: 18),
-              label: const Text('Erstellen'),
+              label: Text(tr('Erstellen', 'Creează')),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.orange.shade700,
                 foregroundColor: Colors.white,
@@ -270,11 +270,11 @@ class _StifterHelfenScreenState extends State<StifterHelfenScreen> {
           await _loadAufgaben();
           setState(() {});
           messenger.showSnackBar(
-            const SnackBar(content: Text('Aufgabe erstellt'), backgroundColor: Colors.green),
+            SnackBar(content: Text(tr('Aufgabe erstellt', 'Sarcină creată')), backgroundColor: Colors.green),
           );
         } else {
           messenger.showSnackBar(
-            SnackBar(content: Text('Fehler: ${res['message']}'), backgroundColor: Colors.red),
+            SnackBar(content: Text(tr('Fehler: ${res['message']}', 'Eroare: ${res['message']}')), backgroundColor: Colors.red),
           );
         }
       }
@@ -300,14 +300,14 @@ class _StifterHelfenScreenState extends State<StifterHelfenScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Aufgabe löschen?'),
-        content: const Text('Diese Aufgabe wird unwiderruflich gelöscht.'),
+        title: Text(tr('Aufgabe löschen?', 'Ștergeți sarcina?')),
+        content: Text(tr('Diese Aufgabe wird unwiderruflich gelöscht.', 'Această sarcină va fi ștearsă definitiv.')),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Abbrechen')),
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(tr('Abbrechen', 'Anulare'))),
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
-            child: const Text('Löschen'),
+            child: Text(tr('Löschen', 'Șterge')),
           ),
         ],
       ),
@@ -318,7 +318,7 @@ class _StifterHelfenScreenState extends State<StifterHelfenScreen> {
         await _loadAufgaben();
         setState(() {});
         messenger.showSnackBar(
-          const SnackBar(content: Text('Aufgabe gelöscht'), backgroundColor: Colors.green),
+          SnackBar(content: Text(tr('Aufgabe gelöscht', 'Sarcină ștearsă')), backgroundColor: Colors.green),
         );
       }
     }
@@ -342,6 +342,9 @@ class _StifterHelfenScreenState extends State<StifterHelfenScreen> {
     }
   }
 
+  /// „2 offen“ — auf Rumänisch beugt sich das Adjektiv (1 deschisă, 2 deschise).
+  String _offenLabel(int n) => tr('$n offen', n == 1 ? '$n deschisă' : '$n deschise');
+
   // ==================== Notizen CRUD ====================
 
   Future<void> _showCreateNotizDialog() async {
@@ -356,7 +359,7 @@ class _StifterHelfenScreenState extends State<StifterHelfenScreen> {
           children: [
             Icon(Icons.note_add, color: Colors.teal.shade700),
             const SizedBox(width: 8),
-            const Text('Neue Notiz'),
+            Text(tr('Neue Notiz', 'Notă nouă')),
           ],
         ),
         content: SizedBox(
@@ -364,30 +367,30 @@ class _StifterHelfenScreenState extends State<StifterHelfenScreen> {
           child: TextField(
             controller: inhaltController,
             maxLines: 5,
-            decoration: const InputDecoration(
-              labelText: 'Notiz *',
-              hintText: 'Notiz eingeben...',
-              border: OutlineInputBorder(),
+            decoration: InputDecoration(
+              labelText: tr('Notiz *', 'Notă *'),
+              hintText: tr('Notiz eingeben...', 'Introduceți nota...'),
+              border: const OutlineInputBorder(),
             ),
           ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Abbrechen'),
+            child: Text(tr('Abbrechen', 'Anulare')),
           ),
           ElevatedButton.icon(
             onPressed: () {
               if (inhaltController.text.trim().isEmpty) {
                 ScaffoldMessenger.of(ctx).showSnackBar(
-                  const SnackBar(content: Text('Bitte Notiz eingeben'), backgroundColor: Colors.orange),
+                  SnackBar(content: Text(tr('Bitte Notiz eingeben', 'Vă rugăm introduceți nota')), backgroundColor: Colors.orange),
                 );
                 return;
               }
               Navigator.pop(ctx, true);
             },
             icon: const Icon(Icons.add, size: 18),
-            label: const Text('Erstellen'),
+            label: Text(tr('Erstellen', 'Creează')),
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.teal.shade700,
               foregroundColor: Colors.white,
@@ -407,11 +410,11 @@ class _StifterHelfenScreenState extends State<StifterHelfenScreen> {
           await _loadNotizen();
           setState(() {});
           messenger.showSnackBar(
-            const SnackBar(content: Text('Notiz erstellt'), backgroundColor: Colors.green),
+            SnackBar(content: Text(tr('Notiz erstellt', 'Notă creată')), backgroundColor: Colors.green),
           );
         } else {
           messenger.showSnackBar(
-            SnackBar(content: Text('Fehler: ${res['message']}'), backgroundColor: Colors.red),
+            SnackBar(content: Text(tr('Fehler: ${res['message']}', 'Eroare: ${res['message']}')), backgroundColor: Colors.red),
           );
         }
       }
@@ -424,14 +427,14 @@ class _StifterHelfenScreenState extends State<StifterHelfenScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Notiz löschen?'),
-        content: const Text('Diese Notiz wird unwiderruflich gelöscht.'),
+        title: Text(tr('Notiz löschen?', 'Ștergeți nota?')),
+        content: Text(tr('Diese Notiz wird unwiderruflich gelöscht.', 'Această notă va fi ștearsă definitiv.')),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Abbrechen')),
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(tr('Abbrechen', 'Anulare'))),
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
-            child: const Text('Löschen'),
+            child: Text(tr('Löschen', 'Șterge')),
           ),
         ],
       ),
@@ -442,7 +445,7 @@ class _StifterHelfenScreenState extends State<StifterHelfenScreen> {
         await _loadNotizen();
         setState(() {});
         messenger.showSnackBar(
-          const SnackBar(content: Text('Notiz gelöscht'), backgroundColor: Colors.green),
+          SnackBar(content: Text(tr('Notiz gelöscht', 'Notă ștearsă')), backgroundColor: Colors.green),
         );
       }
     }
@@ -472,7 +475,7 @@ class _StifterHelfenScreenState extends State<StifterHelfenScreen> {
               IconButton(
                 icon: const Icon(Icons.arrow_back),
                 onPressed: widget.onBack,
-                tooltip: 'Zurück',
+                tooltip: tr('Zurück', 'Înapoi'),
               ),
               const SizedBox(width: 8),
               Icon(Icons.volunteer_activism, size: 32, color: Colors.deepPurple.shade700),
@@ -499,7 +502,7 @@ class _StifterHelfenScreenState extends State<StifterHelfenScreen> {
                         }
                         setState(() => _isEditing = !_isEditing);
                       },
-                tooltip: _isEditing ? 'Speichern' : 'Bearbeiten',
+                tooltip: _isEditing ? tr('Speichern', 'Salvează') : tr('Bearbeiten', 'Editează'),
               ),
             ],
           ),
@@ -519,9 +522,9 @@ class _StifterHelfenScreenState extends State<StifterHelfenScreen> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const Text(
-                                  'IT-Spendenplattform für gemeinnützige Organisationen',
-                                  style: TextStyle(fontSize: 16, color: Colors.grey, fontStyle: FontStyle.italic),
+                                Text(
+                                  tr('IT-Spendenplattform für gemeinnützige Organisationen', 'Platformă de donații IT pentru organizații nonprofit'),
+                                  style: const TextStyle(fontSize: 16, color: Colors.grey, fontStyle: FontStyle.italic),
                                 ),
                                 const SizedBox(height: 24),
 
@@ -540,12 +543,12 @@ class _StifterHelfenScreenState extends State<StifterHelfenScreen> {
                                     IconButton(
                                       icon: const Icon(Icons.copy, size: 18),
                                       onPressed: () => _copyToClipboard(_website, 'Website'),
-                                      tooltip: 'Kopieren',
+                                      tooltip: tr('Kopieren', 'Copiază'),
                                     ),
                                     IconButton(
                                       icon: Icon(Icons.open_in_new, size: 18, color: Colors.blue.shade700),
                                       onPressed: _openWebsite,
-                                      tooltip: 'Website öffnen',
+                                      tooltip: tr('Website öffnen', 'Deschide site-ul'),
                                     ),
                                   ],
                                 ),
@@ -556,7 +559,7 @@ class _StifterHelfenScreenState extends State<StifterHelfenScreen> {
                                   children: [
                                     const Icon(Icons.email, size: 20, color: Colors.grey),
                                     const SizedBox(width: 12),
-                                    const Text('E-Mail: ', style: TextStyle(fontWeight: FontWeight.w500)),
+                                    Text(tr('E-Mail: ', 'E-mail: '), style: const TextStyle(fontWeight: FontWeight.w500)),
                                     Expanded(
                                       child: _isEditing
                                           ? TextField(
@@ -567,7 +570,7 @@ class _StifterHelfenScreenState extends State<StifterHelfenScreen> {
                                               ),
                                             )
                                           : SelectableText(
-                                              _emailController.text.isEmpty ? '(nicht gesetzt)' : _emailController.text,
+                                              _emailController.text.isEmpty ? tr('(nicht gesetzt)', '(nesetat)') : _emailController.text,
                                               style: TextStyle(
                                                 color: _emailController.text.isEmpty ? Colors.grey : null,
                                                 fontStyle: _emailController.text.isEmpty ? FontStyle.italic : null,
@@ -577,8 +580,8 @@ class _StifterHelfenScreenState extends State<StifterHelfenScreen> {
                                     if (_emailController.text.isNotEmpty)
                                       IconButton(
                                         icon: const Icon(Icons.copy, size: 18),
-                                        onPressed: () => _copyToClipboard(_emailController.text, 'E-Mail'),
-                                        tooltip: 'Kopieren',
+                                        onPressed: () => _copyToClipboard(_emailController.text, tr('E-Mail', 'E-mail')),
+                                        tooltip: tr('Kopieren', 'Copiază'),
                                       ),
                                   ],
                                 ),
@@ -589,7 +592,7 @@ class _StifterHelfenScreenState extends State<StifterHelfenScreen> {
                                   children: [
                                     const Icon(Icons.lock, size: 20, color: Colors.grey),
                                     const SizedBox(width: 12),
-                                    const Text('Passwort: ', style: TextStyle(fontWeight: FontWeight.w500)),
+                                    Text(tr('Passwort: ', 'Parolă: '), style: const TextStyle(fontWeight: FontWeight.w500)),
                                     Expanded(
                                       child: _isEditing
                                           ? TextField(
@@ -606,7 +609,7 @@ class _StifterHelfenScreenState extends State<StifterHelfenScreen> {
                                             )
                                           : SelectableText(
                                               _passwordController.text.isEmpty
-                                                  ? '(nicht gesetzt)'
+                                                  ? tr('(nicht gesetzt)', '(nesetat)')
                                                   : _passwordVisible
                                                       ? _passwordController.text
                                                       : '\u2022' * 12,
@@ -620,13 +623,13 @@ class _StifterHelfenScreenState extends State<StifterHelfenScreen> {
                                       IconButton(
                                         icon: Icon(_passwordVisible ? Icons.visibility_off : Icons.visibility, size: 18),
                                         onPressed: () => setState(() => _passwordVisible = !_passwordVisible),
-                                        tooltip: _passwordVisible ? 'Verbergen' : 'Anzeigen',
+                                        tooltip: _passwordVisible ? tr('Verbergen', 'Ascunde') : tr('Anzeigen', 'Afișează'),
                                       ),
                                     if (_passwordController.text.isNotEmpty)
                                       IconButton(
                                         icon: const Icon(Icons.copy, size: 18),
-                                        onPressed: () => _copyToClipboard(_passwordController.text, 'Passwort'),
-                                        tooltip: 'Kopieren',
+                                        onPressed: () => _copyToClipboard(_passwordController.text, tr('Passwort', 'Parolă')),
+                                        tooltip: tr('Kopieren', 'Copiază'),
                                       ),
                                   ],
                                 ),
@@ -645,7 +648,7 @@ class _StifterHelfenScreenState extends State<StifterHelfenScreen> {
                                       Icon(Icons.shield, size: 16, color: Colors.green.shade700),
                                       const SizedBox(width: 8),
                                       Text(
-                                        'Zugangsdaten werden AES-256 verschlüsselt in der Datenbank gespeichert',
+                                        tr('Zugangsdaten werden AES-256 verschlüsselt in der Datenbank gespeichert', 'Datele de acces sunt stocate criptat AES-256 în baza de date'),
                                         style: TextStyle(fontSize: 11, color: Colors.green.shade800),
                                       ),
                                     ],
@@ -669,10 +672,10 @@ class _StifterHelfenScreenState extends State<StifterHelfenScreen> {
                                   children: [
                                     Icon(Icons.task_alt, color: Colors.orange.shade700, size: 24),
                                     const SizedBox(width: 8),
-                                    const Expanded(
+                                    Expanded(
                                       child: Text(
-                                        'Aufgaben',
-                                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                                        tr('Aufgaben', 'Sarcini'),
+                                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
                                       ),
                                     ),
                                     // Counter badge
@@ -684,7 +687,7 @@ class _StifterHelfenScreenState extends State<StifterHelfenScreen> {
                                           borderRadius: BorderRadius.circular(12),
                                         ),
                                         child: Text(
-                                          '${_aufgaben.where((a) => !(a['erledigt'] as bool)).length} offen',
+                                          _offenLabel(_aufgaben.where((a) => !(a['erledigt'] as bool)).length),
                                           style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.orange.shade800),
                                         ),
                                       ),
@@ -692,13 +695,13 @@ class _StifterHelfenScreenState extends State<StifterHelfenScreen> {
                                     IconButton(
                                       icon: Icon(Icons.add_circle, color: Colors.orange.shade700, size: 28),
                                       onPressed: _showCreateAufgabeDialog,
-                                      tooltip: 'Neue Aufgabe',
+                                      tooltip: tr('Neue Aufgabe', 'Sarcină nouă'),
                                     ),
                                   ],
                                 ),
                                 const SizedBox(height: 8),
                                 Text(
-                                  'Unterlagen und Fristen für stifter-helfen.de',
+                                  tr('Unterlagen und Fristen für stifter-helfen.de', 'Documente și termene pentru stifter-helfen.de'),
                                   style: TextStyle(fontSize: 13, color: Colors.grey.shade600, fontStyle: FontStyle.italic),
                                 ),
                                 const SizedBox(height: 16),
@@ -712,7 +715,7 @@ class _StifterHelfenScreenState extends State<StifterHelfenScreen> {
                                         Icon(Icons.checklist, size: 48, color: Colors.grey.shade300),
                                         const SizedBox(height: 8),
                                         Text(
-                                          'Keine Aufgaben vorhanden',
+                                          tr('Keine Aufgaben vorhanden', 'Nicio sarcină'),
                                           style: TextStyle(color: Colors.grey.shade500),
                                         ),
                                       ],
@@ -749,7 +752,7 @@ class _StifterHelfenScreenState extends State<StifterHelfenScreen> {
                                             size: 28,
                                           ),
                                           onPressed: () => _toggleAufgabe(aufgabe),
-                                          tooltip: erledigt ? 'Als offen markieren' : 'Als erledigt markieren',
+                                          tooltip: erledigt ? tr('Als offen markieren', 'Marchează ca deschisă') : tr('Als erledigt markieren', 'Marchează ca finalizată'),
                                         ),
                                         title: Text(
                                           aufgabe['titel'],
@@ -796,7 +799,7 @@ class _StifterHelfenScreenState extends State<StifterHelfenScreen> {
                                                       borderRadius: BorderRadius.circular(4),
                                                     ),
                                                     child: Text(
-                                                      'Überfällig',
+                                                      tr('Überfällig', 'Întârziată'),
                                                       style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.red.shade800),
                                                     ),
                                                   ),
@@ -804,7 +807,7 @@ class _StifterHelfenScreenState extends State<StifterHelfenScreen> {
                                                 if (erledigt && aufgabe['erledigt_am'] != null) ...[
                                                   const SizedBox(width: 8),
                                                   Text(
-                                                    'Erledigt: ${_formatFaelligAm(aufgabe['erledigt_am'])}',
+                                                    tr('Erledigt: ${_formatFaelligAm(aufgabe['erledigt_am'])}', 'Finalizată: ${_formatFaelligAm(aufgabe['erledigt_am'])}'),
                                                     style: TextStyle(fontSize: 11, color: Colors.green.shade700),
                                                   ),
                                                 ],
@@ -815,7 +818,7 @@ class _StifterHelfenScreenState extends State<StifterHelfenScreen> {
                                         trailing: IconButton(
                                           icon: Icon(Icons.delete_outline, size: 20, color: Colors.red.shade400),
                                           onPressed: () => _deleteAufgabe(aufgabe['id'] as int),
-                                          tooltip: 'Löschen',
+                                          tooltip: tr('Löschen', 'Șterge'),
                                         ),
                                       ),
                                     );
@@ -838,10 +841,10 @@ class _StifterHelfenScreenState extends State<StifterHelfenScreen> {
                                   children: [
                                     Icon(Icons.sticky_note_2, color: Colors.teal.shade700, size: 24),
                                     const SizedBox(width: 8),
-                                    const Expanded(
+                                    Expanded(
                                       child: Text(
-                                        'Notizen',
-                                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                                        tr('Notizen', 'Note'),
+                                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
                                       ),
                                     ),
                                     if (_notizen.isNotEmpty)
@@ -860,13 +863,13 @@ class _StifterHelfenScreenState extends State<StifterHelfenScreen> {
                                     IconButton(
                                       icon: Icon(Icons.note_add, color: Colors.teal.shade700, size: 28),
                                       onPressed: _showCreateNotizDialog,
-                                      tooltip: 'Neue Notiz',
+                                      tooltip: tr('Neue Notiz', 'Notă nouă'),
                                     ),
                                   ],
                                 ),
                                 const SizedBox(height: 8),
                                 Text(
-                                  'Interne Notizen zu stifter-helfen.de',
+                                  tr('Interne Notizen zu stifter-helfen.de', 'Note interne despre stifter-helfen.de'),
                                   style: TextStyle(fontSize: 13, color: Colors.grey.shade600, fontStyle: FontStyle.italic),
                                 ),
                                 const SizedBox(height: 16),
@@ -880,7 +883,7 @@ class _StifterHelfenScreenState extends State<StifterHelfenScreen> {
                                         Icon(Icons.sticky_note_2_outlined, size: 48, color: Colors.grey.shade300),
                                         const SizedBox(height: 8),
                                         Text(
-                                          'Keine Notizen vorhanden',
+                                          tr('Keine Notizen vorhanden', 'Nicio notă'),
                                           style: TextStyle(color: Colors.grey.shade500),
                                         ),
                                       ],
@@ -912,7 +915,7 @@ class _StifterHelfenScreenState extends State<StifterHelfenScreen> {
                                         trailing: IconButton(
                                           icon: Icon(Icons.delete_outline, size: 20, color: Colors.red.shade400),
                                           onPressed: () => _deleteNotiz(notiz['id'] as int),
-                                          tooltip: 'Löschen',
+                                          tooltip: tr('Löschen', 'Șterge'),
                                         ),
                                       ),
                                     );
@@ -942,20 +945,27 @@ class _StifterHelfenScreenState extends State<StifterHelfenScreen> {
                                     children: [
                                       Icon(Icons.card_giftcard, color: Colors.deepPurple.shade700, size: 20),
                                       const SizedBox(width: 8),
-                                      const Text(
-                                        'Vorteile für Vereine',
-                                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                                      Text(
+                                        tr('Vorteile für Vereine', 'Avantaje pentru asociații'),
+                                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                                       ),
                                     ],
                                   ),
                                   const SizedBox(height: 12),
-                                  const Text(
-                                    '\u2713 Software-Spenden (Microsoft Office, Adobe, etc.)\n'
-                                    '\u2713 Bis zu 90% Rabatt für gemeinnützige Organisationen\n'
-                                    '\u2713 Hardware-Vermittlung (gebrauchte Laptops, PCs)\n'
-                                    '\u2713 IT-Beratung und Support\n'
-                                    '\u2713 Cloud-Services (Microsoft 365, Google Workspace)',
-                                    style: TextStyle(fontSize: 14, height: 1.8),
+                                  Text(
+                                    tr(
+                                      '\u2713 Software-Spenden (Microsoft Office, Adobe, etc.)\n'
+                                      '\u2713 Bis zu 90% Rabatt für gemeinnützige Organisationen\n'
+                                      '\u2713 Hardware-Vermittlung (gebrauchte Laptops, PCs)\n'
+                                      '\u2713 IT-Beratung und Support\n'
+                                      '\u2713 Cloud-Services (Microsoft 365, Google Workspace)',
+                                      '\u2713 Donații de software (Microsoft Office, Adobe etc.)\n'
+                                      '\u2713 Până la 90% reducere pentru organizații nonprofit\n'
+                                      '\u2713 Intermediere hardware (laptopuri, PC-uri folosite)\n'
+                                      '\u2713 Consultanță și suport IT\n'
+                                      '\u2713 Servicii cloud (Microsoft 365, Google Workspace)',
+                                    ),
+                                    style: const TextStyle(fontSize: 14, height: 1.8),
                                   ),
                                 ],
                               ),

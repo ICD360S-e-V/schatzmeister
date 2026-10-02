@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:http/io_client.dart';
 import 'device_key_service.dart';
+import 'language_service.dart';
 
 /// Verwarnung (Warning) model
 class Verwarnung {
@@ -48,11 +49,11 @@ class Verwarnung {
   String get typDisplay {
     switch (typ) {
       case 'ermahnung':
-        return 'Ermahnung';
+        return tr('Ermahnung', 'Mustrare');
       case 'abmahnung':
-        return 'Abmahnung';
+        return tr('Abmahnung', 'Avertisment');
       case 'letzte_abmahnung':
-        return 'Letzte Abmahnung';
+        return tr('Letzte Abmahnung', 'Ultimul avertisment');
       default:
         return typ;
     }

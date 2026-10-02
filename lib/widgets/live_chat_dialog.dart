@@ -12,6 +12,7 @@ import '../utils/message_emotion.dart';
 import '../services/chat_service.dart';
 import '../services/voice_call_service.dart';
 import '../services/logger_service.dart';
+import '../services/language_service.dart';
 import '../l10n/app_localizations.dart';
 import 'incoming_call_dialog.dart';
 import 'eastern.dart';
@@ -70,7 +71,9 @@ class _LiveChatDialogState extends State<LiveChatDialog> {
   // Voice call state - most WebRTC state now managed by VoiceCallService
   Timer? _callDurationTimer;
   Duration _callDuration = Duration.zero;
-  String _remoteName = 'Support';
+  /// Name der Gegenseite; null = noch unbekannt, angezeigt wird dann „Support"
+  /// (erst beim Zeichnen übersetzt, damit ein Sprachwechsel greift).
+  String? _remoteName;
 
   // Incoming call state (when admin calls member)
   String? _pendingSdp;
@@ -992,7 +995,8 @@ class _LiveChatDialogState extends State<LiveChatDialog> {
     if (!mounted) return;
 
     // For critical errors (NO_MICROPHONE), show persistent SnackBar
-    final isCritical = message.contains('Mikrofon') || message.contains('Microphone');
+    // ('microfon' = rumänischer Text von noMicrophoneFound)
+    final isCritical = message.contains('Mikrofon') || message.contains('Microphone') || message.contains('microfon');
     final duration = isCritical ? const Duration(seconds: 15) : const Duration(seconds: 4);
 
     ScaffoldMessenger.of(context).showSnackBar(
@@ -1146,7 +1150,7 @@ class _LiveChatDialogState extends State<LiveChatDialog> {
           children: [
             Text('\u{1F4F5}', style: const TextStyle(fontSize: 12)),
             const SizedBox(width: 6),
-            Text('Support Offline', style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
+            Text(tr('Support Offline', 'Suport offline'), style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
             const SizedBox(width: 6),
             Text('\u274C', style: const TextStyle(fontSize: 12)),
           ],
@@ -1206,7 +1210,7 @@ class _LiveChatDialogState extends State<LiveChatDialog> {
           IconButton(
             icon: const Icon(Icons.videocam, color: Colors.green),
             onPressed: _isConnected ? () => _startCall(video: true) : null,
-            tooltip: 'Videoanruf',
+            tooltip: tr('Videoanruf', 'Apel video'),
           ),
 
         // Connection status
@@ -1257,14 +1261,14 @@ class _LiveChatDialogState extends State<LiveChatDialog> {
   Widget _buildCallOverlay() {
     if (_voiceCallService.callState == CallState.calling) {
       return CallingOverlay(
-        targetName: 'Support',
+        targetName: tr('Support', 'Suport'),
         onCancel: _endCall,
       );
     } else if (_voiceCallService.callState == CallState.inCall) {
       return Padding(
         padding: const EdgeInsets.only(bottom: 8),
         child: InCallOverlay(
-          remoteName: _remoteName,
+          remoteName: _remoteName ?? tr('Support', 'Suport'),
           callDuration: _callDuration,
           isMuted: _voiceCallService.isMuted,
           isSpeakerOn: _voiceCallService.isSpeakerOn,
@@ -1373,7 +1377,7 @@ class _LiveChatDialogState extends State<LiveChatDialog> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      msg['sender_name'] ?? 'Support',
+                      msg['sender_name'] ?? tr('Support', 'Suport'),
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 12,
@@ -1389,7 +1393,7 @@ class _LiveChatDialogState extends State<LiveChatDialog> {
                           borderRadius: BorderRadius.circular(4),
                         ),
                         child: Text(
-                          'Support',
+                          tr('Support', 'Suport'),
                           style: TextStyle(
                             fontSize: 10,
                             color: Colors.purple.shade700,

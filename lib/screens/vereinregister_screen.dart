@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../services/api_service.dart';
+import '../services/language_service.dart';
 import '../l10n/app_localizations.dart';
 
 class VereinregisterScreen extends StatefulWidget {
@@ -130,7 +131,7 @@ class _VereinregisterScreenState extends State<VereinregisterScreen> {
                               labelText: l.vereinsname,
                               prefixIcon: const Icon(Icons.business),
                               border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                              hintText: 'z.B. ICD360S e.V.',
+                              hintText: tr('z.B. ICD360S e.V.', 'de ex. ICD360S e.V.'),
                             ),
                           ),
                           const SizedBox(height: 14),
@@ -140,7 +141,7 @@ class _VereinregisterScreenState extends State<VereinregisterScreen> {
                               labelText: l.addressRequired,
                               prefixIcon: const Icon(Icons.location_on),
                               border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                              hintText: 'Straße Nr., PLZ Ort',
+                              hintText: tr('Straße Nr., PLZ Ort', 'Stradă nr., cod poștal, localitate'),
                             ),
                             maxLines: 2,
                           ),
@@ -151,7 +152,7 @@ class _VereinregisterScreenState extends State<VereinregisterScreen> {
                               labelText: l.foundingDate,
                               prefixIcon: const Icon(Icons.calendar_month),
                               border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                              hintText: 'z.B. 01.01.2025',
+                              hintText: tr('z.B. 01.01.2025', 'de ex. 01.01.2025'),
                             ),
                           ),
                           const SizedBox(height: 14),
@@ -161,7 +162,7 @@ class _VereinregisterScreenState extends State<VereinregisterScreen> {
                               labelText: l.registerNumber,
                               prefixIcon: const Icon(Icons.numbers),
                               border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                              hintText: 'z.B. VR 201335',
+                              hintText: tr('z.B. VR 201335', 'de ex. VR 201335'),
                             ),
                           ),
                           const SizedBox(height: 14),
@@ -171,7 +172,8 @@ class _VereinregisterScreenState extends State<VereinregisterScreen> {
                               labelText: l.registerCourt,
                               prefixIcon: const Icon(Icons.account_balance),
                               border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                              hintText: 'z.B. Amtsgericht Memmingen, Bayern',
+                              hintText: tr('z.B. Amtsgericht Memmingen, Bayern',
+                                  'de ex. Amtsgericht Memmingen, Bayern'),
                             ),
                           ),
                         ],

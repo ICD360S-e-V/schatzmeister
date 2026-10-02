@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../services/api_service.dart';
+import '../services/language_service.dart';
 import '../l10n/app_localizations.dart';
 import 'postcard.dart';
 import 'sendungsverfolgung.dart';
@@ -202,9 +203,11 @@ class _DeutschePostScreenState extends State<DeutschePostScreen> {
                 child: Icon(icon, color: effectiveColor, size: 40),
               ),
               const SizedBox(height: 16),
-              Text(title, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: comingSoon ? Colors.grey : null), textAlign: TextAlign.center),
+              // Zeilen begrenzt: auf dem Telefon stehen drei Karten
+              // nebeneinander, längere (rumänische) Texte liefen unten hinaus.
+              Text(title, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: comingSoon ? Colors.grey : null), textAlign: TextAlign.center, maxLines: 2, overflow: TextOverflow.ellipsis),
               const SizedBox(height: 6),
-              Text(subtitle, style: TextStyle(fontSize: 12, color: Colors.grey.shade500), textAlign: TextAlign.center),
+              Text(subtitle, style: TextStyle(fontSize: 12, color: Colors.grey.shade500), textAlign: TextAlign.center, maxLines: 3, overflow: TextOverflow.ellipsis),
               const SizedBox(height: 12),
               if (comingSoon)
                 Container(
@@ -235,7 +238,9 @@ class _DeutschePostScreenState extends State<DeutschePostScreen> {
                       decoration: BoxDecoration(shape: BoxShape.circle, color: statusDot),
                     ),
                     const SizedBox(width: 6),
-                    Text(statusText, style: TextStyle(fontSize: 11, color: statusDot, fontWeight: FontWeight.w500)),
+                    Flexible(
+                      child: Text(statusText, style: TextStyle(fontSize: 11, color: statusDot, fontWeight: FontWeight.w500), overflow: TextOverflow.ellipsis),
+                    ),
                   ],
                 ),
               ],
@@ -268,9 +273,9 @@ class _DeutschePostScreenState extends State<DeutschePostScreen> {
                 _buildDienstChip(Icons.mail_outline, l.kompaktBrief, '1,10 €', Colors.blue),
                 _buildDienstChip(Icons.markunread_mailbox, l.grossBrief, '1,80 €', Colors.orange),
                 _buildDienstChip(Icons.inventory_2, l.maxiBrief, '2,90 €', Colors.orange),
-                _buildDienstChip(Icons.local_shipping, l.dhlParcel, 'ab 4,99 €', Colors.amber.shade800),
-                _buildDienstChip(Icons.flight, l.intBrief, 'ab 1,10 €', Colors.teal),
-                _buildDienstChip(Icons.credit_card, l.postcardBusinessCard, 'Geschäftskarte', Colors.deepPurple),
+                _buildDienstChip(Icons.local_shipping, l.dhlParcel, tr('ab 4,99 €', 'de la 4,99 €'), Colors.amber.shade800),
+                _buildDienstChip(Icons.flight, l.intBrief, tr('ab 1,10 €', 'de la 1,10 €'), Colors.teal),
+                _buildDienstChip(Icons.credit_card, l.postcardBusinessCard, tr('Geschäftskarte', 'Carte poștală pentru firme'), Colors.deepPurple),
                 _buildDienstChip(Icons.print, l.onlineFranking, 'deutschepost.de', Colors.green),
                 _buildDienstChip(Icons.storefront, l.filialfinderTitle, 'postfinder.de', Colors.red),
               ],

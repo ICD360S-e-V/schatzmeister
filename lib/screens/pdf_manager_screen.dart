@@ -11,6 +11,7 @@ import 'package:printing/printing.dart';
 import 'package:signature/signature.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:image/image.dart' as img;
+import '../services/language_service.dart';
 
 // ==================== Data Models ====================
 
@@ -102,7 +103,7 @@ class _PdfManagerViewState extends State<PdfManagerView> {
     final result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
       allowedExtensions: ['pdf'],
-      dialogTitle: 'PDF öffnen',
+      dialogTitle: tr('PDF öffnen', 'Deschide PDF'),
     );
     if (result != null && result.files.single.path != null) {
       final file = File(result.files.single.path!);
@@ -157,11 +158,11 @@ class _PdfManagerViewState extends State<PdfManagerView> {
         builder: (ctx, setDialogState) => AlertDialog(
           shape:
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          title: const Row(
+          title: Row(
             children: [
-              Icon(Icons.text_fields, color: Colors.blue),
-              SizedBox(width: 8),
-              Text('Text hinzufügen'),
+              const Icon(Icons.text_fields, color: Colors.blue),
+              const SizedBox(width: 8),
+              Text(tr('Text hinzufügen', 'Adaugă text')),
             ],
           ),
           content: SizedBox(
@@ -174,15 +175,15 @@ class _PdfManagerViewState extends State<PdfManagerView> {
                   controller: textController,
                   autofocus: true,
                   maxLines: 3,
-                  decoration: const InputDecoration(
-                    hintText: 'Text eingeben...',
-                    border: OutlineInputBorder(),
+                  decoration: InputDecoration(
+                    hintText: tr('Text eingeben...', 'Introduceți textul...'),
+                    border: const OutlineInputBorder(),
                   ),
                 ),
                 const SizedBox(height: 16),
                 Row(
                   children: [
-                    const Text('Größe: '),
+                    Text(tr('Größe: ', 'Mărime: ')),
                     SizedBox(
                       width: 80,
                       child: DropdownButton<double>(
@@ -200,7 +201,7 @@ class _PdfManagerViewState extends State<PdfManagerView> {
                       ),
                     ),
                     const SizedBox(width: 16),
-                    const Text('Farbe: '),
+                    Text(tr('Farbe: ', 'Culoare: ')),
                     ...([
                       Colors.black,
                       Colors.red,
@@ -233,7 +234,7 @@ class _PdfManagerViewState extends State<PdfManagerView> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: const Text('Abbrechen'),
+              child: Text(tr('Abbrechen', 'Anulare')),
             ),
             ElevatedButton(
               onPressed: () {
@@ -258,7 +259,7 @@ class _PdfManagerViewState extends State<PdfManagerView> {
                 backgroundColor: Colors.blue.shade700,
                 foregroundColor: Colors.white,
               ),
-              child: const Text('Hinzufügen'),
+              child: Text(tr('Hinzufügen', 'Adaugă')),
             ),
           ],
         ),
@@ -278,9 +279,10 @@ class _PdfManagerViewState extends State<PdfManagerView> {
       });
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-                'Unterschrift erfasst. Klicken Sie auf die PDF-Seite, um sie zu platzieren.'),
+          SnackBar(
+            content: Text(tr(
+                'Unterschrift erfasst. Klicken Sie auf die PDF-Seite, um sie zu platzieren.',
+                'Semnătură capturată. Faceți clic pe pagina PDF pentru a o plasa.')),
             backgroundColor: Colors.green,
           ),
         );
@@ -294,8 +296,8 @@ class _PdfManagerViewState extends State<PdfManagerView> {
     if (_pdfBytes == null) return;
     if (_annotations.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Keine Annotationen zum Exportieren vorhanden.'),
+        SnackBar(
+          content: Text(tr('Keine Annotationen zum Exportieren vorhanden.', 'Nu există adnotări de exportat.')),
           backgroundColor: Colors.orange,
         ),
       );
@@ -405,7 +407,7 @@ class _PdfManagerViewState extends State<PdfManagerView> {
               children: [
                 Icon(Icons.picture_as_pdf, color: Colors.red.shade700),
                 const SizedBox(width: 12),
-                const Expanded(child: Text('PDF exportiert')),
+                Expanded(child: Text(tr('PDF exportiert', 'PDF exportat'))),
               ],
             ),
             content: SizedBox(
@@ -421,7 +423,7 @@ class _PdfManagerViewState extends State<PdfManagerView> {
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(ctx),
-                child: const Text('Schließen'),
+                child: Text(tr('Schließen', 'Închide')),
               ),
               ElevatedButton.icon(
                 onPressed: () async {
@@ -430,9 +432,9 @@ class _PdfManagerViewState extends State<PdfManagerView> {
                   if (downloadsDir == null) {
                     if (ctx.mounted) {
                       ScaffoldMessenger.of(ctx).showSnackBar(
-                        const SnackBar(
+                        SnackBar(
                           content:
-                              Text('Downloads-Ordner nicht gefunden.'),
+                              Text(tr('Downloads-Ordner nicht gefunden.', 'Folderul Descărcări nu a fost găsit.')),
                           backgroundColor: Colors.red,
                         ),
                       );
@@ -445,14 +447,14 @@ class _PdfManagerViewState extends State<PdfManagerView> {
                   if (ctx.mounted) {
                     ScaffoldMessenger.of(ctx).showSnackBar(
                       SnackBar(
-                        content: Text('Gespeichert: ${file.path}'),
+                        content: Text(tr('Gespeichert: ${file.path}', 'Salvat: ${file.path}')),
                         backgroundColor: Colors.green,
                       ),
                     );
                   }
                 },
                 icon: const Icon(Icons.save, size: 18),
-                label: const Text('Speichern'),
+                label: Text(tr('Speichern', 'Salvează')),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.blue.shade700,
                   foregroundColor: Colors.white,
@@ -466,7 +468,7 @@ class _PdfManagerViewState extends State<PdfManagerView> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Export fehlgeschlagen: $e'),
+            content: Text(tr('Export fehlgeschlagen: $e', 'Exportul a eșuat: $e')),
             backgroundColor: Colors.red,
           ),
         );
@@ -494,7 +496,7 @@ class _PdfManagerViewState extends State<PdfManagerView> {
             children: [
               Icon(Icons.content_cut, color: Colors.purple.shade700),
               const SizedBox(width: 8),
-              const Text('PDF aufteilen'),
+              Text(tr('PDF aufteilen', 'Împarte PDF')),
             ],
           ),
           content: SizedBox(
@@ -503,20 +505,20 @@ class _PdfManagerViewState extends State<PdfManagerView> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('$_pageCount Seiten', style: TextStyle(fontSize: 13, color: Colors.grey.shade600)),
+                Text(tr('$_pageCount Seiten', 'Pagini: $_pageCount'), style: TextStyle(fontSize: 13, color: Colors.grey.shade600)),
                 const SizedBox(height: 12),
                 // Mode selection
                 SegmentedButton<String>(
-                  segments: const [
+                  segments: [
                     ButtonSegment(
                       value: 'einzeln',
-                      label: Text('Einzelne Seiten', style: TextStyle(fontSize: 12)),
-                      icon: Icon(Icons.looks_one, size: 18),
+                      label: Text(tr('Einzelne Seiten', 'Pagini individuale'), style: const TextStyle(fontSize: 12)),
+                      icon: const Icon(Icons.looks_one, size: 18),
                     ),
                     ButtonSegment(
                       value: 'bereich',
-                      label: Text('Seitenbereich', style: TextStyle(fontSize: 12)),
-                      icon: Icon(Icons.format_list_numbered, size: 18),
+                      label: Text(tr('Seitenbereich', 'Interval de pagini'), style: const TextStyle(fontSize: 12)),
+                      icon: const Icon(Icons.format_list_numbered, size: 18),
                     ),
                   ],
                   selected: {splitMode},
@@ -531,9 +533,9 @@ class _PdfManagerViewState extends State<PdfManagerView> {
                   TextField(
                     controller: rangeController,
                     decoration: InputDecoration(
-                      labelText: 'Seitenbereich',
-                      hintText: 'z.B. 1-3, 5, 7-10',
-                      helperText: 'Jeder Bereich wird als separate PDF gespeichert',
+                      labelText: tr('Seitenbereich', 'Interval de pagini'),
+                      hintText: tr('z.B. 1-3, 5, 7-10', 'de ex. 1-3, 5, 7-10'),
+                      helperText: tr('Jeder Bereich wird als separate PDF gespeichert', 'Fiecare interval se salvează ca PDF separat'),
                       helperStyle: TextStyle(fontSize: 11, color: Colors.grey.shade600),
                       border: const OutlineInputBorder(),
                       prefixIcon: const Icon(Icons.format_list_numbered, size: 20),
@@ -544,7 +546,7 @@ class _PdfManagerViewState extends State<PdfManagerView> {
                 if (splitMode == 'einzeln') ...[
                   Row(
                     children: [
-                      Text('Seiten auswählen:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.grey.shade700)),
+                      Text(tr('Seiten auswählen:', 'Selectați paginile:'), style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.grey.shade700)),
                       const Spacer(),
                       TextButton(
                         onPressed: () => setDialogState(() {
@@ -552,7 +554,7 @@ class _PdfManagerViewState extends State<PdfManagerView> {
                             selectedPages[i] = true;
                           }
                         }),
-                        child: const Text('Alle', style: TextStyle(fontSize: 11)),
+                        child: Text(tr('Alle', 'Toate'), style: const TextStyle(fontSize: 11)),
                       ),
                       TextButton(
                         onPressed: () => setDialogState(() {
@@ -560,7 +562,7 @@ class _PdfManagerViewState extends State<PdfManagerView> {
                             selectedPages[i] = false;
                           }
                         }),
-                        child: const Text('Keine', style: TextStyle(fontSize: 11)),
+                        child: Text(tr('Keine', 'Niciuna'), style: const TextStyle(fontSize: 11)),
                       ),
                     ],
                   ),
@@ -619,7 +621,7 @@ class _PdfManagerViewState extends State<PdfManagerView> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: const Text('Abbrechen'),
+              child: Text(tr('Abbrechen', 'Anulare')),
             ),
             ElevatedButton.icon(
               onPressed: () {
@@ -630,7 +632,7 @@ class _PdfManagerViewState extends State<PdfManagerView> {
                   }
                   if (pages.isEmpty) {
                     ScaffoldMessenger.of(ctx).showSnackBar(
-                      const SnackBar(content: Text('Keine Seiten ausgewählt'), backgroundColor: Colors.orange),
+                      SnackBar(content: Text(tr('Keine Seiten ausgewählt', 'Nicio pagină selectată')), backgroundColor: Colors.orange),
                     );
                     return;
                   }
@@ -639,7 +641,7 @@ class _PdfManagerViewState extends State<PdfManagerView> {
                   final ranges = _parsePageRanges(rangeController.text, _pageCount);
                   if (ranges.isEmpty) {
                     ScaffoldMessenger.of(ctx).showSnackBar(
-                      const SnackBar(content: Text('Ungültiger Seitenbereich'), backgroundColor: Colors.orange),
+                      SnackBar(content: Text(tr('Ungültiger Seitenbereich', 'Interval de pagini invalid')), backgroundColor: Colors.orange),
                     );
                     return;
                   }
@@ -647,7 +649,7 @@ class _PdfManagerViewState extends State<PdfManagerView> {
                 }
               },
               icon: const Icon(Icons.content_cut, size: 18),
-              label: const Text('Aufteilen'),
+              label: Text(tr('Aufteilen', 'Împarte')),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.purple.shade700,
                 foregroundColor: Colors.white,
@@ -701,7 +703,7 @@ class _PdfManagerViewState extends State<PdfManagerView> {
       if (downloadsDir == null) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Downloads-Ordner nicht gefunden.'), backgroundColor: Colors.red),
+            SnackBar(content: Text(tr('Downloads-Ordner nicht gefunden.', 'Folderul Descărcări nu a fost găsit.')), backgroundColor: Colors.red),
           );
         }
         return;
@@ -767,7 +769,8 @@ class _PdfManagerViewState extends State<PdfManagerView> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('$savedCount PDF${savedCount > 1 ? 's' : ''} gespeichert in Downloads'),
+            content: Text(tr('$savedCount PDF${savedCount > 1 ? 's' : ''} gespeichert in Downloads',
+                'PDF-uri salvate în Descărcări: $savedCount')),
             backgroundColor: Colors.green,
           ),
         );
@@ -775,7 +778,7 @@ class _PdfManagerViewState extends State<PdfManagerView> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Fehler beim Aufteilen: $e'), backgroundColor: Colors.red),
+          SnackBar(content: Text(tr('Fehler beim Aufteilen: $e', 'Eroare la împărțire: $e')), backgroundColor: Colors.red),
         );
       }
     } finally {
@@ -833,14 +836,14 @@ class _PdfManagerViewState extends State<PdfManagerView> {
       type: FileType.custom,
       allowedExtensions: ['pdf'],
       allowMultiple: true,
-      dialogTitle: 'PDFs zum Zusammenführen auswählen',
+      dialogTitle: tr('PDFs zum Zusammenführen auswählen', 'Selectați PDF-urile de combinat'),
     );
 
     if (result == null || result.files.length < 2) {
       if (mounted && result != null && result.files.length == 1) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Bitte mindestens 2 PDFs auswählen.'),
+          SnackBar(
+            content: Text(tr('Bitte mindestens 2 PDFs auswählen.', 'Vă rugăm selectați cel puțin 2 PDF-uri.')),
             backgroundColor: Colors.orange,
           ),
         );
@@ -864,7 +867,7 @@ class _PdfManagerViewState extends State<PdfManagerView> {
               children: [
                 Icon(Icons.merge_type, color: Colors.indigo.shade700),
                 const SizedBox(width: 8),
-                const Text('PDFs zusammenführen'),
+                Text(tr('PDFs zusammenführen', 'Combină PDF-uri')),
               ],
             ),
             content: SizedBox(
@@ -874,7 +877,8 @@ class _PdfManagerViewState extends State<PdfManagerView> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    '${items.length} PDFs ausgewählt. Reihenfolge per Drag & Drop ändern:',
+                    tr('${items.length} PDFs ausgewählt. Reihenfolge per Drag & Drop ändern:',
+                        'PDF-uri selectate: ${items.length}. Schimbați ordinea prin tragere și plasare:'),
                     style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
                   ),
                   const SizedBox(height: 12),
@@ -930,12 +934,12 @@ class _PdfManagerViewState extends State<PdfManagerView> {
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(ctx),
-                child: const Text('Abbrechen'),
+                child: Text(tr('Abbrechen', 'Anulare')),
               ),
               ElevatedButton.icon(
                 onPressed: () => Navigator.pop(ctx, items),
                 icon: const Icon(Icons.merge_type, size: 18),
-                label: const Text('Zusammenführen'),
+                label: Text(tr('Zusammenführen', 'Combină')),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.indigo.shade700,
                   foregroundColor: Colors.white,
@@ -981,7 +985,7 @@ class _PdfManagerViewState extends State<PdfManagerView> {
       if (downloadsDir == null) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Downloads-Ordner nicht gefunden.'), backgroundColor: Colors.red),
+            SnackBar(content: Text(tr('Downloads-Ordner nicht gefunden.', 'Folderul Descărcări nu a fost găsit.')), backgroundColor: Colors.red),
           );
         }
         return;
@@ -999,7 +1003,7 @@ class _PdfManagerViewState extends State<PdfManagerView> {
 
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('PDF zusammengeführt ($sizeStr) — gespeichert in Downloads'),
+            content: Text(tr('PDF zusammengeführt ($sizeStr) — gespeichert in Downloads', 'PDF combinat ($sizeStr) — salvat în Descărcări')),
             backgroundColor: Colors.green,
             duration: const Duration(seconds: 4),
           ),
@@ -1014,17 +1018,19 @@ class _PdfManagerViewState extends State<PdfManagerView> {
               children: [
                 Icon(Icons.check_circle, color: Colors.green.shade600),
                 const SizedBox(width: 8),
-                const Text('PDF erstellt'),
+                Text(tr('PDF erstellt', 'PDF creat')),
               ],
             ),
             content: Text(
-              '${orderedFiles.length} PDFs wurden zusammengeführt.\n'
-              'Möchten Sie die zusammengeführte PDF im PDF Manager öffnen?',
+              tr('${orderedFiles.length} PDFs wurden zusammengeführt.\n'
+                  'Möchten Sie die zusammengeführte PDF im PDF Manager öffnen?',
+                  'PDF-uri combinate: ${orderedFiles.length}.\n'
+                  'Doriți să deschideți PDF-ul combinat în Managerul PDF?'),
             ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(ctx, false),
-                child: const Text('Nein'),
+                child: Text(tr('Nein', 'Nu')),
               ),
               ElevatedButton(
                 onPressed: () => Navigator.pop(ctx, true),
@@ -1032,7 +1038,7 @@ class _PdfManagerViewState extends State<PdfManagerView> {
                   backgroundColor: Colors.indigo.shade700,
                   foregroundColor: Colors.white,
                 ),
-                child: const Text('Öffnen'),
+                child: Text(tr('Öffnen', 'Deschide')),
               ),
             ],
           ),
@@ -1053,7 +1059,7 @@ class _PdfManagerViewState extends State<PdfManagerView> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Fehler beim Zusammenführen: $e'), backgroundColor: Colors.red),
+          SnackBar(content: Text(tr('Fehler beim Zusammenführen: $e', 'Eroare la combinare: $e')), backgroundColor: Colors.red),
         );
       }
     } finally {
@@ -1079,7 +1085,7 @@ class _PdfManagerViewState extends State<PdfManagerView> {
             children: [
               Icon(Icons.compress, color: Colors.teal.shade700),
               const SizedBox(width: 8),
-              const Text('PDF komprimieren'),
+              Text(tr('PDF komprimieren', 'Comprimă PDF')),
             ],
           ),
           content: SizedBox(
@@ -1108,11 +1114,11 @@ class _PdfManagerViewState extends State<PdfManagerView> {
                 const SizedBox(height: 20),
 
                 // Quality slider
-                Text('Qualität: $quality%', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                Text(tr('Qualität: $quality%', 'Calitate: $quality%'), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
                 const SizedBox(height: 4),
                 Row(
                   children: [
-                    const Text('Klein', style: TextStyle(fontSize: 11)),
+                    Text(tr('Klein', 'Mic'), style: const TextStyle(fontSize: 11)),
                     Expanded(
                       child: Slider(
                         value: quality.toDouble(),
@@ -1129,16 +1135,16 @@ class _PdfManagerViewState extends State<PdfManagerView> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  quality <= 30 ? 'Stark komprimiert - deutlich kleiner, niedrigere Qualität'
-                  : quality <= 60 ? 'Gute Balance zwischen Größe und Qualität'
-                  : quality <= 80 ? 'Hohe Qualität - moderate Komprimierung'
-                  : 'Nahezu original - minimale Komprimierung',
+                  quality <= 30 ? tr('Stark komprimiert - deutlich kleiner, niedrigere Qualität', 'Comprimare puternică - mult mai mic, calitate redusă')
+                  : quality <= 60 ? tr('Gute Balance zwischen Größe und Qualität', 'Echilibru bun între mărime și calitate')
+                  : quality <= 80 ? tr('Hohe Qualität - moderate Komprimierung', 'Calitate înaltă - comprimare moderată')
+                  : tr('Nahezu original - minimale Komprimierung', 'Aproape original - comprimare minimă'),
                   style: TextStyle(fontSize: 11, color: Colors.grey.shade600, fontStyle: FontStyle.italic),
                 ),
                 const SizedBox(height: 16),
 
                 // DPI selection
-                Text('Auflösung: $dpi DPI', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                Text(tr('Auflösung: $dpi DPI', 'Rezoluție: $dpi DPI'), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
                 const SizedBox(height: 8),
                 SegmentedButton<int>(
                   segments: const [
@@ -1156,10 +1162,10 @@ class _PdfManagerViewState extends State<PdfManagerView> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  dpi <= 72 ? 'Bildschirmauflösung - kleinste Dateigröße'
-                  : dpi <= 100 ? 'Gute Lesbarkeit - deutlich kleiner'
-                  : dpi <= 150 ? 'Gute Qualität für Druck und Bildschirm'
-                  : 'Hohe Qualität - größere Datei',
+                  dpi <= 72 ? tr('Bildschirmauflösung - kleinste Dateigröße', 'Rezoluție de ecran - cel mai mic fișier')
+                  : dpi <= 100 ? tr('Gute Lesbarkeit - deutlich kleiner', 'Lizibilitate bună - mult mai mic')
+                  : dpi <= 150 ? tr('Gute Qualität für Druck und Bildschirm', 'Calitate bună pentru tipărire și ecran')
+                  : tr('Hohe Qualität - größere Datei', 'Calitate înaltă - fișier mai mare'),
                   style: TextStyle(fontSize: 11, color: Colors.grey.shade600, fontStyle: FontStyle.italic),
                 ),
               ],
@@ -1168,12 +1174,12 @@ class _PdfManagerViewState extends State<PdfManagerView> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: const Text('Abbrechen'),
+              child: Text(tr('Abbrechen', 'Anulare')),
             ),
             ElevatedButton.icon(
               onPressed: () => Navigator.pop(ctx, {'quality': quality, 'dpi': dpi}),
               icon: const Icon(Icons.compress, size: 18),
-              label: const Text('Komprimieren'),
+              label: Text(tr('Komprimieren', 'Comprimă')),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.teal.shade700,
                 foregroundColor: Colors.white,
@@ -1262,7 +1268,7 @@ class _PdfManagerViewState extends State<PdfManagerView> {
             children: [
               Icon(Icons.check_circle, color: Colors.green.shade700),
               const SizedBox(width: 8),
-              const Expanded(child: Text('PDF komprimiert')),
+              Expanded(child: Text(tr('PDF komprimiert', 'PDF comprimat'))),
             ],
           ),
           content: SizedBox(
@@ -1283,7 +1289,7 @@ class _PdfManagerViewState extends State<PdfManagerView> {
                     children: [
                       Column(
                         children: [
-                          Text('Vorher', style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+                          Text(tr('Vorher', 'Înainte'), style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
                           const SizedBox(height: 4),
                           Text(_formatFileSize(originalSize), style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.red.shade700)),
                         ],
@@ -1291,7 +1297,7 @@ class _PdfManagerViewState extends State<PdfManagerView> {
                       Icon(Icons.arrow_forward, color: Colors.teal.shade700, size: 28),
                       Column(
                         children: [
-                          Text('Nachher', style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+                          Text(tr('Nachher', 'După'), style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
                           const SizedBox(height: 4),
                           Text(_formatFileSize(compressedSize), style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.green.shade700)),
                         ],
@@ -1331,7 +1337,7 @@ class _PdfManagerViewState extends State<PdfManagerView> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: const Text('Schließen'),
+              child: Text(tr('Schließen', 'Închide')),
             ),
             ElevatedButton.icon(
               onPressed: () async {
@@ -1339,7 +1345,7 @@ class _PdfManagerViewState extends State<PdfManagerView> {
                 if (downloadsDir == null) {
                   if (ctx.mounted) {
                     ScaffoldMessenger.of(ctx).showSnackBar(
-                      const SnackBar(content: Text('Downloads-Ordner nicht gefunden.'), backgroundColor: Colors.red),
+                      SnackBar(content: Text(tr('Downloads-Ordner nicht gefunden.', 'Folderul Descărcări nu a fost găsit.')), backgroundColor: Colors.red),
                     );
                   }
                   return;
@@ -1348,12 +1354,12 @@ class _PdfManagerViewState extends State<PdfManagerView> {
                 await file.writeAsBytes(compressedBytes);
                 if (ctx.mounted) {
                   ScaffoldMessenger.of(ctx).showSnackBar(
-                    SnackBar(content: Text('Gespeichert: ${file.path}'), backgroundColor: Colors.green),
+                    SnackBar(content: Text(tr('Gespeichert: ${file.path}', 'Salvat: ${file.path}')), backgroundColor: Colors.green),
                   );
                 }
               },
               icon: const Icon(Icons.save, size: 18),
-              label: const Text('Speichern'),
+              label: Text(tr('Speichern', 'Salvează')),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.teal.shade700,
                 foregroundColor: Colors.white,
@@ -1365,7 +1371,7 @@ class _PdfManagerViewState extends State<PdfManagerView> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Komprimierung fehlgeschlagen: $e'), backgroundColor: Colors.red),
+          SnackBar(content: Text(tr('Komprimierung fehlgeschlagen: $e', 'Comprimarea a eșuat: $e')), backgroundColor: Colors.red),
         );
       }
     } finally {
@@ -1414,18 +1420,18 @@ class _PdfManagerViewState extends State<PdfManagerView> {
           IconButton(
             icon: const Icon(Icons.arrow_back),
             onPressed: widget.onBack,
-            tooltip: 'Zurück',
+            tooltip: tr('Zurück', 'Înapoi'),
           ),
           Icon(Icons.picture_as_pdf, color: Colors.red.shade700, size: 24),
           const SizedBox(width: 8),
           Text(
-            _pdfFileName ?? 'PDF Manager',
+            _pdfFileName ?? tr('PDF Manager', 'Manager PDF'),
             style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
           if (_pdfBytes != null) ...[
             const SizedBox(width: 8),
             Text(
-              'Seite $_currentPage von $_pageCount',
+              tr('Seite $_currentPage von $_pageCount', 'Pagina $_currentPage din $_pageCount'),
               style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
             ),
           ],
@@ -1460,8 +1466,8 @@ class _PdfManagerViewState extends State<PdfManagerView> {
                   const SizedBox(width: 4),
                   Text(
                     _editMode == _EditMode.text
-                        ? 'Textmodus - Klicken zum Platzieren'
-                        : 'Unterschrift - Klicken zum Platzieren',
+                        ? tr('Textmodus - Klicken zum Platzieren', 'Mod text - clic pentru plasare')
+                        : tr('Unterschrift - Klicken zum Platzieren', 'Semnătură - clic pentru plasare'),
                     style: TextStyle(
                       fontSize: 12,
                       color: _editMode == _EditMode.text
@@ -1495,14 +1501,14 @@ class _PdfManagerViewState extends State<PdfManagerView> {
                 size: 80, color: Colors.grey.shade300),
             const SizedBox(height: 16),
             Text(
-              'Keine PDF geladen',
+              tr('Keine PDF geladen', 'Niciun PDF încărcat'),
               style: TextStyle(fontSize: 18, color: Colors.grey.shade500),
             ),
             const SizedBox(height: 12),
             ElevatedButton.icon(
               onPressed: _openPdf,
               icon: const Icon(Icons.folder_open),
-              label: const Text('PDF öffnen'),
+              label: Text(tr('PDF öffnen', 'Deschide PDF')),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.blue.shade700,
                 foregroundColor: Colors.white,
@@ -1657,21 +1663,21 @@ class _PdfManagerViewState extends State<PdfManagerView> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Text(
-              'Werkzeuge',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            Text(
+              tr('Werkzeuge', 'Instrumente'),
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 12),
             _buildToolButton(
               icon: Icons.folder_open,
-              label: 'PDF öffnen',
+              label: tr('PDF öffnen', 'Deschide PDF'),
               color: Colors.blue.shade700,
               onPressed: _openPdf,
             ),
             const SizedBox(height: 8),
             _buildToolButton(
               icon: Icons.text_fields,
-              label: 'Text hinzufügen',
+              label: tr('Text hinzufügen', 'Adaugă text'),
               color: Colors.blue,
               isActive: _editMode == _EditMode.text,
               onPressed: _pdfBytes == null
@@ -1688,7 +1694,7 @@ class _PdfManagerViewState extends State<PdfManagerView> {
             const SizedBox(height: 8),
             _buildToolButton(
               icon: Icons.draw,
-              label: 'Unterschrift platzieren',
+              label: tr('Unterschrift platzieren', 'Plasează semnătura'),
               color: Colors.green,
               isActive: _editMode == _EditMode.signature,
               onPressed: _pdfBytes == null || _capturedSignature == null
@@ -1706,8 +1712,8 @@ class _PdfManagerViewState extends State<PdfManagerView> {
               icon:
                   _isExporting ? Icons.hourglass_empty : Icons.save_alt,
               label: _isExporting
-                  ? 'Exportiert...'
-                  : 'Exportieren / Drucken',
+                  ? tr('Exportiert...', 'Se exportă...')
+                  : tr('Exportieren / Drucken', 'Exportă / Tipărește'),
               color: Colors.deepPurple,
               onPressed: _pdfBytes == null ||
                       _annotations.isEmpty ||
@@ -1718,7 +1724,7 @@ class _PdfManagerViewState extends State<PdfManagerView> {
             const SizedBox(height: 8),
             _buildToolButton(
               icon: _isSplitting ? Icons.hourglass_empty : Icons.content_cut,
-              label: _isSplitting ? 'Wird aufgeteilt...' : 'PDF aufteilen',
+              label: _isSplitting ? tr('Wird aufgeteilt...', 'Se împarte...') : tr('PDF aufteilen', 'Împarte PDF'),
               color: Colors.purple,
               onPressed: _pdfBytes == null || _pageCount == 0 || _isSplitting
                   ? null
@@ -1727,7 +1733,7 @@ class _PdfManagerViewState extends State<PdfManagerView> {
             const SizedBox(height: 8),
             _buildToolButton(
               icon: _isCompressing ? Icons.hourglass_empty : Icons.compress,
-              label: _isCompressing ? 'Komprimiert...' : 'PDF komprimieren',
+              label: _isCompressing ? tr('Komprimiert...', 'Se comprimă...') : tr('PDF komprimieren', 'Comprimă PDF'),
               color: Colors.teal,
               onPressed: _pdfBytes == null || _pageCount == 0 || _isCompressing
                   ? null
@@ -1737,7 +1743,7 @@ class _PdfManagerViewState extends State<PdfManagerView> {
             const SizedBox(height: 8),
             _buildToolButton(
               icon: _isMerging ? Icons.hourglass_empty : Icons.merge_type,
-              label: _isMerging ? 'Wird zusammengeführt...' : 'PDFs zusammenführen',
+              label: _isMerging ? tr('Wird zusammengeführt...', 'Se combină...') : tr('PDFs zusammenführen', 'Combină PDF-uri'),
               color: Colors.indigo,
               onPressed: _isMerging ? null : _mergePdfs,
             ),
@@ -1747,9 +1753,9 @@ class _PdfManagerViewState extends State<PdfManagerView> {
             const SizedBox(height: 12),
 
             // Unterschrift-Pad
-            const Text(
-              'Unterschrift',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            Text(
+              tr('Unterschrift', 'Semnătură'),
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
             Container(
@@ -1777,7 +1783,7 @@ class _PdfManagerViewState extends State<PdfManagerView> {
                       setState(() => _capturedSignature = null);
                     },
                     icon: const Icon(Icons.clear, size: 18),
-                    label: const Text('Löschen'),
+                    label: Text(tr('Löschen', 'Șterge')),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: Colors.red,
                     ),
@@ -1788,7 +1794,7 @@ class _PdfManagerViewState extends State<PdfManagerView> {
                   child: ElevatedButton.icon(
                     onPressed: _captureSignature,
                     icon: const Icon(Icons.check, size: 18),
-                    label: const Text('Übernehmen'),
+                    label: Text(tr('Übernehmen', 'Aplică')),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.green.shade700,
                       foregroundColor: Colors.white,
@@ -1806,16 +1812,17 @@ class _PdfManagerViewState extends State<PdfManagerView> {
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(color: Colors.green.shade200),
                 ),
-                child: const Row(
+                child: Row(
                   children: [
-                    Icon(Icons.check_circle,
+                    const Icon(Icons.check_circle,
                         color: Colors.green, size: 18),
-                    SizedBox(width: 8),
+                    const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        'Unterschrift bereit. Klicken Sie auf die PDF-Seite.',
+                        tr('Unterschrift bereit. Klicken Sie auf die PDF-Seite.',
+                            'Semnătura este pregătită. Faceți clic pe pagina PDF.'),
                         style:
-                            TextStyle(fontSize: 12, color: Colors.green),
+                            const TextStyle(fontSize: 12, color: Colors.green),
                       ),
                     ),
                   ],
@@ -1830,10 +1837,10 @@ class _PdfManagerViewState extends State<PdfManagerView> {
             // Annotations list
             Row(
               children: [
-                const Expanded(
+                Expanded(
                   child: Text(
-                    'Annotationen',
-                    style: TextStyle(
+                    tr('Annotationen', 'Adnotări'),
+                    style: const TextStyle(
                         fontSize: 16, fontWeight: FontWeight.bold),
                   ),
                 ),
@@ -1843,7 +1850,7 @@ class _PdfManagerViewState extends State<PdfManagerView> {
                       setState(() => _annotations.clear());
                     },
                     icon: const Icon(Icons.delete_sweep, size: 18),
-                    label: const Text('Alle löschen'),
+                    label: Text(tr('Alle löschen', 'Șterge toate')),
                     style:
                         TextButton.styleFrom(foregroundColor: Colors.red),
                   ),
@@ -1852,7 +1859,7 @@ class _PdfManagerViewState extends State<PdfManagerView> {
             const SizedBox(height: 8),
             if (_annotations.isEmpty)
               Text(
-                'Keine Annotationen vorhanden',
+                tr('Keine Annotationen vorhanden', 'Nu există adnotări'),
                 style: TextStyle(
                   fontSize: 13,
                   color: Colors.grey.shade500,
@@ -1879,13 +1886,13 @@ class _PdfManagerViewState extends State<PdfManagerView> {
                     title: Text(
                       a.type == AnnotationType.text
                           ? (a.text ?? '')
-                          : 'Unterschrift',
+                          : tr('Unterschrift', 'Semnătură'),
                       style: const TextStyle(fontSize: 13),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
                     subtitle: Text(
-                      'Seite ${a.pageNumber}',
+                      tr('Seite ${a.pageNumber}', 'Pagina ${a.pageNumber}'),
                       style: TextStyle(
                           fontSize: 11, color: Colors.grey.shade600),
                     ),
@@ -1894,7 +1901,7 @@ class _PdfManagerViewState extends State<PdfManagerView> {
                       onPressed: () {
                         setState(() => _annotations.removeAt(i));
                       },
-                      tooltip: 'Entfernen',
+                      tooltip: tr('Entfernen', 'Elimină'),
                     ),
                   ),
                 );

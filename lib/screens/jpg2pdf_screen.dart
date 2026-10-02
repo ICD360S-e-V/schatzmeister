@@ -6,6 +6,7 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:path_provider/path_provider.dart';
 import 'package:image/image.dart' as img;
+import '../services/language_service.dart';
 
 class Jpg2PdfScreen extends StatefulWidget {
   final VoidCallback onBack;
@@ -27,7 +28,7 @@ class _Jpg2PdfScreenState extends State<Jpg2PdfScreen> {
       type: FileType.custom,
       allowedExtensions: ['jpg', 'jpeg', 'png', 'bmp', 'webp', 'tiff', 'tif'],
       allowMultiple: true,
-      dialogTitle: 'Bilder auswählen',
+      dialogTitle: tr('Bilder auswählen', 'Selectați imagini'),
     );
 
     if (result == null || result.files.isEmpty) return;
@@ -122,8 +123,8 @@ class _Jpg2PdfScreenState extends State<Jpg2PdfScreen> {
       if (downloadsDir == null) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Downloads-Ordner nicht gefunden.'),
+            SnackBar(
+              content: Text(tr('Downloads-Ordner nicht gefunden.', 'Folderul Descărcări nu a fost găsit.')),
               backgroundColor: Colors.red,
             ),
           );
@@ -147,7 +148,8 @@ class _Jpg2PdfScreenState extends State<Jpg2PdfScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              '${_images.length} Bilder als PDF gespeichert ($sizeStr) — Downloads-Ordner',
+              tr('${_images.length} Bilder als PDF gespeichert ($sizeStr) — Downloads-Ordner',
+                  'PDF salvat în folderul Descărcări ($sizeStr, imagini: ${_images.length})'),
             ),
             backgroundColor: Colors.green,
             duration: const Duration(seconds: 4),
@@ -158,7 +160,7 @@ class _Jpg2PdfScreenState extends State<Jpg2PdfScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Fehler: $e'),
+            content: Text(tr('Fehler: $e', 'Eroare: $e')),
             backgroundColor: Colors.red,
           ),
         );
@@ -190,14 +192,14 @@ class _Jpg2PdfScreenState extends State<Jpg2PdfScreen> {
               IconButton(
                 onPressed: widget.onBack,
                 icon: const Icon(Icons.arrow_back),
-                tooltip: 'Zurück',
+                tooltip: tr('Zurück', 'Înapoi'),
               ),
               const SizedBox(width: 8),
               Icon(Icons.image, color: Colors.orange.shade700, size: 24),
               const SizedBox(width: 8),
-              const Text(
-                'Bilder zu PDF',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              Text(
+                tr('Bilder zu PDF', 'Imagini în PDF'),
+                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
               ),
               const Spacer(),
               // Settings
@@ -209,14 +211,14 @@ class _Jpg2PdfScreenState extends State<Jpg2PdfScreen> {
               OutlinedButton.icon(
                 onPressed: _images.isEmpty ? null : _clearAll,
                 icon: const Icon(Icons.delete_sweep, size: 18),
-                label: const Text('Alle entfernen'),
+                label: Text(tr('Alle entfernen', 'Elimină toate')),
                 style: OutlinedButton.styleFrom(foregroundColor: Colors.red),
               ),
               const SizedBox(width: 8),
               ElevatedButton.icon(
                 onPressed: _pickImages,
                 icon: const Icon(Icons.add_photo_alternate, size: 18),
-                label: const Text('Bilder hinzufügen'),
+                label: Text(tr('Bilder hinzufügen', 'Adaugă imagini')),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.orange.shade700,
                   foregroundColor: Colors.white,
@@ -231,8 +233,8 @@ class _Jpg2PdfScreenState extends State<Jpg2PdfScreen> {
                   size: 18,
                 ),
                 label: Text(_isConverting
-                    ? 'Konvertiert...'
-                    : 'Als PDF speichern (${_images.length})'),
+                    ? tr('Konvertiert...', 'Se convertește...')
+                    : tr('Als PDF speichern (${_images.length})', 'Salvează ca PDF (${_images.length})')),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.green.shade700,
                   foregroundColor: Colors.white,
@@ -251,9 +253,9 @@ class _Jpg2PdfScreenState extends State<Jpg2PdfScreen> {
 
   Widget _buildOrientationChip() {
     final labels = {
-      'auto': 'Auto',
-      'portrait': 'Hochformat',
-      'landscape': 'Querformat',
+      'auto': tr('Auto', 'Automat'),
+      'portrait': tr('Hochformat', 'Portret'),
+      'landscape': tr('Querformat', 'Peisaj'),
     };
     final icons = {
       'auto': Icons.auto_fix_high,
@@ -262,7 +264,7 @@ class _Jpg2PdfScreenState extends State<Jpg2PdfScreen> {
     };
     return PopupMenuButton<String>(
       onSelected: (v) => setState(() => _pageOrientation = v),
-      tooltip: 'Seitenausrichtung',
+      tooltip: tr('Seitenausrichtung', 'Orientarea paginii'),
       itemBuilder: (_) => labels.entries
           .map((e) => PopupMenuItem(
                 value: e.key,
@@ -289,7 +291,7 @@ class _Jpg2PdfScreenState extends State<Jpg2PdfScreen> {
   Widget _buildMarginChip() {
     return PopupMenuButton<double>(
       onSelected: (v) => setState(() => _margin = v),
-      tooltip: 'Seitenrand',
+      tooltip: tr('Seitenrand', 'Marginea paginii'),
       itemBuilder: (_) => [0.0, 5.0, 10.0, 15.0, 20.0]
           .map((v) => PopupMenuItem(
                 value: v,
@@ -320,7 +322,7 @@ class _Jpg2PdfScreenState extends State<Jpg2PdfScreen> {
               size: 80, color: Colors.grey.shade300),
           const SizedBox(height: 16),
           Text(
-            'Bilder auswählen um sie in PDF zu konvertieren',
+            tr('Bilder auswählen um sie in PDF zu konvertieren', 'Selectați imagini pentru a le converti în PDF'),
             style: TextStyle(fontSize: 16, color: Colors.grey.shade500),
           ),
           const SizedBox(height: 8),
@@ -332,7 +334,7 @@ class _Jpg2PdfScreenState extends State<Jpg2PdfScreen> {
           ElevatedButton.icon(
             onPressed: _pickImages,
             icon: const Icon(Icons.add_photo_alternate),
-            label: const Text('Bilder auswählen'),
+            label: Text(tr('Bilder auswählen', 'Selectați imagini')),
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.orange.shade700,
               foregroundColor: Colors.white,
@@ -410,7 +412,7 @@ class _Jpg2PdfScreenState extends State<Jpg2PdfScreen> {
                   onPressed: () => _removeImage(index),
                   icon: const Icon(Icons.close, size: 18),
                   color: Colors.red,
-                  tooltip: 'Entfernen',
+                  tooltip: tr('Entfernen', 'Elimină'),
                 ),
                 const SizedBox(width: 4),
                 Icon(Icons.drag_handle, color: Colors.grey.shade400),

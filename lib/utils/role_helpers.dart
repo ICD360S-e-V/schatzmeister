@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../services/language_service.dart';
+
 /// ============================================================
 /// Rollen in einem eingetragenen Verein (e.V.) nach deutschem Recht
 /// Basierend auf BGB §§ 21-79 und gängiger Vereinspraxis
@@ -30,29 +32,29 @@ import 'package:flutter/material.dart';
 String getRoleText(String role) {
   switch (role) {
     case 'vorsitzer':
-      return 'Vorsitzender';
+      return tr('Vorsitzender', 'Președinte');
     case 'stellvertreter':
-      return 'Stellvertreter';
+      return tr('Stellvertreter', 'Vicepreședinte');
     case 'schatzmeister':
-      return 'Schatzmeister';
+      return tr('Schatzmeister', 'Trezorier');
     case 'schriftfuehrer':
-      return 'Schriftführer';
+      return tr('Schriftführer', 'Secretar');
     case 'beisitzer':
-      return 'Beisitzer';
+      return tr('Beisitzer', 'Membru în conducere');
     case 'kassierer':
-      return 'Kassierer';
+      return tr('Kassierer', 'Casier');
     case 'kassenprufer':
-      return 'Kassenprüfer';
+      return tr('Kassenprüfer', 'Cenzor');
     case 'ehrenamtlich':
-      return 'Ehrenamtlich';
+      return tr('Ehrenamtlich', 'Voluntar');
     case 'mitglied':
-      return 'Mitglied';
+      return tr('Mitglied', 'Membru');
     case 'mitgliedergrunder':
-      return 'Gründungsmitglied';
+      return tr('Gründungsmitglied', 'Membru fondator');
     case 'ehrenmitglied':
-      return 'Ehrenmitglied';
+      return tr('Ehrenmitglied', 'Membru de onoare');
     case 'foerdermitglied':
-      return 'Fördermitglied';
+      return tr('Fördermitglied', 'Membru susținător');
     default:
       return role;
   }
@@ -96,32 +98,32 @@ Color getRoleColor(String role) {
 String getStatusText(String status) {
   switch (status) {
     case 'nicht_verifiziert':
-      return 'Nicht verifiziert';
+      return tr('Nicht verifiziert', 'Neverificat');
     case 'neu':
-      return 'Neu (Antrag)';
+      return tr('Neu (Antrag)', 'Nou (cerere)');
     case 'active':
-      return 'Aktiv';
+      return tr('Aktiv', 'Activ');
     case 'passiv':
-      return 'Passiv';
+      return tr('Passiv', 'Pasiv');
     case 'ruhend':
-      return 'Ruhend';
+      return tr('Ruhend', 'În pauză');
     case 'gesperrt':
-      return 'Gesperrt';
+      return tr('Gesperrt', 'Suspendat');
     case 'gekuendigt_selbst':
-      return 'Gekündigt (selbst)';
+      return tr('Gekündigt (selbst)', 'Reziliat (de membru)');
     case 'gekuendigt_verein':
-      return 'Gekündigt (Verein)';
+      return tr('Gekündigt (Verein)', 'Reziliat (de asociație)');
     case 'ausgeschlossen':
-      return 'Ausgeschlossen';
+      return tr('Ausgeschlossen', 'Exclus');
     case 'verstorben':
-      return 'Verstorben';
+      return tr('Verstorben', 'Decedat');
     // Legacy statuses (backward compatibility)
     case 'suspended':
-      return 'Gesperrt';
+      return tr('Gesperrt', 'Suspendat');
     case 'deleted':
-      return 'Gelöscht';
+      return tr('Gelöscht', 'Șters');
     case 'gekuendigt':
-      return 'Gekündigt';
+      return tr('Gekündigt', 'Reziliat');
     default:
       return status;
   }
@@ -160,17 +162,18 @@ Color getStatusColor(String status) {
 }
 
 /// All available statuses for dropdowns (ordered by lifecycle)
-const allStatuses = [
-  {'value': 'nicht_verifiziert', 'label': 'Nicht verifiziert', 'description': 'Konto erstellt, Identität noch nicht bestätigt (30 Tage Frist)'},
-  {'value': 'neu', 'label': 'Neu (Antrag)', 'description': 'Aufnahmeantrag eingegangen'},
-  {'value': 'active', 'label': 'Aktiv', 'description': 'Ordentliches Mitglied'},
-  {'value': 'passiv', 'label': 'Passiv', 'description': 'Zahlt Beitrag, nimmt nicht aktiv teil'},
-  {'value': 'ruhend', 'label': 'Ruhend', 'description': 'Mitgliedschaft vorübergehend ruhend'},
-  {'value': 'gesperrt', 'label': 'Gesperrt', 'description': 'Mitgliedschaftsrechte vorübergehend entzogen'},
-  {'value': 'gekuendigt_selbst', 'label': 'Gekündigt (selbst)', 'description': 'Austritt durch Mitglied'},
-  {'value': 'gekuendigt_verein', 'label': 'Gekündigt (Verein)', 'description': 'Kündigung durch den Verein'},
-  {'value': 'ausgeschlossen', 'label': 'Ausgeschlossen', 'description': 'Vereinsausschluss nach Satzung'},
-  {'value': 'verstorben', 'label': 'Verstorben', 'description': 'Mitglied verstorben'},
+/// Getter statt const: Bezeichnungen folgen der gewählten Sprache.
+List<Map<String, String>> get allStatuses => [
+  {'value': 'nicht_verifiziert', 'label': tr('Nicht verifiziert', 'Neverificat'), 'description': tr('Konto erstellt, Identität noch nicht bestätigt (30 Tage Frist)', 'Cont creat, identitate încă neconfirmată (termen de 30 de zile)')},
+  {'value': 'neu', 'label': tr('Neu (Antrag)', 'Nou (cerere)'), 'description': tr('Aufnahmeantrag eingegangen', 'Cerere de admitere primită')},
+  {'value': 'active', 'label': tr('Aktiv', 'Activ'), 'description': tr('Ordentliches Mitglied', 'Membru ordinar')},
+  {'value': 'passiv', 'label': tr('Passiv', 'Pasiv'), 'description': tr('Zahlt Beitrag, nimmt nicht aktiv teil', 'Plătește contribuția, nu participă activ')},
+  {'value': 'ruhend', 'label': tr('Ruhend', 'În pauză'), 'description': tr('Mitgliedschaft vorübergehend ruhend', 'Calitatea de membru este temporar în pauză')},
+  {'value': 'gesperrt', 'label': tr('Gesperrt', 'Suspendat'), 'description': tr('Mitgliedschaftsrechte vorübergehend entzogen', 'Drepturile de membru retrase temporar')},
+  {'value': 'gekuendigt_selbst', 'label': tr('Gekündigt (selbst)', 'Reziliat (de membru)'), 'description': tr('Austritt durch Mitglied', 'Retragere la cererea membrului')},
+  {'value': 'gekuendigt_verein', 'label': tr('Gekündigt (Verein)', 'Reziliat (de asociație)'), 'description': tr('Kündigung durch den Verein', 'Reziliere de către asociație')},
+  {'value': 'ausgeschlossen', 'label': tr('Ausgeschlossen', 'Exclus'), 'description': tr('Vereinsausschluss nach Satzung', 'Excludere din asociație conform statutului (Satzung)')},
+  {'value': 'verstorben', 'label': tr('Verstorben', 'Decedat'), 'description': tr('Mitglied verstorben', 'Membru decedat')},
 ];
 
 /// Returns the role prefix for Benutzernummer
@@ -229,19 +232,20 @@ bool isVorstandRole(String role) {
 }
 
 /// All available roles for dropdowns
-const allRoles = [
-  {'value': 'mitglied', 'label': 'Mitglied'},
-  {'value': 'vorsitzer', 'label': 'Vorsitzender'},
-  {'value': 'stellvertreter', 'label': 'Stellvertreter'},
-  {'value': 'schatzmeister', 'label': 'Schatzmeister'},
-  {'value': 'schriftfuehrer', 'label': 'Schriftführer'},
-  {'value': 'beisitzer', 'label': 'Beisitzer'},
-  {'value': 'kassierer', 'label': 'Kassierer'},
-  {'value': 'kassenprufer', 'label': 'Kassenprüfer'},
-  {'value': 'ehrenamtlich', 'label': 'Ehrenamtlich'},
-  {'value': 'mitgliedergrunder', 'label': 'Gründungsmitglied'},
-  {'value': 'ehrenmitglied', 'label': 'Ehrenmitglied'},
-  {'value': 'foerdermitglied', 'label': 'Fördermitglied'},
+/// Getter statt const: Bezeichnungen folgen der gewählten Sprache.
+List<Map<String, String>> get allRoles => [
+  {'value': 'mitglied', 'label': tr('Mitglied', 'Membru')},
+  {'value': 'vorsitzer', 'label': tr('Vorsitzender', 'Președinte')},
+  {'value': 'stellvertreter', 'label': tr('Stellvertreter', 'Vicepreședinte')},
+  {'value': 'schatzmeister', 'label': tr('Schatzmeister', 'Trezorier')},
+  {'value': 'schriftfuehrer', 'label': tr('Schriftführer', 'Secretar')},
+  {'value': 'beisitzer', 'label': tr('Beisitzer', 'Membru în conducere')},
+  {'value': 'kassierer', 'label': tr('Kassierer', 'Casier')},
+  {'value': 'kassenprufer', 'label': tr('Kassenprüfer', 'Cenzor')},
+  {'value': 'ehrenamtlich', 'label': tr('Ehrenamtlich', 'Voluntar')},
+  {'value': 'mitgliedergrunder', 'label': tr('Gründungsmitglied', 'Membru fondator')},
+  {'value': 'ehrenmitglied', 'label': tr('Ehrenmitglied', 'Membru de onoare')},
+  {'value': 'foerdermitglied', 'label': tr('Fördermitglied', 'Membru susținător')},
 ];
 
 /// ✅ SECURITY FIX (2026-02-10): Input sanitization to prevent SQL injection

@@ -6,6 +6,7 @@ import 'dart:convert';
 import 'notification_service.dart';
 import 'logger_service.dart';
 import 'device_key_service.dart';
+import 'language_service.dart';
 
 final _log = LoggerService();
 
@@ -155,11 +156,13 @@ class TicketNotificationService {
               // Show notification for new submissions
               for (var i = 0; i < newCount && i < antraege.length; i++) {
                 final antrag = antraege[i] as Map<String, dynamic>;
-                final memberName = antrag['member_name'] ?? 'Unbekannt';
+                final memberName =
+                    antrag['member_name'] ?? tr('Unbekannt', 'Necunoscut');
                 final typ = antrag['antrag_typ'] ?? 'sonstiges';
                 await _notificationService.show(
-                  title: 'Neuer Ermäßigungsantrag',
-                  body: '$memberName hat einen Ermäßigungsantrag ($typ) eingereicht.',
+                  title: tr('Neuer Ermäßigungsantrag', 'Cerere nouă de reducere'),
+                  body: tr('$memberName hat einen Ermäßigungsantrag ($typ) eingereicht.',
+                      '$memberName a depus o cerere de reducere ($typ).'),
                   duration: const Duration(seconds: 8),
                 );
               }
@@ -177,19 +180,23 @@ class TicketNotificationService {
   Future<void> _showNotification(Map<String, dynamic> notification) async {
     try {
       final notificationType = notification['notification_type'] as String? ?? 'unknown';
-      final title = notification['title'] as String? ?? 'Neue Benachrichtigung';
+      final title = notification['title'] as String? ??
+          tr('Neue Benachrichtigung', 'Notificare nouă');
       final message = notification['message'] as String? ?? '';
       final ticketSubject = notification['ticket_subject'] as String? ?? '';
-      final senderName = notification['sender_name'] as String? ?? 'Unbekannt';
+      final senderName = notification['sender_name'] as String? ??
+          tr('Unbekannt', 'Necunoscut');
       final ticketId = notification['ticket_id'] as int? ?? 0;
 
       String body = message;
 
       // Formatiere Nachricht basierend auf Typ
       if (notificationType == 'ticket_created') {
-        body = '$senderName hat ein neues Ticket erstellt:\n"$ticketSubject"';
+        body = tr('$senderName hat ein neues Ticket erstellt:\n"$ticketSubject"',
+            '$senderName a creat un tichet nou:\n"$ticketSubject"');
       } else if (notificationType == 'comment_added') {
-        body = '$senderName hat auf Ticket #$ticketId geantwortet:\n"$ticketSubject"';
+        body = tr('$senderName hat auf Ticket #$ticketId geantwortet:\n"$ticketSubject"',
+            '$senderName a răspuns la tichetul #$ticketId:\n"$ticketSubject"');
       }
 
       await _notificationService.show(

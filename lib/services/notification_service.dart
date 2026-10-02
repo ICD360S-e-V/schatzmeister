@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'language_service.dart';
 import 'logger_service.dart';
 import 'tray_service.dart';
 import 'platform_service.dart';
@@ -44,9 +45,13 @@ class NotificationService {
 
   // Notification channel for Android
   static const String _channelId = 'icd360sev_vorsitzer_channel';
-  static const String _channelName = 'ICD360S e.V Benachrichtigungen';
-  static const String _channelDescription =
-      'Benachrichtigungen für Chat, Anrufe und Updates';
+  // Name und Beschreibung stehen in den Android-Einstellungen — Getter, damit
+  // tr() die gewählte Sprache liest. Die Kanal-ID bleibt fest.
+  static String get _channelName =>
+      tr('ICD360S e.V Benachrichtigungen', 'ICD360S e.V Notificări');
+  static String get _channelDescription =>
+      tr('Benachrichtigungen für Chat, Anrufe und Updates',
+          'Notificări pentru chat, apeluri și actualizări');
 
   /// Chat-Dialog-Status setzen (von AdminChatDialog aufrufen)
   static void setChatDialogOpen(bool isOpen) {
@@ -78,10 +83,10 @@ class NotificationService {
         requestSoundPermission: true,
       );
 
-      const linuxSettings =
-          LinuxInitializationSettings(defaultActionName: 'Öffnen');
+      final linuxSettings = LinuxInitializationSettings(
+          defaultActionName: tr('Öffnen', 'Deschide'));
 
-      const initSettings = InitializationSettings(
+      final initSettings = InitializationSettings(
         android: androidSettings,
         iOS: darwinSettings,
         macOS: darwinSettings,
@@ -127,7 +132,7 @@ class NotificationService {
 
   /// Create Android notification channel
   Future<void> _createAndroidNotificationChannel() async {
-    const channel = AndroidNotificationChannel(
+    final channel = AndroidNotificationChannel(
       _channelId,
       _channelName,
       description: _channelDescription,
@@ -321,7 +326,7 @@ class NotificationService {
     if (!_isChatDialogOpen) {
       // Native notification on all platforms
       await show(
-        title: 'Neue Nachricht von $senderName',
+        title: tr('Neue Nachricht von $senderName', 'Mesaj nou de la $senderName'),
         body: message,
         payload: 'chat:$conversationId',
       );
@@ -342,8 +347,8 @@ class NotificationService {
     int? conversationId,
   }) async {
     await show(
-      title: 'Eingehender Anruf',
-      body: '$callerName ruft an...',
+      title: tr('Eingehender Anruf', 'Apel primit'),
+      body: tr('$callerName ruft an...', '$callerName vă sună...'),
       payload: 'call:$conversationId',
     );
 
@@ -360,9 +365,10 @@ class NotificationService {
     required String version,
   }) async {
     await show(
-      title: 'Update verfügbar',
-      body:
+      title: tr('Update verfügbar', 'Actualizare disponibilă'),
+      body: tr(
           'Version $version ist verfügbar. Klicken Sie hier zum Aktualisieren.',
+          'Versiunea $version este disponibilă. Faceți clic aici pentru a actualiza.'),
       payload: 'update:$version',
     );
     _log.info('Update-Benachrichtigung: v$version', tag: 'NOTIF');
@@ -373,10 +379,14 @@ class NotificationService {
     required bool connected,
   }) async {
     await show(
-      title: connected ? 'Verbunden' : 'Verbindung getrennt',
+      title: connected
+          ? tr('Verbunden', 'Conectat')
+          : tr('Verbindung getrennt', 'Conexiune întreruptă'),
       body: connected
-          ? 'Sie sind jetzt mit dem Server verbunden.'
-          : 'Die Verbindung zum Server wurde getrennt.',
+          ? tr('Sie sind jetzt mit dem Server verbunden.',
+              'Sunteți acum conectat la server.')
+          : tr('Die Verbindung zum Server wurde getrennt.',
+              'Conexiunea la server a fost întreruptă.'),
       payload: 'connection:$connected',
     );
     _log.info('Verbindung: ${connected ? "verbunden" : "getrennt"}',
@@ -388,7 +398,7 @@ class NotificationService {
     required String message,
   }) async {
     await show(
-      title: 'Fehler',
+      title: tr('Fehler', 'Eroare'),
       body: message,
       payload: 'error',
     );
@@ -411,8 +421,9 @@ class NotificationService {
   /// Test notification
   Future<void> testNotification() async {
     await show(
-      title: 'Test Benachrichtigung',
-      body: 'Dies ist eine Test-Benachrichtigung von ICD360S e.V.',
+      title: tr('Test Benachrichtigung', 'Notificare de test'),
+      body: tr('Dies ist eine Test-Benachrichtigung von ICD360S e.V.',
+          'Aceasta este o notificare de test de la ICD360S e.V.'),
       payload: 'test',
     );
 

@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../l10n/app_localizations.dart';
 import '../services/api_service.dart';
+import '../services/language_service.dart';
 import '../services/logger_service.dart';
 import '../services/chat_service.dart';
 import '../services/heartbeat_service.dart';
@@ -465,8 +466,9 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
     if (weather == null) return;
 
     final df = DateFormat('HH:mm', 'de_DE');
-    final dfDay = DateFormat('E dd.MM.', 'de_DE');
-    final dfDayShort = DateFormat('E', 'de_DE');
+    // Wochentagsnamen in der gewählten Sprache (Mo. / lun.).
+    final dfDay = DateFormat('E dd.MM.', tr('de_DE', 'ro'));
+    final dfDayShort = DateFormat('E', tr('de_DE', 'ro'));
     final now = DateTime.now();
 
     // Filter hourly forecast: next 24 hours
@@ -1115,7 +1117,9 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
             '';
     final oben = nummer.isNotEmpty
         ? nummer
-        : (name.isNotEmpty ? name : 'Gespräch ${g['id']}');
+        : (name.isNotEmpty
+            ? name
+            : tr('Gespräch ${g['id']}', 'Conversația ${g['id']}'));
     // Nur zeigen, wenn er etwas hinzufügt — sonst stünde er zweimal da.
     final zeigeName = name.isNotEmpty && name != oben;
     final letzte = g['last_message']?.toString() ?? '';
@@ -1136,7 +1140,9 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
                 style: const TextStyle(fontWeight: FontWeight.w500),
               ),
             Text(
-              letzte.isEmpty ? 'Noch keine Nachricht' : letzte,
+              letzte.isEmpty
+                  ? tr('Noch keine Nachricht', 'Încă niciun mesaj')
+                  : letzte,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(fontSize: 12),
@@ -1165,7 +1171,7 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
         final gewaehlt = await showDialog<Map<String, dynamic>>(
           context: context,
           builder: (ctx) => SimpleDialog(
-            title: const Text('Mit wem?'),
+            title: Text(tr('Mit wem?', 'Cu cine?')),
             children: [
               for (final g in liste)
                 _auswahlZeile(ctx, g),
@@ -1223,7 +1229,10 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F5),
       appBar: AppBar(
-        title: Text(isMobile ? 'ICD360S e.V' : 'ICD360S e.V - Schatzmeister Panel'),
+        title: Text(isMobile
+            ? 'ICD360S e.V'
+            : tr('ICD360S e.V - Schatzmeister Panel',
+                'ICD360S e.V - Panou trezorier')),
         backgroundColor: const Color(0xFF1a1a2e),
         foregroundColor: Colors.white,
         flexibleSpace: SeasonalBackground.isEasterSeason
@@ -1262,7 +1271,7 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
             children: [
               IconButton(
                 icon: const Icon(Icons.draw_outlined),
-                tooltip: 'Meine Unterschriften',
+                tooltip: tr('Meine Unterschriften', 'Semnăturile mele'),
                 onPressed: () async {
                   await Navigator.of(context).push(MaterialPageRoute(
                     builder: (_) => EigeneUnterschriftenScreen(
@@ -1699,7 +1708,7 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
     final weekEnd = weekStart.add(const Duration(days: 6));
     final kw = _weekNumber(weekStart);
 
-    String label = 'KW $kw • ${DateFormat('dd.MM').format(weekStart)} - ${DateFormat('dd.MM.yyyy').format(weekEnd)}';
+    String label = '${tr('KW', 'Săpt.')} $kw • ${DateFormat('dd.MM').format(weekStart)} - ${DateFormat('dd.MM.yyyy').format(weekEnd)}';
 
     if (weekStart == currentWeekStart) {
       label = '${AppLocalizations.of(context).thisWeek} — $label';
@@ -1836,7 +1845,7 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
                     ),
                   ),
                   subtitle: Text(
-                    '${schedDate != null ? DateFormat('EEEE, dd.MM.yyyy • HH:mm', 'de').format(schedDate) : DateFormat('dd.MM.yyyy').format(ticket.createdAt)} • ${_ticketStatusText(ticket.status)}',
+                    '${schedDate != null ? DateFormat('EEEE, dd.MM.yyyy • HH:mm', tr('de', 'ro')).format(schedDate) : DateFormat('dd.MM.yyyy').format(ticket.createdAt)} • ${_ticketStatusText(ticket.status)}',
                     style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
                   ),
                   trailing: Icon(

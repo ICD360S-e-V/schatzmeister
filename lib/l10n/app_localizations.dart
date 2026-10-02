@@ -81,7 +81,7 @@ class AppLocalizations {
   // ============================================================
   // DASHBOARD SIDEBAR
   // ============================================================
-  String get dashboard => 'Dashboard';
+  String get dashboard => _t('Dashboard', 'Panou principal');
   String get financialManagement => _t('Finanzverwaltung', 'Administrare financiară');
   String get myTickets => _t('Meine Tickets', 'Tichetele mele');
   String get myAppointments => _t('Meine Termine', 'Programările mele');
@@ -326,7 +326,7 @@ class AppLocalizations {
   // DASHBOARD - WEATHER
   // ============================================================
   String get temperature => _t('Temperatur', 'Temperatură');
-  String get wind => 'Wind';
+  String get wind => _t('Wind', 'Vânt');
   String get humidity => _t('Feuchtigkeit', 'Umiditate');
   String get hourly => _t('Stündlich', 'Pe oră');
   String get noWeatherData => _t('Keine stündlichen Daten verfügbar', 'Nu sunt disponibile date orare');
@@ -605,9 +605,9 @@ class AppLocalizations {
   String get never => _t('Nie', 'Niciodată');
 
   // Profile - Roles
-  String get roleVorsitzer => 'Vorsitzer';
-  String get roleSchatzmeister => 'Schatzmeister';
-  String get roleKassierer => 'Kassierer';
+  String get roleVorsitzer => _t('Vorsitzer', 'Președinte');
+  String get roleSchatzmeister => _t('Schatzmeister', 'Trezorier');
+  String get roleKassierer => _t('Kassierer', 'Casier');
   String get roleGruender => _t('Gründer', 'Fondator');
 
   // Profile - Verwarnungen
@@ -919,9 +919,9 @@ class AppLocalizations {
   String get doneTickets => _t('Erledigt', 'Finalizate');
   String get timeTracking => _t('Zeiterfassung', 'Urmărire timp');
   String get totalShortLabel => _t('gesamt', 'total');
-  String get travelTime => _t('Fahrzeit', 'Timp deplasare');
-  String get workTime => _t('Arbeitszeit', 'Timp lucru');
-  String get waitTime => _t('Wartezeit', 'Timp așteptare');
+  String get travelTime => _t('Fahrzeit', 'Timp de deplasare');
+  String get workTime => _t('Arbeitszeit', 'Timp de lucru');
+  String get waitTime => _t('Wartezeit', 'Timp de așteptare');
   String get noAppointmentsAvailable => _t('Keine Termine vorhanden', 'Nicio programare disponibilă');
   String appointmentsCount(int count) => _t('$count Termine', '$count programări');
   String get upcomingAppointments => _t('Anstehende Termine', 'Programări viitoare');
@@ -1047,7 +1047,7 @@ class AppLocalizations {
   // ============================================================
   // CHAT MESSAGE BUBBLE
   // ============================================================
-  String get urgentBadge => 'DRINGEND';
+  String get urgentBadge => _t('DRINGEND', 'URGENT');
   String get translatedLabel => _t('Übersetzt', 'Tradus');
   String get copiedLabel => _t('Kopiert!', 'Copiat!');
   String get userLabel => _t('Benutzer', 'Utilizator');
@@ -1091,7 +1091,7 @@ class AppLocalizations {
   // ============================================================
   // DEBUG CONSOLE
   // ============================================================
-  String get debugConsole => 'Debug Console';
+  String get debugConsole => _t('Debug Console', 'Consolă de depanare');
   String entriesCount(int count) => _t('$count Einträge', '$count intrări');
   String get autoScrollOn => _t('Auto-scroll AN', 'Auto-scroll PORNIT');
   String get autoScrollOff => _t('Auto-scroll AUS', 'Auto-scroll OPRIT');
@@ -1402,7 +1402,7 @@ class AppLocalizations {
   String get vereinsdatenTitle => _t('Vereinsdaten', 'Date asociație');
   String get addVereinsdaten => _t('Vereinsdaten hinzufügen', 'Adăugați date asociație');
   String get enterVereinsdaten => _t('Name, Adresse, Kontaktdaten des Vereins eintragen', 'Completați numele, adresa, datele de contact ale asociației');
-  String get openWebsite => _t('Website öffnen', 'Deschide website-ul');
+  String get openWebsite => _t('Website öffnen', 'Deschide site-ul');
   String get foundingLabel => _t('Gründung', 'Fondare');
 
   // ============================================================

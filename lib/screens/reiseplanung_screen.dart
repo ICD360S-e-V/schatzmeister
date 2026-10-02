@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
+import '../services/language_service.dart';
 
 /// Reiseplanung — Journey Planner for Germany
 /// Station search: int.bahn.de Web API (DB official, very reliable)
@@ -207,8 +208,10 @@ class _ReiseplanungScreenState extends State<ReiseplanungScreen> {
       setState(() {
         _isSearching = false;
         _error = _fromStation == null
-            ? 'Startort nicht gefunden. Bitte erneut eingeben.'
-            : 'Zielort nicht gefunden. Bitte erneut eingeben.';
+            ? tr('Startort nicht gefunden. Bitte erneut eingeben.',
+                'Locul de plecare nu a fost găsit. Vă rugăm să îl introduceți din nou.')
+            : tr('Zielort nicht gefunden. Bitte erneut eingeben.',
+                'Destinația nu a fost găsită. Vă rugăm să o introduceți din nou.');
       });
       return;
     }
@@ -283,7 +286,8 @@ class _ReiseplanungScreenState extends State<ReiseplanungScreen> {
       } else {
         if (mounted) {
           setState(() {
-            _error = 'API-Fehler: ${response.statusCode}';
+            _error = tr('API-Fehler: ${response.statusCode}',
+                'Eroare API: ${response.statusCode}');
             _isSearching = false;
           });
         }
@@ -291,7 +295,7 @@ class _ReiseplanungScreenState extends State<ReiseplanungScreen> {
     } catch (e) {
       if (mounted) {
         setState(() {
-          _error = 'Verbindungsfehler: $e';
+          _error = tr('Verbindungsfehler: $e', 'Eroare de conexiune: $e');
           _isSearching = false;
         });
       }
@@ -306,7 +310,8 @@ class _ReiseplanungScreenState extends State<ReiseplanungScreen> {
       initialDate: _departureTime,
       firstDate: DateTime.now().subtract(const Duration(days: 1)),
       lastDate: DateTime.now().add(const Duration(days: 90)),
-      locale: const Locale('de'),
+      // Monatsnamen und Knöpfe des Kalenders in der gewählten Sprache.
+      locale: Locale(tr('de', 'ro')),
     );
     if (date == null || !mounted) return;
 
@@ -335,16 +340,20 @@ class _ReiseplanungScreenState extends State<ReiseplanungScreen> {
               IconButton(
                 icon: const Icon(Icons.arrow_back),
                 onPressed: widget.onBack,
-                tooltip: 'Zurück',
+                tooltip: tr('Zurück', 'Înapoi'),
               ),
               const SizedBox(width: 4),
               Icon(Icons.route, color: Colors.indigo.shade700, size: 24),
               const SizedBox(width: 8),
-              const Text(
-                'Reiseplanung',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              // Expanded statt Text + Spacer: der rumänische Titel ist länger
+              // und lief auf dem Telefon rechts hinaus.
+              Expanded(
+                child: Text(
+                  tr('Reiseplanung', 'Planificare călătorii'),
+                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
-              const Spacer(),
               Text(
                 'Deutsche Bahn + DELFI',
                 style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
@@ -367,7 +376,7 @@ class _ReiseplanungScreenState extends State<ReiseplanungScreen> {
                     _buildStationInput(
                       controller: _fromController,
                       focusNode: _fromFocus,
-                      label: 'Von',
+                      label: tr('Von', 'De la'),
                       icon: Icons.trip_origin,
                       color: Colors.green,
                       suggestions: _fromSuggestions,
@@ -381,7 +390,7 @@ class _ReiseplanungScreenState extends State<ReiseplanungScreen> {
                     _buildStationInput(
                       controller: _toController,
                       focusNode: _toFocus,
-                      label: 'Nach',
+                      label: tr('Nach', 'Către'),
                       icon: Icons.location_on,
                       color: Colors.red,
                       suggestions: _toSuggestions,
@@ -400,7 +409,7 @@ class _ReiseplanungScreenState extends State<ReiseplanungScreen> {
                 padding: const EdgeInsets.only(top: 12),
                 child: IconButton(
                   icon: const Icon(Icons.swap_vert, size: 28),
-                  tooltip: 'Tauschen',
+                  tooltip: tr('Tauschen', 'Inversează'),
                   onPressed: _swapStations,
                   color: Colors.indigo,
                 ),
@@ -413,9 +422,9 @@ class _ReiseplanungScreenState extends State<ReiseplanungScreen> {
                   SizedBox(
                     width: 180,
                     child: SegmentedButton<bool>(
-                      segments: const [
-                        ButtonSegment(value: true, label: Text('Abfahrt', style: TextStyle(fontSize: 12))),
-                        ButtonSegment(value: false, label: Text('Ankunft', style: TextStyle(fontSize: 12))),
+                      segments: [
+                        ButtonSegment(value: true, label: Text(tr('Abfahrt', 'Plecare'), style: const TextStyle(fontSize: 12))),
+                        ButtonSegment(value: false, label: Text(tr('Ankunft', 'Sosire'), style: const TextStyle(fontSize: 12))),
                       ],
                       selected: {_isDeparture},
                       onSelectionChanged: (v) => setState(() => _isDeparture = v.first),
@@ -449,7 +458,7 @@ class _ReiseplanungScreenState extends State<ReiseplanungScreen> {
                       icon: _isSearching
                           ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                           : const Icon(Icons.search, size: 18),
-                      label: const Text('Suchen'),
+                      label: Text(tr('Suchen', 'Caută')),
                       onPressed: _isSearching ? null : () => _searchJourneys(),
                       style: FilledButton.styleFrom(
                         backgroundColor: Colors.indigo,
@@ -492,7 +501,7 @@ class _ReiseplanungScreenState extends State<ReiseplanungScreen> {
                       Icon(Icons.train, size: 64, color: Colors.grey.shade300),
                       const SizedBox(height: 12),
                       Text(
-                        'Start und Ziel eingeben',
+                        tr('Start und Ziel eingeben', 'Introduceți plecarea și destinația'),
                         style: TextStyle(fontSize: 15, color: Colors.grey.shade500),
                       ),
                       const SizedBox(height: 4),
@@ -598,7 +607,7 @@ class _ReiseplanungScreenState extends State<ReiseplanungScreen> {
         if (_journeys.isNotEmpty)
           TextButton.icon(
             icon: const Icon(Icons.keyboard_arrow_up, size: 18),
-            label: const Text('Frühere Verbindungen', style: TextStyle(fontSize: 12)),
+            label: Text(tr('Frühere Verbindungen', 'Conexiuni mai devreme'), style: const TextStyle(fontSize: 12)),
             onPressed: _isSearching ? null : () => _searchJourneys(loadEarlier: true),
           ),
         Expanded(
@@ -614,7 +623,7 @@ class _ReiseplanungScreenState extends State<ReiseplanungScreen> {
             padding: const EdgeInsets.only(bottom: 8),
             child: TextButton.icon(
               icon: const Icon(Icons.keyboard_arrow_down, size: 18),
-              label: const Text('Spätere Verbindungen', style: TextStyle(fontSize: 12)),
+              label: Text(tr('Spätere Verbindungen', 'Conexiuni mai târziu'), style: const TextStyle(fontSize: 12)),
               onPressed: _isSearching ? null : () => _searchJourneys(loadLater: true),
             ),
           ),
@@ -683,7 +692,7 @@ class _ReiseplanungScreenState extends State<ReiseplanungScreen> {
                     ],
                   ),
                   Text(
-                    '$durationStr • ${transfers == 0 ? 'Direkt' : '$transfers ${transfers == 1 ? 'Umstieg' : 'Umstiege'}'}',
+                    '$durationStr • ${transfers == 0 ? tr('Direkt', 'Direct') : '$transfers ${transfers == 1 ? tr('Umstieg', 'schimbare') : tr('Umstiege', 'schimbări')}'}',
                     style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
                   ),
                 ],
@@ -719,7 +728,7 @@ class _ReiseplanungScreenState extends State<ReiseplanungScreen> {
             Icon(Icons.directions_walk, size: 16, color: Colors.grey.shade500),
             const SizedBox(width: 8),
             Text(
-              'Fußweg${durMins > 0 ? ' ($durMins min)' : ''}${leg.walkingDistance != null ? ' • ${leg.walkingDistance} m' : ''}',
+              '${tr('Fußweg', 'Pe jos')}${durMins > 0 ? ' ($durMins min)' : ''}${leg.walkingDistance != null ? ' • ${leg.walkingDistance} m' : ''}',
               style: TextStyle(fontSize: 12, color: Colors.grey.shade600, fontStyle: FontStyle.italic),
             ),
           ],
@@ -777,7 +786,7 @@ class _ReiseplanungScreenState extends State<ReiseplanungScreen> {
               children: [
                 Text(leg.originName, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
                 if (leg.originPlatform != null)
-                  Text('Gl. ${leg.originPlatform}', style: TextStyle(fontSize: 10, color: Colors.grey.shade500)),
+                  Text(tr('Gl. ${leg.originPlatform}', 'Linia ${leg.originPlatform}'), style: TextStyle(fontSize: 10, color: Colors.grey.shade500)),
                 const SizedBox(height: 4),
                 Row(
                   children: [
@@ -806,7 +815,7 @@ class _ReiseplanungScreenState extends State<ReiseplanungScreen> {
                 const SizedBox(height: 4),
                 Text(leg.destinationName, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
                 if (leg.destinationPlatform != null)
-                  Text('Gl. ${leg.destinationPlatform}', style: TextStyle(fontSize: 10, color: Colors.grey.shade500)),
+                  Text(tr('Gl. ${leg.destinationPlatform}', 'Linia ${leg.destinationPlatform}'), style: TextStyle(fontSize: 10, color: Colors.grey.shade500)),
               ],
             ),
           ),

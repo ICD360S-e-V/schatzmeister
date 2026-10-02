@@ -3,6 +3,7 @@ import 'pdf_manager_screen.dart';
 import 'db_mobilitat_unterstutzung_screen.dart';
 import 'reiseplanung_screen.dart';
 import 'jpg2pdf_screen.dart';
+import '../services/language_service.dart';
 
 class DiensteScreen extends StatefulWidget {
   const DiensteScreen({super.key});
@@ -51,7 +52,7 @@ class _DiensteScreenState extends State<DiensteScreen> {
                   color: Colors.blue.shade700, size: 28),
               const SizedBox(width: 12),
               Text(
-                'Dienste',
+                tr('Dienste', 'Servicii'),
                 style: TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
@@ -67,9 +68,9 @@ class _DiensteScreenState extends State<DiensteScreen> {
             children: [
               _buildServiceCard(
                 icon: Icons.picture_as_pdf,
-                title: 'PDF Manager',
+                title: tr('PDF Manager', 'Manager PDF'),
                 description:
-                    'PDF bearbeiten, aufteilen, Text hinzufügen und unterschreiben',
+                    tr('PDF bearbeiten, aufteilen, Text hinzufügen und unterschreiben', 'Editare și împărțire PDF, adăugare de text și semnare'),
                 color: Colors.red.shade700,
                 onTap: () => setState(() => _subview = 'pdf_manager'),
               ),
@@ -77,23 +78,23 @@ class _DiensteScreenState extends State<DiensteScreen> {
                 icon: Icons.train,
                 title: 'DB Mobilitätsservice',
                 description:
-                    'Unterstützungsbedarf für Bahnreisen anmelden',
+                    tr('Unterstützungsbedarf für Bahnreisen anmelden', 'Solicitare de asistență pentru călătorii cu trenul'),
                 color: Colors.blue.shade700,
                 onTap: () => setState(() => _subview = 'db_mobilitat'),
               ),
               _buildServiceCard(
                 icon: Icons.route,
-                title: 'Reiseplanung',
+                title: tr('Reiseplanung', 'Planificare călătorii'),
                 description:
-                    'Verbindungen für Züge, Busse und Trams in ganz Deutschland',
+                    tr('Verbindungen für Züge, Busse und Trams in ganz Deutschland', 'Conexiuni de tren, autobuz și tramvai în toată Germania'),
                 color: Colors.indigo.shade700,
                 onTap: () => setState(() => _subview = 'reiseplanung'),
               ),
               _buildServiceCard(
                 icon: Icons.image,
-                title: 'Bilder zu PDF',
+                title: tr('Bilder zu PDF', 'Imagini în PDF'),
                 description:
-                    'JPG, PNG und andere Bilder in PDF konvertieren',
+                    tr('JPG, PNG und andere Bilder in PDF konvertieren', 'Conversie JPG, PNG și alte imagini în PDF'),
                 color: Colors.orange.shade700,
                 onTap: () => setState(() => _subview = 'jpg2pdf'),
               ),
