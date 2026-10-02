@@ -4,6 +4,8 @@
 // Deutsch. Vorher folgte das Portal stur der Geräteeinstellung; jetzt wird
 // beim ersten Start gewählt, und die Wahl bleibt gespeichert.
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:icd360sev_schatzmeister/main.dart';
@@ -117,7 +119,7 @@ void main() {
     expect(LanguageService.instance.currentCode, 'ro');
   });
 
-  testWidgets('Flaggen sind wirklich gefüllt: drei Streifen in voller Größe',
+  testWidgets('Flaggen: dieselben SVG-Dateien wie in der Mitglieder-App, 4:3',
       (tester) async {
     await tester.pumpWidget(const Directionality(
       textDirection: TextDirection.ltr,
@@ -128,19 +130,22 @@ void main() {
         ]),
       ),
     ));
-    // Ein ColoredBox ohne Kind bleibt quer zur Streifenrichtung 0 breit,
-    // wenn niemand ihn streckt — die Flagge war dann unsichtbar.
-    final streifen = find.byType(ColoredBox);
-    expect(streifen, findsNWidgets(6));
-    for (final e in streifen.evaluate()) {
-      final groesse = tester.getSize(find.byWidget(e.widget));
-      expect(groesse.width * groesse.height, greaterThan(0));
+    final bilder = tester.widgetList<SvgPicture>(find.byType(SvgPicture)).toList();
+    expect(bilder, hasLength(2));
+    expect((bilder[0].bytesLoader as SvgAssetLoader).assetName, 'assets/flags/de.svg');
+    expect((bilder[1].bytesLoader as SvgAssetLoader).assetName, 'assets/flags/ro.svg');
+    for (final e in find.byType(Flagge).evaluate()) {
+      expect(tester.getSize(find.byWidget(e.widget)), const Size(64, 48));
     }
-    // Deutschland waagerecht: volle Breite, ein Drittel Höhe.
-    expect(tester.getSize(streifen.at(0)), const Size(64, 16));
-    // Rumänien senkrecht: ein Drittel Breite, volle Höhe.
-    expect(tester.getSize(streifen.at(3)).height, 48);
-    expect(tester.getSize(streifen.at(3)).width, closeTo(64 / 3, 0.01));
+  });
+
+  test('jede angebotene Sprache hat ihre Flaggendatei im Bundle', () async {
+    TestWidgetsFlutterBinding.ensureInitialized();
+    for (final lang in LanguageService.supported) {
+      final svg = await rootBundle.loadString(Flagge.asset(lang.code));
+      // flag-icons, 4:3 — wie in der Mitglieder-App.
+      expect(svg, contains('viewBox="0 0 640 480"'), reason: lang.code);
+    }
   });
 
   test('tr() folgt der gewählten Sprache, unbekannte Codes fallen auf Deutsch',
