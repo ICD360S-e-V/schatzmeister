@@ -284,7 +284,47 @@ class _WebViewScreenState extends State<WebViewScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Entschieden wird nach der Breite, die der Bildschirm wirklich bekommt,
+    // nicht nach MediaQuery. Unter 600 dp: Telefon.
+    return LayoutBuilder(
+      builder: (context, constraints) => _aufbau(schmal: constraints.maxWidth < 600),
+    );
+  }
+
+  Widget _aufbau({required bool schmal}) {
     final loc = AppLocalizations.of(context);
+    final knoepfe = <Widget>[
+      // Back button
+      IconButton(
+        icon: const Icon(Icons.arrow_back),
+        onPressed: _goBack,
+        tooltip: loc.backNav,
+      ),
+      // Forward button
+      IconButton(
+        icon: const Icon(Icons.arrow_forward),
+        onPressed: _goForward,
+        tooltip: loc.forwardNav,
+      ),
+      // Refresh button
+      IconButton(
+        icon: const Icon(Icons.refresh),
+        onPressed: _reload,
+        tooltip: loc.refreshNav,
+      ),
+      // Home button
+      IconButton(
+        icon: const Icon(Icons.home),
+        onPressed: _loadHome,
+        tooltip: loc.homePage,
+      ),
+      // Open in external browser
+      IconButton(
+        icon: const Icon(Icons.open_in_new),
+        onPressed: _openExternal,
+        tooltip: loc.openInBrowser,
+      ),
+    ];
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.title),
@@ -294,39 +334,28 @@ class _WebViewScreenState extends State<WebViewScreen> {
           icon: const Icon(Icons.close),
           onPressed: () => Navigator.pop(context),
         ),
-        actions: [
-          // Back button
-          IconButton(
-            icon: const Icon(Icons.arrow_back),
-            onPressed: _goBack,
-            tooltip: loc.backNav,
-          ),
-          // Forward button
-          IconButton(
-            icon: const Icon(Icons.arrow_forward),
-            onPressed: _goForward,
-            tooltip: loc.forwardNav,
-          ),
-          // Refresh button
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _reload,
-            tooltip: loc.refreshNav,
-          ),
-          // Home button
-          IconButton(
-            icon: const Icon(Icons.home),
-            onPressed: _loadHome,
-            tooltip: loc.homePage,
-          ),
-          // Open in external browser
-          IconButton(
-            icon: const Icon(Icons.open_in_new),
-            onPressed: _openExternal,
-            tooltip: loc.openInBrowser,
-          ),
-        ],
+        // Telefon: die fünf Knöpfe stehen unten in einer eigenen Leiste.
+        // Oben ließen sie dem Titel auf 393 dp gut 80 dp, auf 320 dp fast
+        // nichts — „Autentificare Deutsche Post“ war nicht zu lesen.
+        actions: schmal ? null : knoepfe,
       ),
+      bottomNavigationBar: schmal
+          ? Material(
+              color: const Color(0xFF4a90d9),
+              child: SafeArea(
+                top: false,
+                child: IconButtonTheme(
+                  data: IconButtonThemeData(
+                    style: IconButton.styleFrom(foregroundColor: Colors.white),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    children: knoepfe,
+                  ),
+                ),
+              ),
+            )
+          : null,
       body: Column(
         children: [
           // Loading indicator

@@ -19,6 +19,17 @@ String _roAnzahl(int n, String eins, String mehrere) {
   return (n != 0 && rest == 0) || rest >= 20 ? '$n de $mehrere' : '$n $mehrere';
 }
 
+/// Ein Dialog liegt über dem ganzen Fenster — hier zählt die Bildschirm-
+/// breite selbst. Unter 600 dp: Telefon.
+bool _schmalerDialog(BuildContext context) => MediaQuery.sizeOf(context).width < 600;
+
+/// Seitlicher Rand der Formular-Dialoge: auf dem Telefon 16 statt 40 dp.
+/// Mit 40 dp blieben einem Formular auf 320 dp nur 192 dp, und Wörter wie
+/// „Spendenquittung“ zerbrachen. Breit bleibt es beim Standard (null).
+EdgeInsets? _dialogRand(BuildContext context) => _schmalerDialog(context)
+    ? const EdgeInsets.symmetric(horizontal: 16, vertical: 24)
+    : null;
+
 class FinanzverwaltungScreen extends StatefulWidget {
   const FinanzverwaltungScreen({super.key});
 
@@ -190,6 +201,16 @@ class _FinanzverwaltungScreenState extends State<FinanzverwaltungScreen> with Si
 
   @override
   Widget build(BuildContext context) {
+    // Entschieden wird nach der Breite, die der Bildschirm wirklich bekommt
+    // (auf dem Schreibtisch nimmt die Seitenleiste ihren Teil), nicht nach
+    // MediaQuery. Unter 600 dp: Telefon.
+    return LayoutBuilder(
+      builder: (context, constraints) => _aufbau(breite: constraints.maxWidth),
+    );
+  }
+
+  Widget _aufbau({required double breite}) {
+    final schmal = breite < 600;
     return Column(
       children: [
         Container(
@@ -220,6 +241,11 @@ class _FinanzverwaltungScreenState extends State<FinanzverwaltungScreen> with Si
             unselectedLabelColor: Colors.grey,
             indicatorColor: Colors.green.shade700,
             // Rumänisch bewusst kurz: drei Reiter teilen sich 393 dp.
+            // Die deutschen Namen passen trotzdem nicht: „Beitragszahlung“
+            // und „Banktransaktionen“ wurden abgeschnitten. Schmal laufen
+            // die Reiter darum in voller Länge und lassen sich schieben.
+            isScrollable: schmal,
+            tabAlignment: schmal ? TabAlignment.start : null,
             tabs: [
               Tab(icon: const Icon(Icons.payment), text: tr('Beitragszahlung', 'Contribuții')),
               Tab(icon: const Icon(Icons.account_balance), text: tr('Banktransaktionen', 'Tranzacții')),
@@ -232,9 +258,11 @@ class _FinanzverwaltungScreenState extends State<FinanzverwaltungScreen> with Si
           child: TabBarView(
             controller: _tabController,
             children: [
-              _buildBeitragszahlungenTab(),
-              _buildTransaktionenTab(),
-              _buildSpendenTab(),
+              _buildBeitragszahlungenTab(schmal: schmal),
+              // Die Kopfleiste der Transaktionen braucht in einer Zeile gut
+              // 660 dp — auch ein schmales Tablet bekommt die umbrochene.
+              _buildTransaktionenTab(schmal: schmal, kopfEng: breite < 720),
+              _buildSpendenTab(schmal: schmal),
             ],
           ),
         ),
@@ -246,18 +274,66 @@ class _FinanzverwaltungScreenState extends State<FinanzverwaltungScreen> with Si
   // TAB 1: BEITRAGSZAHLUNG - Übersicht ab August 2025 (25€/Monat)
   // =========================================================================
 
-  Widget _buildBeitragszahlungenTab() {
-    return Column(
-      children: [
-        _buildBeitragsHeader(),
-        const Divider(height: 1),
-        Expanded(
-          child: _beitragsLoading
-              ? const Center(child: CircularProgressIndicator())
-              : _beitragsListe.isEmpty
-                  ? Center(child: Text(tr('Keine Mitglieder gefunden', 'Nu s-au găsit membri')))
-                  : _buildBeitragsTable(),
-        ),
+  Widget _buildBeitragszahlungenTab({required bool schmal}) {
+    return _reiter(
+      schmal: schmal,
+      kopf: _buildBeitragsHeader(),
+      laedt: _beitragsLoading,
+      leer: _beitragsListe.isEmpty
+          ? Center(child: Text(tr('Keine Mitglieder gefunden', 'Nu s-au găsit membri')))
+          : null,
+      anzahl: _beitragsListe.length,
+      eintrag: (index) => _beitragsKarte(index, schmal: schmal),
+    );
+  }
+
+  /// Ein Reiter aus Kopf und Liste. Breit wie bisher: der Kopf steht fest,
+  /// nur die Liste rollt. Auf dem Telefon rollt der Kopf mit — Jahr, Filter,
+  /// Kennzahlen und Hinweis nahmen auf 320×640 dp sonst fast den ganzen
+  /// Bildschirm ein, und von der Liste blieb kaum ein Eintrag zu sehen.
+  Widget _reiter({
+    required bool schmal,
+    required Widget kopf,
+    required bool laedt,
+    required Widget? leer,
+    required int anzahl,
+    required Widget Function(int index) eintrag,
+  }) {
+    if (!schmal) {
+      return Column(
+        children: [
+          kopf,
+          const Divider(height: 1),
+          Expanded(
+            child: laedt
+                ? const Center(child: CircularProgressIndicator())
+                : leer ??
+                    ListView.builder(
+                      padding: const EdgeInsets.all(16),
+                      itemCount: anzahl,
+                      itemBuilder: (context, index) => eintrag(index),
+                    ),
+          ),
+        ],
+      );
+    }
+    return CustomScrollView(
+      slivers: [
+        SliverToBoxAdapter(child: kopf),
+        const SliverToBoxAdapter(child: Divider(height: 1)),
+        if (laedt || leer != null)
+          SliverFillRemaining(
+            hasScrollBody: false,
+            child: laedt ? const Center(child: CircularProgressIndicator()) : leer!,
+          )
+        else
+          SliverPadding(
+            padding: const EdgeInsets.all(16),
+            sliver: SliverList.builder(
+              itemCount: anzahl,
+              itemBuilder: (context, index) => eintrag(index),
+            ),
+          ),
       ],
     );
   }
@@ -353,83 +429,77 @@ class _FinanzverwaltungScreenState extends State<FinanzverwaltungScreen> with Si
     );
   }
 
-  Widget _buildBeitragsTable() {
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: _beitragsListe.length,
-      itemBuilder: (context, index) {
-        final item = _beitragsListe[index];
-        final mn = item['mitgliedernummer'] ?? '';
-        final schulden = (item['schulden'] ?? 0).toDouble();
-        final bezahltMonate = item['bezahlt_monate'] ?? 0;
-        final offenMonate = item['offen_monate'] ?? 0;
-        final anzahlMonate = item['anzahl_monate'] ?? 0;
-        final bezahltBetrag = (item['bezahlt_betrag'] ?? 0).toDouble();
+  Widget _beitragsKarte(int index, {required bool schmal}) {
+    final item = _beitragsListe[index];
+    final mn = item['mitgliedernummer'] ?? '';
+    final schulden = (item['schulden'] ?? 0).toDouble();
+    final bezahltMonate = item['bezahlt_monate'] ?? 0;
+    final offenMonate = item['offen_monate'] ?? 0;
+    final anzahlMonate = item['anzahl_monate'] ?? 0;
+    final bezahltBetrag = (item['bezahlt_betrag'] ?? 0).toDouble();
 
-        final hatSchulden = schulden > 0;
-        final allesBezahlt = offenMonate == 0;
+    final hatSchulden = schulden > 0;
+    final allesBezahlt = offenMonate == 0;
 
-        Color cardColor;
-        IconData cardIcon;
-        if (allesBezahlt) {
-          cardColor = Colors.green;
-          cardIcon = Icons.check_circle;
-        } else if (offenMonate >= 3) {
-          cardColor = Colors.red;
-          cardIcon = Icons.error;
-        } else {
-          cardColor = Colors.orange;
-          cardIcon = Icons.warning_amber;
-        }
+    Color cardColor;
+    IconData cardIcon;
+    if (allesBezahlt) {
+      cardColor = Colors.green;
+      cardIcon = Icons.check_circle;
+    } else if (offenMonate >= 3) {
+      cardColor = Colors.red;
+      cardIcon = Icons.error;
+    } else {
+      cardColor = Colors.orange;
+      cardIcon = Icons.warning_amber;
+    }
 
-        return Card(
-          margin: const EdgeInsets.only(bottom: 8),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
-            side: hatSchulden ? BorderSide(color: cardColor.withValues(alpha: 0.3)) : BorderSide.none,
-          ),
-          child: ExpansionTile(
-            leading: CircleAvatar(
-              backgroundColor: cardColor.withValues(alpha: 0.15),
-              child: Icon(cardIcon, color: cardColor, size: 22),
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(10),
+        side: hatSchulden ? BorderSide(color: cardColor.withValues(alpha: 0.3)) : BorderSide.none,
+      ),
+      child: ExpansionTile(
+        leading: CircleAvatar(
+          backgroundColor: cardColor.withValues(alpha: 0.15),
+          child: Icon(cardIcon, color: cardColor, size: 22),
+        ),
+        title: Text(mn, style: const TextStyle(fontWeight: FontWeight.w600)),
+        subtitle: Text(
+          tr('$bezahltMonate/$anzahlMonate Monate bezahlt', '$bezahltMonate/$anzahlMonate luni plătite'),
+          style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+        ),
+        trailing: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            if (hatSchulden)
+              Text(
+                '-${schulden.toStringAsFixed(2)} €',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Colors.red.shade700),
+              )
+            else
+              Text(
+                '${bezahltBetrag.toStringAsFixed(2)} €',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Colors.green.shade700),
+              ),
+            Text(
+              hatSchulden
+                  ? tr('$offenMonate Monate offen', _roAnzahl(offenMonate, 'lună restantă', 'luni restante'))
+                  : tr('Alles bezahlt', 'Totul plătit'),
+              style: TextStyle(fontSize: 11, color: hatSchulden ? Colors.red : Colors.green),
             ),
-            title: Text(mn, style: const TextStyle(fontWeight: FontWeight.w600)),
-            subtitle: Text(
-              tr('$bezahltMonate/$anzahlMonate Monate bezahlt', '$bezahltMonate/$anzahlMonate luni plătite'),
-              style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
-            ),
-            trailing: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                if (hatSchulden)
-                  Text(
-                    '-${schulden.toStringAsFixed(2)} €',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Colors.red.shade700),
-                  )
-                else
-                  Text(
-                    '${bezahltBetrag.toStringAsFixed(2)} €',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Colors.green.shade700),
-                  ),
-                Text(
-                  hatSchulden
-                      ? tr('$offenMonate Monate offen', _roAnzahl(offenMonate, 'lună restantă', 'luni restante'))
-                      : tr('Alles bezahlt', 'Totul plătit'),
-                  style: TextStyle(fontSize: 11, color: hatSchulden ? Colors.red : Colors.green),
-                ),
-              ],
-            ),
-            children: [
-              _buildMonateDetails(item),
-            ],
-          ),
-        );
-      },
+          ],
+        ),
+        children: [
+          _buildMonateDetails(item, schmal: schmal),
+        ],
+      ),
     );
   }
 
-  Widget _buildMonateDetails(Map<String, dynamic> item) {
+  Widget _buildMonateDetails(Map<String, dynamic> item, {required bool schmal}) {
     final monateDetails = List<Map<String, dynamic>>.from(item['monate_details'] ?? []);
     final mn = item['mitgliedernummer'] ?? '';
 
@@ -450,6 +520,15 @@ class _FinanzverwaltungScreenState extends State<FinanzverwaltungScreen> with Si
             final monatNum = int.tryParse(parts.isNotEmpty ? parts[0] : '') ?? 1;
             final jahrNum = int.tryParse(parts.length > 1 ? parts[1] : '') ?? 2025;
             final monatName = _monatNamen[monatNum - 1];
+            final monatText = Text('$monatName $jahrNum', style: const TextStyle(fontSize: 13));
+            final betragText = Text(
+              '${betrag.toStringAsFixed(2)} €',
+              style: TextStyle(
+                fontSize: 13,
+                color: isBezahlt ? Colors.green.shade700 : Colors.red.shade700,
+                fontWeight: FontWeight.w500,
+              ),
+            );
 
             return Padding(
               padding: const EdgeInsets.symmetric(vertical: 2),
@@ -461,16 +540,21 @@ class _FinanzverwaltungScreenState extends State<FinanzverwaltungScreen> with Si
                     color: isBezahlt ? Colors.green : Colors.red,
                   ),
                   const SizedBox(width: 8),
-                  Text('$monatName $jahrNum', style: const TextStyle(fontSize: 13)),
-                  const Spacer(),
-                  Text(
-                    '${betrag.toStringAsFixed(2)} €',
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: isBezahlt ? Colors.green.shade700 : Colors.red.shade700,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
+                  // Telefon: der Betrag steht unter dem Monat. In einer
+                  // Zeile mit Status und Haken lief „Septembrie 2025“ auf
+                  // 320 dp um bis zu 35 dp hinaus.
+                  if (schmal)
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [monatText, betragText],
+                      ),
+                    )
+                  else ...[
+                    monatText,
+                    const Spacer(),
+                    betragText,
+                  ],
                   const SizedBox(width: 8),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
@@ -538,101 +622,130 @@ class _FinanzverwaltungScreenState extends State<FinanzverwaltungScreen> with Si
   // TAB 2: BANKTRANSAKTIONEN
   // =========================================================================
 
-  Widget _buildTransaktionenTab() {
-    return Column(
-      children: [
-        _buildTransaktionenHeader(),
-        const Divider(height: 1),
-        Expanded(
-          child: _transaktionenLoading
-              ? const Center(child: CircularProgressIndicator())
-              : _transaktionen.isEmpty
-                  ? Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.account_balance, size: 64, color: Colors.grey.shade300),
-                          const SizedBox(height: 16),
-                          Text(tr('Keine Transaktionen', 'Nicio tranzacție'), style: TextStyle(color: Colors.grey.shade500)),
-                        ],
-                      ),
-                    )
-                  : _buildTransaktionenList(),
-        ),
-      ],
+  Widget _buildTransaktionenTab({required bool schmal, required bool kopfEng}) {
+    return _reiter(
+      schmal: schmal,
+      kopf: _buildTransaktionenHeader(schmal: kopfEng),
+      laedt: _transaktionenLoading,
+      leer: _transaktionen.isEmpty
+          ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.account_balance, size: 64, color: Colors.grey.shade300),
+                  const SizedBox(height: 16),
+                  Text(tr('Keine Transaktionen', 'Nicio tranzacție'), style: TextStyle(color: Colors.grey.shade500)),
+                ],
+              ),
+            )
+          : null,
+      anzahl: _transaktionen.length,
+      eintrag: (index) => _transaktionKarte(index, schmal: schmal),
     );
   }
 
-  Widget _buildTransaktionenHeader() {
+  Widget _buildTransaktionenHeader({required bool schmal}) {
+    final jahrWahl = [
+      IconButton(
+        icon: const Icon(Icons.chevron_left),
+        onPressed: () {
+          setState(() => _transaktionenJahr--);
+          _loadTransaktionen();
+        },
+      ),
+      Text('$_transaktionenJahr', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+      IconButton(
+        icon: const Icon(Icons.chevron_right),
+        onPressed: () {
+          setState(() => _transaktionenJahr++);
+          _loadTransaktionen();
+        },
+      ),
+    ];
+    final monatWahl = DropdownButton<int?>(
+      value: _transaktionenMonat,
+      hint: Text(tr('Alle Monate', 'Toate lunile')),
+      items: [
+        DropdownMenuItem<int?>(value: null, child: Text(tr('Alle Monate', 'Toate lunile'))),
+        for (int i = 1; i <= 12; i++)
+          DropdownMenuItem(value: i, child: Text(_monatNamen[i - 1])),
+      ],
+      onChanged: (val) {
+        setState(() => _transaktionenMonat = val);
+        _loadTransaktionen();
+      },
+    );
+    final typWahl = DropdownButton<String?>(
+      value: _transaktionenTyp,
+      hint: Text(tr('Alle', 'Toate')),
+      items: [
+        DropdownMenuItem<String?>(value: null, child: Text(tr('Alle', 'Toate'))),
+        DropdownMenuItem(value: 'einnahme', child: Text(tr('Einnahmen', 'Venituri'))),
+        DropdownMenuItem(value: 'ausgabe', child: Text(tr('Ausgaben', 'Cheltuieli'))),
+      ],
+      onChanged: (val) {
+        setState(() => _transaktionenTyp = val);
+        _loadTransaktionen();
+      },
+    );
+    final neuKnopf = ElevatedButton.icon(
+      onPressed: _showTransaktionDialog,
+      icon: const Icon(Icons.add, size: 18),
+      label: Text(tr('Neue Transaktion', 'Tranzacție nouă')),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: Colors.green.shade700,
+        foregroundColor: Colors.white,
+      ),
+    );
+    final aktualisieren = IconButton(
+      icon: const Icon(Icons.refresh),
+      tooltip: tr('Aktualisieren', 'Actualizează'),
+      onPressed: _loadTransaktionen,
+    );
+
     return Container(
       padding: const EdgeInsets.all(16),
       color: Colors.grey.shade50,
       child: Column(
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              IconButton(
-                icon: const Icon(Icons.chevron_left),
-                onPressed: () {
-                  setState(() => _transaktionenJahr--);
-                  _loadTransaktionen();
-                },
-              ),
-              Text('$_transaktionenJahr', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-              IconButton(
-                icon: const Icon(Icons.chevron_right),
-                onPressed: () {
-                  setState(() => _transaktionenJahr++);
-                  _loadTransaktionen();
-                },
-              ),
-              const SizedBox(width: 16),
-              DropdownButton<int?>(
-                value: _transaktionenMonat,
-                hint: Text(tr('Alle Monate', 'Toate lunile')),
-                items: [
-                  DropdownMenuItem<int?>(value: null, child: Text(tr('Alle Monate', 'Toate lunile'))),
-                  for (int i = 1; i <= 12; i++)
-                    DropdownMenuItem(value: i, child: Text(_monatNamen[i - 1])),
-                ],
-                onChanged: (val) {
-                  setState(() => _transaktionenMonat = val);
-                  _loadTransaktionen();
-                },
-              ),
-              const SizedBox(width: 16),
-              DropdownButton<String?>(
-                value: _transaktionenTyp,
-                hint: Text(tr('Alle', 'Toate')),
-                items: [
-                  DropdownMenuItem<String?>(value: null, child: Text(tr('Alle', 'Toate'))),
-                  DropdownMenuItem(value: 'einnahme', child: Text(tr('Einnahmen', 'Venituri'))),
-                  DropdownMenuItem(value: 'ausgabe', child: Text(tr('Ausgaben', 'Cheltuieli'))),
-                ],
-                onChanged: (val) {
-                  setState(() => _transaktionenTyp = val);
-                  _loadTransaktionen();
-                },
-              ),
-              const Spacer(),
-              ElevatedButton.icon(
-                onPressed: _showTransaktionDialog,
-                icon: const Icon(Icons.add, size: 18),
-                label: Text(tr('Neue Transaktion', 'Tranzacție nouă')),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.green.shade700,
-                  foregroundColor: Colors.white,
-                ),
-              ),
-              const SizedBox(width: 8),
-              IconButton(
-                icon: const Icon(Icons.refresh),
-                tooltip: tr('Aktualisieren', 'Actualizează'),
-                onPressed: _loadTransaktionen,
-              ),
-            ],
-          ),
+          if (schmal) ...[
+            // Telefon: Jahr, Monat und Art umbrechen, Knöpfe darunter. In
+            // EINER Zeile lief die Leiste um bis zu 333 dp hinaus, und
+            // „Neue Transaktion“ war gar nicht mehr zu erreichen.
+            Wrap(
+              alignment: WrapAlignment.center,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: 8,
+              children: [
+                Row(mainAxisSize: MainAxisSize.min, children: jahrWahl),
+                monatWahl,
+                typWahl,
+              ],
+            ),
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Flexible(child: neuKnopf),
+                const SizedBox(width: 8),
+                aktualisieren,
+              ],
+            ),
+          ] else
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                ...jahrWahl,
+                const SizedBox(width: 16),
+                monatWahl,
+                const SizedBox(width: 16),
+                typWahl,
+                const Spacer(),
+                neuKnopf,
+                const SizedBox(width: 8),
+                aktualisieren,
+              ],
+            ),
           const SizedBox(height: 12),
           Wrap(
             spacing: 16,
@@ -649,63 +762,127 @@ class _FinanzverwaltungScreenState extends State<FinanzverwaltungScreen> with Si
     );
   }
 
-  Widget _buildTransaktionenList() {
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: _transaktionen.length,
-      itemBuilder: (context, index) {
-        final t = _transaktionen[index];
-        final isEinnahme = t['typ'] == 'einnahme';
-        final betrag = double.tryParse(t['betrag']?.toString() ?? '0') ?? 0;
-        final datum = t['datum'] ?? '';
-        final beschreibung = t['beschreibung'] ?? '';
-        final empfaenger = t['empfaenger_absender'] ?? '';
-        final kategorie = t['kategorie'] ?? '';
+  Widget _transaktionKarte(int index, {required bool schmal}) {
+    final t = _transaktionen[index];
+    final isEinnahme = t['typ'] == 'einnahme';
+    final betrag = double.tryParse(t['betrag']?.toString() ?? '0') ?? 0;
+    final datum = t['datum'] ?? '';
+    final beschreibung = t['beschreibung'] ?? '';
+    final empfaenger = t['empfaenger_absender'] ?? '';
+    final kategorie = t['kategorie'] ?? '';
 
-        return Card(
-          margin: const EdgeInsets.only(bottom: 8),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          child: ListTile(
-            leading: CircleAvatar(
-              backgroundColor: (isEinnahme ? Colors.green : Colors.red).withValues(alpha: 0.15),
-              child: Icon(
-                isEinnahme ? Icons.arrow_downward : Icons.arrow_upward,
-                color: isEinnahme ? Colors.green : Colors.red,
-                size: 22,
-              ),
-            ),
-            title: Text(
-              beschreibung.isNotEmpty
-                  ? beschreibung
-                  : (isEinnahme ? tr('Einnahme', 'Venit') : tr('Ausgabe', 'Cheltuială')),
-              style: const TextStyle(fontWeight: FontWeight.w600),
-            ),
-            subtitle: Text(
-              [datum, empfaenger, kategorie].where((s) => s.isNotEmpty).join(' • '),
-              style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
-            ),
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
+    final symbol = CircleAvatar(
+      backgroundColor: (isEinnahme ? Colors.green : Colors.red).withValues(alpha: 0.15),
+      child: Icon(
+        isEinnahme ? Icons.arrow_downward : Icons.arrow_upward,
+        color: isEinnahme ? Colors.green : Colors.red,
+        size: 22,
+      ),
+    );
+    final titel = Text(
+      beschreibung.isNotEmpty
+          ? beschreibung
+          : (isEinnahme ? tr('Einnahme', 'Venit') : tr('Ausgabe', 'Cheltuială')),
+      style: const TextStyle(fontWeight: FontWeight.w600),
+    );
+    final unterzeile = Text(
+      [datum, empfaenger, kategorie].where((s) => s.isNotEmpty).join(' • '),
+      style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+    );
+    final betragText = Text(
+      '${isEinnahme ? '+' : '-'}${betrag.toStringAsFixed(2)} €',
+      style: TextStyle(
+        fontWeight: FontWeight.bold,
+        fontSize: 15,
+        color: isEinnahme ? Colors.green.shade700 : Colors.red.shade700,
+      ),
+    );
+    final loeschen = IconButton(
+      icon: Icon(Icons.delete_outline, color: Colors.red.shade300, size: 20),
+      tooltip: tr('Löschen', 'Șterge'),
+      onPressed: () => _deleteTransaktion(t),
+    );
+
+    if (schmal) {
+      return _zeileSchmal(
+        symbol: symbol,
+        titel: titel,
+        unterzeile: unterzeile,
+        betrag: betragText,
+        knoepfe: [loeschen],
+      );
+    }
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      child: ListTile(
+        leading: symbol,
+        title: titel,
+        subtitle: unterzeile,
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            betragText,
+            const SizedBox(width: 8),
+            loeschen,
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Telefon-Fassung einer Listenzeile: oben Symbol, Titel und Unterzeile
+  /// über die volle Breite, darunter Betrag und Knöpfe. Als ListTile mit
+  /// Betrag UND Knöpfen rechts blieb dem Titel auf 393 dp gut 100 dp, auf
+  /// 320 dp kaum etwas — Namen zerbrachen mitten im Wort („Popesc
+  /// u-Rădul escu“, „Mitgliedsbeitr äge“).
+  Widget _zeileSchmal({
+    required Widget symbol,
+    required Widget titel,
+    required Widget unterzeile,
+    required Widget betrag,
+    required List<Widget> knoepfe,
+  }) {
+    final textTheme = Theme.of(context).textTheme;
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 12, 4, 0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  '${isEinnahme ? '+' : '-'}${betrag.toStringAsFixed(2)} €',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 15,
-                    color: isEinnahme ? Colors.green.shade700 : Colors.red.shade700,
+                symbol,
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.only(right: 12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Schrift wie Titel/Unterzeile einer ListTile.
+                        DefaultTextStyle.merge(style: textTheme.bodyLarge, child: titel),
+                        const SizedBox(height: 2),
+                        DefaultTextStyle.merge(style: textTheme.bodyMedium, child: unterzeile),
+                      ],
+                    ),
                   ),
-                ),
-                const SizedBox(width: 8),
-                IconButton(
-                  icon: Icon(Icons.delete_outline, color: Colors.red.shade300, size: 20),
-                  tooltip: tr('Löschen', 'Șterge'),
-                  onPressed: () => _deleteTransaktion(t),
                 ),
               ],
             ),
-          ),
-        );
-      },
+            Row(
+              children: [
+                const SizedBox(width: 56),
+                Expanded(child: betrag),
+                ...knoepfe,
+              ],
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -722,12 +899,13 @@ class _FinanzverwaltungScreenState extends State<FinanzverwaltungScreen> with Si
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) => AlertDialog(
+          insetPadding: _dialogRand(ctx),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           title: Row(
             children: [
               Icon(Icons.add_card, color: Colors.green.shade700),
               const SizedBox(width: 12),
-              Text(tr('Neue Transaktion', 'Tranzacție nouă')),
+              Expanded(child: Text(tr('Neue Transaktion', 'Tranzacție nouă'))),
             ],
           ),
           content: SizedBox(
@@ -926,82 +1104,105 @@ class _FinanzverwaltungScreenState extends State<FinanzverwaltungScreen> with Si
   // TAB 3: SPENDEN
   // =========================================================================
 
-  Widget _buildSpendenTab() {
-    return Column(
-      children: [
-        _buildSpendenHeader(),
-        const Divider(height: 1),
-        Expanded(
-          child: _spendenLoading
-              ? const Center(child: CircularProgressIndicator())
-              : _spenden.isEmpty
-                  ? Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.volunteer_activism, size: 64, color: Colors.grey.shade300),
-                          const SizedBox(height: 16),
-                          Text(tr('Keine Spenden', 'Nicio donație'), style: TextStyle(color: Colors.grey.shade500)),
-                        ],
-                      ),
-                    )
-                  : _buildSpendenList(),
-        ),
-      ],
+  Widget _buildSpendenTab({required bool schmal}) {
+    return _reiter(
+      schmal: schmal,
+      kopf: _buildSpendenHeader(schmal: schmal),
+      laedt: _spendenLoading,
+      leer: _spenden.isEmpty
+          ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.volunteer_activism, size: 64, color: Colors.grey.shade300),
+                  const SizedBox(height: 16),
+                  Text(tr('Keine Spenden', 'Nicio donație'), style: TextStyle(color: Colors.grey.shade500)),
+                ],
+              ),
+            )
+          : null,
+      anzahl: _spenden.length,
+      eintrag: (index) => _spendeKarte(index, schmal: schmal),
     );
   }
 
-  Widget _buildSpendenHeader() {
+  Widget _buildSpendenHeader({required bool schmal}) {
+    final jahrWahl = [
+      IconButton(
+        icon: const Icon(Icons.chevron_left),
+        onPressed: () {
+          setState(() => _spendenJahr--);
+          _loadSpenden();
+        },
+      ),
+      Text('$_spendenJahr', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+      IconButton(
+        icon: const Icon(Icons.chevron_right),
+        onPressed: () {
+          setState(() => _spendenJahr++);
+          _loadSpenden();
+        },
+      ),
+    ];
+    final vereinsdatenKnopf = OutlinedButton.icon(
+      onPressed: _showVereinSettingsDialog,
+      icon: const Icon(Icons.settings, size: 18),
+      label: Text(tr('Vereinsdaten', 'Date asociație')),
+      style: OutlinedButton.styleFrom(
+        foregroundColor: Colors.grey.shade700,
+      ),
+    );
+    final neuKnopf = ElevatedButton.icon(
+      onPressed: _showSpendeDialog,
+      icon: const Icon(Icons.add, size: 18),
+      label: Text(tr('Neue Spende', 'Donație nouă')),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: Colors.purple.shade700,
+        foregroundColor: Colors.white,
+      ),
+    );
+    final aktualisieren = IconButton(
+      icon: const Icon(Icons.refresh),
+      tooltip: tr('Aktualisieren', 'Actualizează'),
+      onPressed: _loadSpenden,
+    );
+
     return Container(
       padding: const EdgeInsets.all(16),
       color: Colors.grey.shade50,
       child: Column(
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              IconButton(
-                icon: const Icon(Icons.chevron_left),
-                onPressed: () {
-                  setState(() => _spendenJahr--);
-                  _loadSpenden();
-                },
-              ),
-              Text('$_spendenJahr', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-              IconButton(
-                icon: const Icon(Icons.chevron_right),
-                onPressed: () {
-                  setState(() => _spendenJahr++);
-                  _loadSpenden();
-                },
-              ),
-              const Spacer(),
-              OutlinedButton.icon(
-                onPressed: _showVereinSettingsDialog,
-                icon: const Icon(Icons.settings, size: 18),
-                label: Text(tr('Vereinsdaten', 'Date asociație')),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: Colors.grey.shade700,
-                ),
-              ),
-              const SizedBox(width: 8),
-              ElevatedButton.icon(
-                onPressed: _showSpendeDialog,
-                icon: const Icon(Icons.add, size: 18),
-                label: Text(tr('Neue Spende', 'Donație nouă')),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.purple.shade700,
-                  foregroundColor: Colors.white,
-                ),
-              ),
-              const SizedBox(width: 8),
-              IconButton(
-                icon: const Icon(Icons.refresh),
-                tooltip: tr('Aktualisieren', 'Actualizează'),
-                onPressed: _loadSpenden,
-              ),
-            ],
-          ),
+          if (schmal) ...[
+            // Telefon: Jahr und Aktualisieren oben, die beiden Knöpfe
+            // darunter. In EINER Zeile lief die Leiste um bis zu 221 dp
+            // hinaus, und „Neue Spende“ war nicht mehr zu erreichen.
+            Row(
+              children: [
+                ...jahrWahl,
+                const Spacer(),
+                aktualisieren,
+              ],
+            ),
+            const SizedBox(height: 4),
+            Wrap(
+              alignment: WrapAlignment.center,
+              spacing: 8,
+              runSpacing: 8,
+              children: [vereinsdatenKnopf, neuKnopf],
+            ),
+          ] else
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                ...jahrWahl,
+                const Spacer(),
+                vereinsdatenKnopf,
+                const SizedBox(width: 8),
+                neuKnopf,
+                const SizedBox(width: 8),
+                aktualisieren,
+              ],
+            ),
           const SizedBox(height: 12),
           Wrap(
             spacing: 16,
@@ -1046,97 +1247,107 @@ class _FinanzverwaltungScreenState extends State<FinanzverwaltungScreen> with Si
     );
   }
 
-  Widget _buildSpendenList() {
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: _spenden.length,
-      itemBuilder: (context, index) {
-        final s = _spenden[index];
-        final betrag = double.tryParse(s['betrag']?.toString() ?? '0') ?? 0;
-        final datum = s['datum'] ?? '';
-        final spenderName = s['spender_name'] ?? '';
-        final spenderMn = s['spender_mitgliedernummer'] ?? '';
-        final spenderAdresse = s['spender_adresse'] ?? '';
-        final zweck = s['zweck'] ?? '';
-        final quittung = s['quittung_ausgestellt'] == 1 || s['quittung_ausgestellt'] == '1';
-        final notiz = s['notiz'] ?? '';
-        final kannQuittung = betrag > 300;
+  Widget _spendeKarte(int index, {required bool schmal}) {
+    final s = _spenden[index];
+    final betrag = double.tryParse(s['betrag']?.toString() ?? '0') ?? 0;
+    final datum = s['datum'] ?? '';
+    final spenderName = s['spender_name'] ?? '';
+    final spenderMn = s['spender_mitgliedernummer'] ?? '';
+    final spenderAdresse = s['spender_adresse'] ?? '';
+    final zweck = s['zweck'] ?? '';
+    final quittung = s['quittung_ausgestellt'] == 1 || s['quittung_ausgestellt'] == '1';
+    final notiz = s['notiz'] ?? '';
+    final kannQuittung = betrag > 300;
 
-        return Card(
-          margin: const EdgeInsets.only(bottom: 8),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          child: ListTile(
-            leading: CircleAvatar(
-              backgroundColor: Colors.purple.withValues(alpha: 0.15),
-              child: const Icon(Icons.volunteer_activism, color: Colors.purple, size: 22),
+    final symbol = CircleAvatar(
+      backgroundColor: Colors.purple.withValues(alpha: 0.15),
+      child: const Icon(Icons.volunteer_activism, color: Colors.purple, size: 22),
+    );
+    final titel = Text(
+      spenderName,
+      style: const TextStyle(fontWeight: FontWeight.w600),
+    );
+    final unterzeile = Text(
+      [
+        datum,
+        if (spenderMn.isNotEmpty) spenderMn,
+        if (spenderAdresse.isNotEmpty) spenderAdresse,
+        if (zweck.isNotEmpty) zweck,
+        if (notiz.isNotEmpty) notiz,
+      ].join(' • '),
+      style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+      maxLines: 2,
+      overflow: TextOverflow.ellipsis,
+    );
+    Widget betragSpalte(CrossAxisAlignment ausrichtung) => Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: ausrichtung,
+          children: [
+            Text(
+              '+${betrag.toStringAsFixed(2)} €',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Colors.purple.shade700),
             ),
-            title: Text(
-              spenderName,
-              style: const TextStyle(fontWeight: FontWeight.w600),
-            ),
-            subtitle: Text(
-              [
-                datum,
-                if (spenderMn.isNotEmpty) spenderMn,
-                if (spenderAdresse.isNotEmpty) spenderAdresse,
-                if (zweck.isNotEmpty) zweck,
-                if (notiz.isNotEmpty) notiz,
-              ].join(' • '),
-              style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text(
-                      '+${betrag.toStringAsFixed(2)} €',
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Colors.purple.shade700),
-                    ),
-                    if (quittung)
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.receipt_long, size: 12, color: Colors.green.shade600),
-                          const SizedBox(width: 2),
-                          Text(tr('Quittung', 'Chitanță'), style: TextStyle(fontSize: 10, color: Colors.green.shade600)),
-                        ],
-                      )
-                    else if (!kannQuittung)
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.account_balance, size: 12, color: Colors.grey.shade500),
-                          const SizedBox(width: 2),
-                          Text(tr('Kontoauszug', 'Extras de cont'), style: TextStyle(fontSize: 10, color: Colors.grey.shade500)),
-                        ],
-                      ),
-                  ],
-                ),
-                if (kannQuittung) ...[
-                  const SizedBox(width: 4),
-                  IconButton(
-                    icon: Icon(Icons.picture_as_pdf, color: Colors.red.shade600, size: 22),
-                    tooltip: tr('Zuwendungsbestätigung erstellen (PDF)',
-                        'Creează confirmarea de donație (Zuwendungsbestätigung, PDF)'),
-                    onPressed: () => _generateZuwendungsbestaetigung(s),
-                  ),
+            if (quittung)
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.receipt_long, size: 12, color: Colors.green.shade600),
+                  const SizedBox(width: 2),
+                  Text(tr('Quittung', 'Chitanță'), style: TextStyle(fontSize: 10, color: Colors.green.shade600)),
                 ],
-                const SizedBox(width: 4),
-                IconButton(
-                  icon: Icon(Icons.delete_outline, color: Colors.red.shade300, size: 20),
-                  tooltip: tr('Löschen', 'Șterge'),
-                  onPressed: () => _deleteSpende(s),
-                ),
-              ],
-            ),
-          ),
+              )
+            else if (!kannQuittung)
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.account_balance, size: 12, color: Colors.grey.shade500),
+                  const SizedBox(width: 2),
+                  Text(tr('Kontoauszug', 'Extras de cont'), style: TextStyle(fontSize: 10, color: Colors.grey.shade500)),
+                ],
+              ),
+          ],
         );
-      },
+    final pdfKnopf = IconButton(
+      icon: Icon(Icons.picture_as_pdf, color: Colors.red.shade600, size: 22),
+      tooltip: tr('Zuwendungsbestätigung erstellen (PDF)',
+          'Creează confirmarea de donație (Zuwendungsbestätigung, PDF)'),
+      onPressed: () => _generateZuwendungsbestaetigung(s),
+    );
+    final loeschen = IconButton(
+      icon: Icon(Icons.delete_outline, color: Colors.red.shade300, size: 20),
+      tooltip: tr('Löschen', 'Șterge'),
+      onPressed: () => _deleteSpende(s),
+    );
+
+    if (schmal) {
+      return _zeileSchmal(
+        symbol: symbol,
+        titel: titel,
+        unterzeile: unterzeile,
+        betrag: betragSpalte(CrossAxisAlignment.start),
+        knoepfe: [if (kannQuittung) pdfKnopf, loeschen],
+      );
+    }
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      child: ListTile(
+        leading: symbol,
+        title: titel,
+        subtitle: unterzeile,
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            betragSpalte(CrossAxisAlignment.end),
+            if (kannQuittung) ...[
+              const SizedBox(width: 4),
+              pdfKnopf,
+            ],
+            const SizedBox(width: 4),
+            loeschen,
+          ],
+        ),
+      ),
     );
   }
 
@@ -1154,12 +1365,13 @@ class _FinanzverwaltungScreenState extends State<FinanzverwaltungScreen> with Si
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) => AlertDialog(
+          insetPadding: _dialogRand(ctx),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           title: Row(
             children: [
               Icon(Icons.volunteer_activism, color: Colors.purple.shade700),
               const SizedBox(width: 12),
-              Text(tr('Neue Spende', 'Donație nouă')),
+              Expanded(child: Text(tr('Neue Spende', 'Donație nouă'))),
             ],
           ),
           content: SizedBox(
@@ -1388,11 +1600,22 @@ class _FinanzverwaltungScreenState extends State<FinanzverwaltungScreen> with Si
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
+        insetPadding: _dialogRand(ctx),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        // Telefon: Symbol über dem Titel (Material 3), der Titel bekommt die
+        // volle Breite in 20 statt 24 pt — neben dem Symbol zerbrach
+        // „Zuwendungsbestätigung“ (24 pt: 264 dp breit) auf 320 und 360 dp
+        // mitten im Wort; auf 320 dp bleiben dem Titel 240 dp.
+        icon: _schmalerDialog(ctx) ? Icon(Icons.business, color: Colors.green.shade700) : null,
+        titleTextStyle: _schmalerDialog(ctx)
+            ? Theme.of(ctx).textTheme.titleLarge?.copyWith(fontSize: 20)
+            : null,
         title: Row(
           children: [
-            Icon(Icons.business, color: Colors.green.shade700),
-            const SizedBox(width: 12),
+            if (!_schmalerDialog(ctx)) ...[
+              Icon(Icons.business, color: Colors.green.shade700),
+              const SizedBox(width: 12),
+            ],
             Expanded(child: Text(tr('Vereinsdaten für Zuwendungsbestätigung', 'Datele asociației pentru confirmarea de donație'))),
           ],
         ),

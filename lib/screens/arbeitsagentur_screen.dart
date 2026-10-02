@@ -34,8 +34,17 @@ class _ArbeitsagenturScreenState extends State<ArbeitsagenturScreen>
 
   @override
   Widget build(BuildContext context) {
+    // Entschieden wird nach der Breite, die der Bildschirm wirklich bekommt
+    // (auf dem Schreibtisch nimmt die Seitenleiste ihren Teil), nicht nach
+    // MediaQuery. Unter 600 dp: Telefon.
+    return LayoutBuilder(
+      builder: (context, constraints) => _aufbau(schmal: constraints.maxWidth < 600),
+    );
+  }
+
+  Widget _aufbau({required bool schmal}) {
     return Padding(
-      padding: const EdgeInsets.all(24),
+      padding: EdgeInsets.all(schmal ? 16 : 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -76,6 +85,12 @@ class _ArbeitsagenturScreenState extends State<ArbeitsagenturScreen>
             ),
             child: TabBar(
               controller: _tabController,
+              // Drei feste Reiter teilen sich auf dem Telefon je ~110 dp:
+              // „Salariu minim“ und „Muncă temporară“ wurden abgeschnitten.
+              // Schmal laufen die Reiter in voller Länge und lassen sich
+              // seitlich schieben.
+              isScrollable: schmal,
+              tabAlignment: schmal ? TabAlignment.start : null,
               indicator: BoxDecoration(
                 color: Colors.blue.shade700,
                 borderRadius: BorderRadius.circular(10),
@@ -97,8 +112,8 @@ class _ArbeitsagenturScreenState extends State<ArbeitsagenturScreen>
             child: TabBarView(
               controller: _tabController,
               children: [
-                _buildMindestlohnTab(),
-                _buildZeitarbeitTab(),
+                _buildMindestlohnTab(schmal: schmal),
+                _buildZeitarbeitTab(schmal: schmal),
                 _buildLeistungenTab(),
               ],
             ),
@@ -110,16 +125,18 @@ class _ArbeitsagenturScreenState extends State<ArbeitsagenturScreen>
 
   // ─── Tab 1: Mindestlohn ─────────────────────────────────────────────
 
-  Widget _buildMindestlohnTab() {
+  Widget _buildMindestlohnTab({required bool schmal}) {
     return SingleChildScrollView(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Big card with current Mindestlohn
+          // (Telefon: 16 statt 24 dp Rand und Abstand — mehr Platz für den
+          // Betrag in 32 pt.)
           Card(
             color: Colors.green.shade50,
             child: Padding(
-              padding: const EdgeInsets.all(24),
+              padding: EdgeInsets.all(schmal ? 16 : 24),
               child: Row(
                 children: [
                   Container(
@@ -130,7 +147,7 @@ class _ArbeitsagenturScreenState extends State<ArbeitsagenturScreen>
                     ),
                     child: Icon(Icons.euro, size: 48, color: Colors.green.shade700),
                   ),
-                  const SizedBox(width: 24),
+                  SizedBox(width: schmal ? 16 : 24),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -167,39 +184,29 @@ class _ArbeitsagenturScreenState extends State<ArbeitsagenturScreen>
           const SizedBox(height: 16),
 
           // Info cards row
-          Row(
-            children: [
-              Expanded(
-                child: _infoCard(
-                  icon: Icons.calendar_month,
-                  title: tr('Monatslohn (Vollzeit)', 'Salariu lunar (normă întreagă)'),
-                  value: tr('~2.411 € brutto', '~2.411 € brut'),
-                  subtitle: tr('40 Std./Woche × 13,90 €', '40 ore/săpt. × 13,90 €'),
-                  color: Colors.blue,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _infoCard(
-                  icon: Icons.money_off,
-                  title: tr('Minijob-Grenze', 'Plafon minijob'),
-                  value: tr('603,00 € / Monat', '603,00 € / lună'),
-                  subtitle: tr('Angepasst an Mindestlohn', 'Ajustat la salariul minim'),
-                  color: Colors.orange,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _infoCard(
-                  icon: Icons.people,
-                  title: tr('Profitieren', 'Beneficiari'),
-                  value: tr('> 6 Mio. Menschen', '> 6 mil. persoane'),
-                  subtitle: tr('+190 € brutto/Monat', '+190 € brut/lună'),
-                  color: Colors.purple,
-                ),
-              ),
-            ],
-          ),
+          _kartenReihe(schmal: schmal, karten: [
+            _infoCard(
+              icon: Icons.calendar_month,
+              title: tr('Monatslohn (Vollzeit)', 'Salariu lunar (normă întreagă)'),
+              value: tr('~2.411 € brutto', '~2.411 € brut'),
+              subtitle: tr('40 Std./Woche × 13,90 €', '40 ore/săpt. × 13,90 €'),
+              color: Colors.blue,
+            ),
+            _infoCard(
+              icon: Icons.money_off,
+              title: tr('Minijob-Grenze', 'Plafon minijob'),
+              value: tr('603,00 € / Monat', '603,00 € / lună'),
+              subtitle: tr('Angepasst an Mindestlohn', 'Ajustat la salariul minim'),
+              color: Colors.orange,
+            ),
+            _infoCard(
+              icon: Icons.people,
+              title: tr('Profitieren', 'Beneficiari'),
+              value: tr('> 6 Mio. Menschen', '> 6 mil. persoane'),
+              subtitle: tr('+190 € brutto/Monat', '+190 € brut/lună'),
+              color: Colors.purple,
+            ),
+          ]),
           const SizedBox(height: 16),
 
           // Mindestlohn history table
@@ -216,21 +223,31 @@ class _ArbeitsagenturScreenState extends State<ArbeitsagenturScreen>
                   const SizedBox(height: 12),
                   Table(
                     border: TableBorder.all(color: Colors.grey.shade300),
-                    columnWidths: const {
-                      0: FlexColumnWidth(2),
-                      1: FlexColumnWidth(2),
-                      2: FlexColumnWidth(1.5),
-                    },
+                    // Telefon: Spalten nie schmaler als ihr längstes Wort
+                    // (IntrinsicColumnWidth schrumpft nur bis dahin), dazu
+                    // 6 statt 10 dp Zellrand — sonst zerriss es auf 320 dp
+                    // „Stundenlohn“ und „01.01.2027“. Breit wie bisher.
+                    columnWidths: schmal
+                        ? const {
+                            0: IntrinsicColumnWidth(flex: 2),
+                            1: IntrinsicColumnWidth(flex: 2),
+                            2: IntrinsicColumnWidth(flex: 1.5),
+                          }
+                        : const {
+                            0: FlexColumnWidth(2),
+                            1: FlexColumnWidth(2),
+                            2: FlexColumnWidth(1.5),
+                          },
                     children: [
-                      _tableHeaderRow([tr('Zeitraum', 'Perioadă'), tr('Stundenlohn', 'Salariu orar'), tr('Erhöhung', 'Creștere')]),
-                      _tableRow([tr('Ab 01.01.2027', 'Din 01.01.2027'), '14,60 €', '+0,70 €'], highlight: true),
-                      _tableRow([tr('Ab 01.01.2026', 'Din 01.01.2026'), '13,90 €', '+0,78 €'], highlight: true, current: true),
-                      _tableRow([tr('Ab 01.01.2025', 'Din 01.01.2025'), '13,12 €', '+0,71 €']),
-                      _tableRow([tr('Ab 01.01.2024', 'Din 01.01.2024'), '12,41 €', '+0,41 €']),
-                      _tableRow([tr('Ab 01.01.2023', 'Din 01.01.2023'), '12,00 €', '+1,82 €']),
-                      _tableRow([tr('Ab 01.10.2022', 'Din 01.10.2022'), '12,00 €', '+1,82 €']),
-                      _tableRow([tr('Ab 01.07.2022', 'Din 01.07.2022'), '10,45 €', '+0,27 €']),
-                      _tableRow([tr('Ab 01.01.2022', 'Din 01.01.2022'), '9,82 €', '+0,22 €']),
+                      _tableHeaderRow([tr('Zeitraum', 'Perioadă'), tr('Stundenlohn', 'Salariu orar'), tr('Erhöhung', 'Creștere')], schmal: schmal),
+                      _tableRow([tr('Ab 01.01.2027', 'Din 01.01.2027'), '14,60 €', '+0,70 €'], highlight: true, schmal: schmal),
+                      _tableRow([tr('Ab 01.01.2026', 'Din 01.01.2026'), '13,90 €', '+0,78 €'], highlight: true, current: true, schmal: schmal),
+                      _tableRow([tr('Ab 01.01.2025', 'Din 01.01.2025'), '13,12 €', '+0,71 €'], schmal: schmal),
+                      _tableRow([tr('Ab 01.01.2024', 'Din 01.01.2024'), '12,41 €', '+0,41 €'], schmal: schmal),
+                      _tableRow([tr('Ab 01.01.2023', 'Din 01.01.2023'), '12,00 €', '+1,82 €'], schmal: schmal),
+                      _tableRow([tr('Ab 01.10.2022', 'Din 01.10.2022'), '12,00 €', '+1,82 €'], schmal: schmal),
+                      _tableRow([tr('Ab 01.07.2022', 'Din 01.07.2022'), '10,45 €', '+0,27 €'], schmal: schmal),
+                      _tableRow([tr('Ab 01.01.2022', 'Din 01.01.2022'), '9,82 €', '+0,22 €'], schmal: schmal),
                     ],
                   ),
                 ],
@@ -259,7 +276,7 @@ class _ArbeitsagenturScreenState extends State<ArbeitsagenturScreen>
 
   // ─── Tab 2: Zeitarbeit Tarife ───────────────────────────────────────
 
-  Widget _buildZeitarbeitTab() {
+  Widget _buildZeitarbeitTab({required bool schmal}) {
     return SingleChildScrollView(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -304,39 +321,29 @@ class _ArbeitsagenturScreenState extends State<ArbeitsagenturScreen>
           const SizedBox(height: 16),
 
           // Increase steps
-          Row(
-            children: [
-              Expanded(
-                child: _infoCard(
-                  icon: Icons.calendar_today,
-                  title: tr('Ab 01.01.2026', 'Din 01.01.2026'),
-                  value: '+2,99 %',
-                  subtitle: tr('1. Stufe', 'Etapa 1'),
-                  color: Colors.green,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _infoCard(
-                  icon: Icons.calendar_today,
-                  title: tr('Ab 01.09.2026', 'Din 01.09.2026'),
-                  value: '+2,50 %',
-                  subtitle: tr('2. Stufe', 'Etapa 2'),
-                  color: Colors.orange,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _infoCard(
-                  icon: Icons.calendar_today,
-                  title: tr('Ab 01.04.2027', 'Din 01.04.2027'),
-                  value: '+3,50 %',
-                  subtitle: tr('3. Stufe', 'Etapa 3'),
-                  color: Colors.blue,
-                ),
-              ),
-            ],
-          ),
+          _kartenReihe(schmal: schmal, karten: [
+            _infoCard(
+              icon: Icons.calendar_today,
+              title: tr('Ab 01.01.2026', 'Din 01.01.2026'),
+              value: '+2,99 %',
+              subtitle: tr('1. Stufe', 'Etapa 1'),
+              color: Colors.green,
+            ),
+            _infoCard(
+              icon: Icons.calendar_today,
+              title: tr('Ab 01.09.2026', 'Din 01.09.2026'),
+              value: '+2,50 %',
+              subtitle: tr('2. Stufe', 'Etapa 2'),
+              color: Colors.orange,
+            ),
+            _infoCard(
+              icon: Icons.calendar_today,
+              title: tr('Ab 01.04.2027', 'Din 01.04.2027'),
+              value: '+3,50 %',
+              subtitle: tr('3. Stufe', 'Etapa 3'),
+              color: Colors.blue,
+            ),
+          ]),
           const SizedBox(height: 16),
 
           // Entgelttabelle ab 01.01.2026
@@ -347,50 +354,52 @@ class _ArbeitsagenturScreenState extends State<ArbeitsagenturScreen>
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
+                    // Telefon: Titel und „Gültig bis“ passen nicht in eine
+                    // Zeile (lief um 104 dp hinaus) — der Hinweis rückt
+                    // unter den Titel.
+                    crossAxisAlignment: schmal ? CrossAxisAlignment.start : CrossAxisAlignment.center,
                     children: [
                       Icon(Icons.table_chart, color: Colors.indigo.shade700),
                       const SizedBox(width: 8),
-                      Text(
-                        tr('Entgelttabelle ab 01.01.2026', 'Grila salarială din 01.01.2026'),
-                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                      ),
-                      const Spacer(),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: Colors.green.shade100,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          tr('Gültig bis 31.08.2026', 'Valabilă până la 31.08.2026'),
-                          style: TextStyle(fontSize: 11, color: Colors.green.shade800),
-                        ),
-                      ),
+                      if (schmal)
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _entgelttabelleTitel(),
+                              const SizedBox(height: 6),
+                              _gueltigBisHinweis(),
+                            ],
+                          ),
+                        )
+                      else ...[
+                        _entgelttabelleTitel(),
+                        const Spacer(),
+                        _gueltigBisHinweis(),
+                      ],
                     ],
                   ),
                   const SizedBox(height: 12),
-                  Table(
-                    border: TableBorder.all(color: Colors.grey.shade300),
-                    columnWidths: const {
-                      0: FlexColumnWidth(2),
-                      1: FlexColumnWidth(1.5),
-                      2: FlexColumnWidth(2),
-                      3: FlexColumnWidth(2),
-                    },
-                    children: [
-                      _tableHeaderRow([tr('Entgeltgruppe', 'Grupă salarială'), tr('Stundenlohn', 'Salariu orar'), tr('+1,5% (>9 Mon.)', '+1,5% (>9 luni)'), tr('+3,0% (>12 Mon.)', '+3,0% (>12 luni)')]),
-                      _tableRow([tr('EG 1 – Ungelernt', 'EG 1 – Necalificat'), '14,96 €', '15,18 €', '15,41 €']),
-                      _tableRow([tr('EG 2a – Angelernt (einfach)', 'EG 2a – Semicalificat (simplu)'), '15,29 €', '15,52 €', '15,75 €']),
-                      _tableRow([tr('EG 2b – Angelernt (erweitert)', 'EG 2b – Semicalificat (extins)'), '15,69 €', '15,93 €', '16,16 €']),
-                      _tableRow([tr('EG 3 – Facharbeiter', 'EG 3 – Muncitor calificat'), '16,69 €', '16,94 €', '17,19 €']),
-                      _tableRow([tr('EG 4 – Facharbeiter (qualif.)', 'EG 4 – Muncitor calificat (avansat)'), '17,65 €', '17,91 €', '18,18 €']),
-                      _tableRow([tr('EG 5 – Spezialisten', 'EG 5 – Specialist'), '19,78 €', '20,08 €', '20,37 €']),
-                      _tableRow([tr('EG 6 – Meister/Techniker', 'EG 6 – Maistru/Tehnician'), '21,97 €', '22,30 €', '22,63 €']),
-                      _tableRow([tr('EG 7 – Akademiker', 'EG 7 – Absolvent universitar'), '25,56 €', '25,94 €', '26,33 €']),
-                      _tableRow([tr('EG 8 – Akademiker (qualif.)', 'EG 8 – Absolvent universitar (avansat)'), '27,36 €', '27,77 €', '28,18 €']),
-                      _tableRow([tr('EG 9 – Akademiker (Experte)', 'EG 9 – Absolvent universitar (expert)'), '28,70 €', '29,13 €', '29,56 €']),
-                    ],
-                  ),
+                  if (schmal)
+                    // Vier Spalten ließen auf dem Telefon je ~60 dp:
+                    // „Semicalificat“ und „Salariu orar“ brachen mitten im
+                    // Wort. Schmal steht die Gruppe über voller Breite, die
+                    // drei Stundenlöhne darunter.
+                    _gruppenListe(_entgeltKopf(), _entgeltZeilen())
+                  else
+                    Table(
+                      border: TableBorder.all(color: Colors.grey.shade300),
+                      columnWidths: const {
+                        0: FlexColumnWidth(2),
+                        1: FlexColumnWidth(1.5),
+                        2: FlexColumnWidth(2),
+                        3: FlexColumnWidth(2),
+                      },
+                      children: [
+                        _tableHeaderRow(_entgeltKopf()),
+                        for (final zeile in _entgeltZeilen()) _tableRow(zeile),
+                      ],
+                    ),
                   const SizedBox(height: 8),
                   Text(
                     tr('Quelle: DGB/GVP-Tarifvertrag Zeitarbeit · Zuschläge nach Einsatzdauer: +1,5% ab 9 Mon., +3,0% ab 12 Mon.', 'Sursa: contractul colectiv DGB/GVP pentru munca temporară · Sporuri după durata misiunii: +1,5% de la 9 luni, +3,0% de la 12 luni'),
@@ -413,9 +422,11 @@ class _ArbeitsagenturScreenState extends State<ArbeitsagenturScreen>
                     children: [
                       Icon(Icons.help_outline, color: Colors.amber.shade700),
                       const SizedBox(width: 8),
-                      Text(
-                        tr('Entgeltgruppen – Einordnung', 'Grupe salariale – încadrare'),
-                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      Expanded(
+                        child: Text(
+                          tr('Entgeltgruppen – Einordnung', 'Grupe salariale – încadrare'),
+                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                        ),
                       ),
                     ],
                   ),
@@ -446,9 +457,12 @@ class _ArbeitsagenturScreenState extends State<ArbeitsagenturScreen>
                     children: [
                       Icon(Icons.add_circle_outline, color: Colors.amber.shade800),
                       const SizedBox(width: 8),
-                      Text(
-                        tr('Branchenzuschläge (zusätzlich zum Grundentgelt)', 'Sporuri de ramură (pe lângă salariul de bază)'),
-                        style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.amber.shade900),
+                      // Expanded: auf dem Telefon lief die Zeile um 41 dp hinaus.
+                      Expanded(
+                        child: Text(
+                          tr('Branchenzuschläge (zusätzlich zum Grundentgelt)', 'Sporuri de ramură (pe lângă salariul de bază)'),
+                          style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.amber.shade900),
+                        ),
                       ),
                     ],
                   ),
@@ -621,6 +635,106 @@ class _ArbeitsagenturScreenState extends State<ArbeitsagenturScreen>
 
   // ─── Helpers ────────────────────────────────────────────────────────
 
+  /// Drei Kennzahl-Karten. Breit nebeneinander wie bisher; auf dem Telefon
+  /// untereinander in voller Breite — nebeneinander blieben je ~100 dp, und
+  /// die Wörter brachen mitten durch („Monat slohn“, „Minijo b“).
+  Widget _kartenReihe({required bool schmal, required List<Widget> karten}) {
+    if (schmal) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: karten,
+      );
+    }
+    return Row(
+      children: [
+        for (var i = 0; i < karten.length; i++) ...[
+          if (i > 0) const SizedBox(width: 12),
+          Expanded(child: karten[i]),
+        ],
+      ],
+    );
+  }
+
+  Widget _entgelttabelleTitel() => Text(
+        tr('Entgelttabelle ab 01.01.2026', 'Grila salarială din 01.01.2026'),
+        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+      );
+
+  Widget _gueltigBisHinweis() => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: Colors.green.shade100,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Text(
+          tr('Gültig bis 31.08.2026', 'Valabilă până la 31.08.2026'),
+          style: TextStyle(fontSize: 11, color: Colors.green.shade800),
+        ),
+      );
+
+  List<String> _entgeltKopf() => [tr('Entgeltgruppe', 'Grupă salarială'), tr('Stundenlohn', 'Salariu orar'), tr('+1,5% (>9 Mon.)', '+1,5% (>9 luni)'), tr('+3,0% (>12 Mon.)', '+3,0% (>12 luni)')];
+
+  List<List<String>> _entgeltZeilen() => [
+        [tr('EG 1 – Ungelernt', 'EG 1 – Necalificat'), '14,96 €', '15,18 €', '15,41 €'],
+        [tr('EG 2a – Angelernt (einfach)', 'EG 2a – Semicalificat (simplu)'), '15,29 €', '15,52 €', '15,75 €'],
+        [tr('EG 2b – Angelernt (erweitert)', 'EG 2b – Semicalificat (extins)'), '15,69 €', '15,93 €', '16,16 €'],
+        [tr('EG 3 – Facharbeiter', 'EG 3 – Muncitor calificat'), '16,69 €', '16,94 €', '17,19 €'],
+        [tr('EG 4 – Facharbeiter (qualif.)', 'EG 4 – Muncitor calificat (avansat)'), '17,65 €', '17,91 €', '18,18 €'],
+        [tr('EG 5 – Spezialisten', 'EG 5 – Specialist'), '19,78 €', '20,08 €', '20,37 €'],
+        [tr('EG 6 – Meister/Techniker', 'EG 6 – Maistru/Tehnician'), '21,97 €', '22,30 €', '22,63 €'],
+        [tr('EG 7 – Akademiker', 'EG 7 – Absolvent universitar'), '25,56 €', '25,94 €', '26,33 €'],
+        [tr('EG 8 – Akademiker (qualif.)', 'EG 8 – Absolvent universitar (avansat)'), '27,36 €', '27,77 €', '28,18 €'],
+        [tr('EG 9 – Akademiker (Experte)', 'EG 9 – Absolvent universitar (expert)'), '28,70 €', '29,13 €', '29,56 €'],
+      ];
+
+  /// Telefon-Fassung einer Tabelle, deren erste Spalte lange Namen trägt:
+  /// je Zeile der Name über die volle Breite, die übrigen Werte darunter in
+  /// den Spalten der Kopfzeile. [werteFlex] teilt die Breite der Werte-
+  /// Spalten auf: die erste bekommt mehr, damit „Stundenlohn“ auch auf
+  /// 320 dp in einem Stück steht.
+  Widget _gruppenListe(List<String> kopf, List<List<String>> zeilen,
+      {List<int> werteFlex = const [4, 3, 3]}) {
+    const kopfStil = TextStyle(fontWeight: FontWeight.bold, fontSize: 13);
+    const zellStil = TextStyle(fontSize: 13);
+    Widget werte(List<String> zellen, TextStyle stil) => Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            for (var i = 0; i < zellen.length; i++) ...[
+              if (i > 0) const SizedBox(width: 8),
+              Expanded(
+                flex: i < werteFlex.length ? werteFlex[i] : 1,
+                child: Text(zellen[i], style: stil),
+              ),
+            ],
+          ],
+        );
+    Widget block(List<String> zellen, {required bool istKopf}) => Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: istKopf ? Colors.grey.shade200 : null,
+            border: istKopf ? null : Border(top: BorderSide(color: Colors.grey.shade300)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(zellen.first, style: istKopf ? kopfStil : zellStil.copyWith(fontWeight: FontWeight.w600)),
+              const SizedBox(height: 4),
+              werte(zellen.sublist(1), istKopf ? kopfStil : zellStil),
+            ],
+          ),
+        );
+    return Container(
+      decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          block(kopf, istKopf: true),
+          for (final zeile in zeilen) block(zeile, istKopf: false),
+        ],
+      ),
+    );
+  }
+
   Widget _infoCard({
     required IconData icon,
     required String title,
@@ -653,19 +767,23 @@ class _ArbeitsagenturScreenState extends State<ArbeitsagenturScreen>
     );
   }
 
-  TableRow _tableHeaderRow(List<String> cells) {
+  /// Zellrand: 10 dp, auf dem Telefon 6 dp seitlich.
+  EdgeInsets _zellRand(bool schmal) =>
+      schmal ? const EdgeInsets.symmetric(horizontal: 6, vertical: 10) : const EdgeInsets.all(10);
+
+  TableRow _tableHeaderRow(List<String> cells, {bool schmal = false}) {
     return TableRow(
       decoration: BoxDecoration(color: Colors.grey.shade200),
       children: cells
           .map((c) => Padding(
-                padding: const EdgeInsets.all(10),
+                padding: _zellRand(schmal),
                 child: Text(c, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
               ))
           .toList(),
     );
   }
 
-  TableRow _tableRow(List<String> cells, {bool highlight = false, bool current = false}) {
+  TableRow _tableRow(List<String> cells, {bool highlight = false, bool current = false, bool schmal = false}) {
     return TableRow(
       decoration: BoxDecoration(
         color: current
@@ -676,7 +794,7 @@ class _ArbeitsagenturScreenState extends State<ArbeitsagenturScreen>
       ),
       children: cells
           .map((c) => Padding(
-                padding: const EdgeInsets.all(10),
+                padding: _zellRand(schmal),
                 child: Text(
                   c,
                   style: TextStyle(
@@ -769,18 +887,33 @@ class _ArbeitsagenturScreenState extends State<ArbeitsagenturScreen>
   }
 
   Widget _kvRow(String key, String value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 6),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 180,
-            child: Text(key, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.grey.shade700)),
+    // Neben der 180-dp-Spalte blieben auf dem Telefon ~120 dp für den Wert,
+    // und er brach mitten im Wort („Grun dsicherungsgeld“). Ist die Zeile
+    // schmaler als 420 dp, steht die Bezeichnung über dem Wert.
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final schluessel = Text(key, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.grey.shade700));
+        final wert = Text(value, style: const TextStyle(fontSize: 13));
+        if (constraints.maxWidth < 420) {
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [schluessel, const SizedBox(height: 2), wert],
+            ),
+          );
+        }
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 6),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SizedBox(width: 180, child: schluessel),
+              Expanded(child: wert),
+            ],
           ),
-          Expanded(child: Text(value, style: const TextStyle(fontSize: 13))),
-        ],
-      ),
+        );
+      },
     );
   }
 }
