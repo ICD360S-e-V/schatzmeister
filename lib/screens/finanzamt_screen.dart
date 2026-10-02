@@ -4,7 +4,15 @@ import 'package:file_picker/file_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../services/api_service.dart';
+import '../services/language_service.dart';
 import '../widgets/file_viewer_dialog.dart';
+
+/// Rumänische Mengenangabe: 1 document, 5 documente, ab 20 mit „de“ (20 de documente).
+String _roAnzahl(int n, String eins, String mehrere) {
+  if (n == 1) return '1 $eins';
+  final rest = n % 100;
+  return (n != 0 && rest == 0) || rest >= 20 ? '$n de $mehrere' : '$n $mehrere';
+}
 
 class FinanzamtScreen extends StatefulWidget {
   final ApiService apiService;
@@ -95,7 +103,7 @@ class _FinanzamtScreenState extends State<FinanzamtScreen> {
     final result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
       allowedExtensions: ['pdf', 'png', 'jpg', 'jpeg', 'doc', 'docx', 'tiff', 'bmp'],
-      dialogTitle: 'Dokument auswählen',
+      dialogTitle: tr('Dokument auswählen', 'Selectați documentul'),
     );
 
     if (result == null || result.files.isEmpty) return;
@@ -118,19 +126,22 @@ class _FinanzamtScreenState extends State<FinanzamtScreen> {
       if (mounted) {
         if (uploadResult['success'] == true) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Dokument hochgeladen'), backgroundColor: Colors.green),
+            SnackBar(content: Text(tr('Dokument hochgeladen', 'Document încărcat')), backgroundColor: Colors.green),
           );
           _loadDokumente();
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(uploadResult['message'] ?? 'Upload fehlgeschlagen'), backgroundColor: Colors.red),
+            SnackBar(
+              content: Text(uploadResult['message'] ?? tr('Upload fehlgeschlagen', 'Încărcarea a eșuat')),
+              backgroundColor: Colors.red,
+            ),
           );
         }
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Fehler: $e'), backgroundColor: Colors.red),
+          SnackBar(content: Text(tr('Fehler: $e', 'Eroare: $e')), backgroundColor: Colors.red),
         );
       }
     } finally {
@@ -143,11 +154,11 @@ class _FinanzamtScreenState extends State<FinanzamtScreen> {
     String selectedKategorie = 'gemeinnuetzigkeit';
 
     final kategorien = {
-      'gemeinnuetzigkeit': 'Gemeinnützigkeit',
-      'steuerbescheid': 'Steuerbescheid',
-      'freistellungsbescheid': 'Freistellungsbescheid',
-      'korrespondenz': 'Korrespondenz',
-      'sonstiges': 'Sonstiges',
+      'gemeinnuetzigkeit': tr('Gemeinnützigkeit', 'Utilitate publică (Gemeinnützigkeit)'),
+      'steuerbescheid': tr('Steuerbescheid', 'Decizie de impunere (Steuerbescheid)'),
+      'freistellungsbescheid': tr('Freistellungsbescheid', 'Decizie de scutire (Freistellungsbescheid)'),
+      'korrespondenz': tr('Korrespondenz', 'Corespondență'),
+      'sonstiges': tr('Sonstiges', 'Altele'),
     };
 
     return showDialog<Map<String, String>>(
@@ -158,7 +169,7 @@ class _FinanzamtScreenState extends State<FinanzamtScreen> {
             children: [
               Icon(Icons.upload_file, color: Colors.teal.shade700),
               const SizedBox(width: 8),
-              const Expanded(child: Text('Dokument hochladen')),
+              Expanded(child: Text(tr('Dokument hochladen', 'Încarcă document'))),
             ],
           ),
           content: SizedBox(
@@ -187,7 +198,7 @@ class _FinanzamtScreenState extends State<FinanzamtScreen> {
                 ),
                 const SizedBox(height: 16),
                 // Category dropdown
-                const Text('Kategorie', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                Text(tr('Kategorie', 'Categorie'), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
                 const SizedBox(height: 6),
                 DropdownButtonFormField<String>(
                   initialValue: selectedKategorie,
@@ -205,14 +216,14 @@ class _FinanzamtScreenState extends State<FinanzamtScreen> {
                 ),
                 const SizedBox(height: 16),
                 // Description
-                const Text('Beschreibung (optional)', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                Text(tr('Beschreibung (optional)', 'Descriere (opțional)'), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
                 const SizedBox(height: 6),
                 TextField(
                   controller: beschreibungController,
                   maxLines: 2,
-                  decoration: const InputDecoration(
-                    border: OutlineInputBorder(),
-                    hintText: 'z.B. Freistellungsbescheid vom 15.01.2026',
+                  decoration: InputDecoration(
+                    border: const OutlineInputBorder(),
+                    hintText: tr('z.B. Freistellungsbescheid vom 15.01.2026', 'de ex. Freistellungsbescheid din 15.01.2026'),
                     isDense: true,
                   ),
                 ),
@@ -222,11 +233,11 @@ class _FinanzamtScreenState extends State<FinanzamtScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: const Text('Abbrechen'),
+              child: Text(tr('Abbrechen', 'Anulare')),
             ),
             ElevatedButton.icon(
               icon: const Icon(Icons.upload, size: 18),
-              label: const Text('Hochladen'),
+              label: Text(tr('Hochladen', 'Încarcă')),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.teal.shade600,
                 foregroundColor: Colors.white,
@@ -246,14 +257,15 @@ class _FinanzamtScreenState extends State<FinanzamtScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Dokument löschen?'),
-        content: Text('Möchten Sie "${doc['original_name']}" wirklich löschen?'),
+        title: Text(tr('Dokument löschen?', 'Ștergeți documentul?')),
+        content: Text(tr('Möchten Sie "${doc['original_name']}" wirklich löschen?',
+            'Sigur doriți să ștergeți „${doc['original_name']}”?')),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Abbrechen')),
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(tr('Abbrechen', 'Anulare'))),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Löschen'),
+            child: Text(tr('Löschen', 'Șterge')),
           ),
         ],
       ),
@@ -265,12 +277,15 @@ class _FinanzamtScreenState extends State<FinanzamtScreen> {
     if (mounted) {
       if (result['success'] == true) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Dokument gelöscht'), backgroundColor: Colors.green),
+          SnackBar(content: Text(tr('Dokument gelöscht', 'Document șters')), backgroundColor: Colors.green),
         );
         _loadDokumente();
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(result['message'] ?? 'Löschen fehlgeschlagen'), backgroundColor: Colors.red),
+          SnackBar(
+            content: Text(result['message'] ?? tr('Löschen fehlgeschlagen', 'Ștergerea a eșuat')),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     }
@@ -291,7 +306,7 @@ class _FinanzamtScreenState extends State<FinanzamtScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Fehler: $e'), backgroundColor: Colors.red),
+          SnackBar(content: Text(tr('Fehler: $e', 'Eroare: $e')), backgroundColor: Colors.red),
         );
       }
     }
@@ -310,14 +325,14 @@ class _FinanzamtScreenState extends State<FinanzamtScreen> {
               IconButton(
                 icon: const Icon(Icons.arrow_back),
                 onPressed: widget.onBack,
-                tooltip: 'Zurück',
+                tooltip: tr('Zurück', 'Înapoi'),
               ),
               const SizedBox(width: 8),
               Icon(Icons.receipt_long, size: 32, color: Colors.teal.shade700),
               const SizedBox(width: 12),
-              const Text(
-                'Finanzamt',
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+              Text(
+                tr('Finanzamt', 'Finanzamt (fisc)'),
+                style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
               ),
             ],
           ),
@@ -334,7 +349,7 @@ class _FinanzamtScreenState extends State<FinanzamtScreen> {
                             Icon(Icons.receipt_long, size: 48, color: Colors.grey.shade300),
                             const SizedBox(height: 12),
                             Text(
-                              'Keine Finanzamt-Daten vorhanden',
+                              tr('Keine Finanzamt-Daten vorhanden', 'Nu există date despre Finanzamt'),
                               style: TextStyle(color: Colors.grey.shade500, fontSize: 16),
                             ),
                           ],
@@ -411,20 +426,20 @@ class _FinanzamtScreenState extends State<FinanzamtScreen> {
                         ),
                         const Divider(height: 28),
                         // Address & Contact
-                        _buildInfoRow(Icons.location_on, 'Adresse', '${d['strasse']} ${d['hausnummer']}, ${d['plz']} ${d['ort']}'),
+                        _buildInfoRow(Icons.location_on, tr('Adresse', 'Adresă'), '${d['strasse']} ${d['hausnummer']}, ${d['plz']} ${d['ort']}'),
                         const SizedBox(height: 12),
                         _buildInfoRow(Icons.phone, 'Telefon', d['telefon'] ?? '-'),
                         const SizedBox(height: 12),
                         _buildInfoRow(Icons.fax, 'Fax', d['fax'] ?? '-'),
                         const SizedBox(height: 12),
-                        _buildInfoRow(Icons.email, 'E-Mail', d['email'] ?? '-'),
+                        _buildInfoRow(Icons.email, tr('E-Mail', 'E-mail'), d['email'] ?? '-'),
                         if (oeffnungszeiten != null) ...[
                           const SizedBox(height: 12),
-                          _buildInfoRow(Icons.access_time, 'Öffnungszeiten', oeffnungszeiten),
+                          _buildInfoRow(Icons.access_time, tr('Öffnungszeiten', 'Program'), oeffnungszeiten),
                         ],
                         if (serviceCenter != null) ...[
                           const SizedBox(height: 12),
-                          _buildInfoRow(Icons.support_agent, 'Service-Center', serviceCenter),
+                          _buildInfoRow(Icons.support_agent, tr('Service-Center', 'Centru de servicii'), serviceCenter),
                         ],
                         const Spacer(),
                         // Action buttons
@@ -434,7 +449,7 @@ class _FinanzamtScreenState extends State<FinanzamtScreen> {
                               Expanded(
                                 child: OutlinedButton.icon(
                                   icon: const Icon(Icons.open_in_new, size: 16),
-                                  label: const Text('Website öffnen'),
+                                  label: Text(tr('Website öffnen', 'Deschide site-ul')),
                                   onPressed: () => _openUrl(d['website']),
                                 ),
                               ),
@@ -443,7 +458,7 @@ class _FinanzamtScreenState extends State<FinanzamtScreen> {
                               Expanded(
                                 child: OutlinedButton.icon(
                                   icon: const Icon(Icons.email, size: 16),
-                                  label: const Text('E-Mail senden'),
+                                  label: Text(tr('E-Mail senden', 'Trimite e-mail')),
                                   onPressed: () => _openUrl('mailto:${d['email']}'),
                                 ),
                               ),
@@ -500,13 +515,13 @@ class _FinanzamtScreenState extends State<FinanzamtScreen> {
                       children: [
                         Icon(Icons.tag, color: Colors.teal.shade700, size: 28),
                         const SizedBox(height: 8),
-                        const Text(
-                          'Steuernummer',
-                          style: TextStyle(fontSize: 13, color: Colors.grey),
+                        Text(
+                          tr('Steuernummer', 'Număr fiscal (Steuernummer)'),
+                          style: const TextStyle(fontSize: 13, color: Colors.grey),
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          steuernummer ?? '(wird ergänzt)',
+                          steuernummer ?? tr('(wird ergänzt)', '(se va completa)'),
                           style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
@@ -536,13 +551,17 @@ class _FinanzamtScreenState extends State<FinanzamtScreen> {
                           size: 28,
                         ),
                         const SizedBox(height: 8),
-                        const Text(
-                          'Gemeinnützigkeit',
-                          style: TextStyle(fontSize: 13, color: Colors.grey),
+                        Text(
+                          tr('Gemeinnützigkeit', 'Utilitate publică (Gemeinnützigkeit)'),
+                          style: const TextStyle(fontSize: 13, color: Colors.grey),
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          gemeinnuetzigkeit ?? '(wird ergänzt)',
+                          // 'anerkannt' ist der Wert aus den Notizen, auf den oben
+                          // auch die Farbe prüft — nur die Anzeige wird übersetzt.
+                          gemeinnuetzigkeit == 'anerkannt'
+                              ? tr('anerkannt', 'recunoscută')
+                              : gemeinnuetzigkeit ?? tr('(wird ergänzt)', '(se va completa)'),
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
@@ -566,13 +585,13 @@ class _FinanzamtScreenState extends State<FinanzamtScreen> {
                       children: [
                         Icon(Icons.person, color: Colors.blue.shade700, size: 28),
                         const SizedBox(height: 8),
-                        const Text(
-                          'Zuständig für Dosar',
-                          style: TextStyle(fontSize: 13, color: Colors.grey),
+                        Text(
+                          tr('Zuständig für Dosar', 'Responsabil de dosar'),
+                          style: const TextStyle(fontSize: 13, color: Colors.grey),
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          _zustaendigerName ?? '(wird geladen...)',
+                          _zustaendigerName ?? tr('(wird geladen...)', '(se încarcă...)'),
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
@@ -581,7 +600,8 @@ class _FinanzamtScreenState extends State<FinanzamtScreen> {
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          'Vorsitzer${_zustaendigerNummer != null ? ' ($_zustaendigerNummer)' : ''}',
+                          tr('Vorsitzer${_zustaendigerNummer != null ? ' ($_zustaendigerNummer)' : ''}',
+                              'Președinte${_zustaendigerNummer != null ? ' ($_zustaendigerNummer)' : ''}'),
                           style: TextStyle(fontSize: 12, color: Colors.blue.shade400),
                         ),
                       ],
@@ -603,7 +623,8 @@ class _FinanzamtScreenState extends State<FinanzamtScreen> {
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
-                            'Zuständiges Finanzamt für ICD360S e.V. im Landkreis Neu-Ulm, Bayern.',
+                            tr('Zuständiges Finanzamt für ICD360S e.V. im Landkreis Neu-Ulm, Bayern.',
+                                'Finanzamt competent pentru ICD360S e.V. în districtul Neu-Ulm, Bavaria.'),
                             style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
                           ),
                         ),
@@ -636,17 +657,18 @@ class _FinanzamtScreenState extends State<FinanzamtScreen> {
                         child: const Icon(Icons.folder_open, color: Colors.amber, size: 24),
                       ),
                       const SizedBox(width: 12),
-                      const Expanded(
+                      Expanded(
                         child: Text(
-                          'Dokumente',
-                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                          tr('Dokumente', 'Documente'),
+                          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                         ),
                       ),
                     ],
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    '${_dokumente.length} Dokument${_dokumente.length == 1 ? '' : 'e'}',
+                    tr('${_dokumente.length} Dokument${_dokumente.length == 1 ? '' : 'e'}',
+                        _roAnzahl(_dokumente.length, 'document', 'documente')),
                     style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
                   ),
                   const Divider(height: 24),
@@ -657,7 +679,9 @@ class _FinanzamtScreenState extends State<FinanzamtScreen> {
                       icon: _uploading
                           ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                           : const Icon(Icons.upload_file, size: 18),
-                      label: Text(_uploading ? 'Wird hochgeladen...' : 'Dokument hochladen'),
+                      label: Text(_uploading
+                          ? tr('Wird hochgeladen...', 'Se încarcă...')
+                          : tr('Dokument hochladen', 'Încarcă document')),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.teal.shade600,
                         foregroundColor: Colors.white,
@@ -679,7 +703,7 @@ class _FinanzamtScreenState extends State<FinanzamtScreen> {
                                     Icon(Icons.folder_open, size: 40, color: Colors.grey.shade300),
                                     const SizedBox(height: 8),
                                     Text(
-                                      'Noch keine Dokumente\nhochgeladen',
+                                      tr('Noch keine Dokumente\nhochgeladen', 'Niciun document\nîncărcat încă'),
                                       style: TextStyle(color: Colors.grey.shade400, fontSize: 13),
                                       textAlign: TextAlign.center,
                                     ),
@@ -702,7 +726,7 @@ class _FinanzamtScreenState extends State<FinanzamtScreen> {
   }
 
   Widget _buildDocItem(Map<String, dynamic> doc) {
-    final name = doc['original_name'] ?? 'Unbekannt';
+    final name = doc['original_name'] ?? tr('Unbekannt', 'Necunoscut');
     final kategorie = doc['kategorie'] ?? 'sonstiges';
     final beschreibung = doc['beschreibung'] ?? '';
     final createdAt = doc['created_at'] ?? '';
@@ -734,11 +758,11 @@ class _FinanzamtScreenState extends State<FinanzamtScreen> {
     }
 
     final kategorieLabels = {
-      'gemeinnuetzigkeit': 'Gemeinnützigkeit',
-      'steuerbescheid': 'Steuerbescheid',
-      'freistellungsbescheid': 'Freistellung',
-      'korrespondenz': 'Korrespondenz',
-      'sonstiges': 'Sonstiges',
+      'gemeinnuetzigkeit': tr('Gemeinnützigkeit', 'Utilitate publică'),
+      'steuerbescheid': tr('Steuerbescheid', 'Decizie de impunere'),
+      'freistellungsbescheid': tr('Freistellung', 'Scutire'),
+      'korrespondenz': tr('Korrespondenz', 'Corespondență'),
+      'sonstiges': tr('Sonstiges', 'Altele'),
     };
 
     return Container(

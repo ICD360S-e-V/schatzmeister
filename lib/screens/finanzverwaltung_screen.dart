@@ -7,9 +7,17 @@ import 'package:printing/printing.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:open_filex/open_filex.dart';
 import '../services/api_service.dart';
+import '../services/language_service.dart';
 import '../services/logger_service.dart';
 
 final _log = LoggerService();
+
+/// Rumänische Mengenangabe: 1 lună, 5 luni, ab 20 mit „de“ (20 de luni).
+String _roAnzahl(int n, String eins, String mehrere) {
+  if (n == 1) return '1 $eins';
+  final rest = n % 100;
+  return (n != 0 && rest == 0) || rest >= 20 ? '$n de $mehrere' : '$n $mehrere';
+}
 
 class FinanzverwaltungScreen extends StatefulWidget {
   const FinanzverwaltungScreen({super.key});
@@ -56,9 +64,12 @@ class _FinanzverwaltungScreenState extends State<FinanzverwaltungScreen> with Si
   String _vereinFreistellungZeitraum = '';
   String _vereinZweck = '';
 
-  static const _monatNamen = [
-    'Januar', 'Februar', 'März', 'April', 'Mai', 'Juni',
-    'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember',
+  // Getter statt const-Liste: die Namen folgen der gewählten Sprache.
+  static List<String> get _monatNamen => [
+    tr('Januar', 'Ianuarie'), tr('Februar', 'Februarie'), tr('März', 'Martie'),
+    tr('April', 'Aprilie'), tr('Mai', 'Mai'), tr('Juni', 'Iunie'),
+    tr('Juli', 'Iulie'), tr('August', 'August'), tr('September', 'Septembrie'),
+    tr('Oktober', 'Octombrie'), tr('November', 'Noiembrie'), tr('Dezember', 'Decembrie'),
   ];
 
   @override
@@ -191,10 +202,10 @@ class _FinanzverwaltungScreenState extends State<FinanzverwaltungScreen> with Si
               // Telefon der Schatzmeisterin (393 dp): 24-pt-Schrift plus
               // Symbol und 2x24 dp Rand ergaben 79 dp Ueberlauf — sichtbar
               // als gelb-schwarzer Balken am rechten Rand.
-              const Expanded(
+              Expanded(
                 child: Text(
-                  'Finanzverwaltung',
-                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                  tr('Finanzverwaltung', 'Administrare financiară'),
+                  style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
@@ -208,10 +219,11 @@ class _FinanzverwaltungScreenState extends State<FinanzverwaltungScreen> with Si
             labelColor: Colors.green.shade700,
             unselectedLabelColor: Colors.grey,
             indicatorColor: Colors.green.shade700,
-            tabs: const [
-              Tab(icon: Icon(Icons.payment), text: 'Beitragszahlung'),
-              Tab(icon: Icon(Icons.account_balance), text: 'Banktransaktionen'),
-              Tab(icon: Icon(Icons.volunteer_activism), text: 'Spenden'),
+            // Rumänisch bewusst kurz: drei Reiter teilen sich 393 dp.
+            tabs: [
+              Tab(icon: const Icon(Icons.payment), text: tr('Beitragszahlung', 'Contribuții')),
+              Tab(icon: const Icon(Icons.account_balance), text: tr('Banktransaktionen', 'Tranzacții')),
+              Tab(icon: const Icon(Icons.volunteer_activism), text: tr('Spenden', 'Donații')),
             ],
           ),
         ),
@@ -243,7 +255,7 @@ class _FinanzverwaltungScreenState extends State<FinanzverwaltungScreen> with Si
           child: _beitragsLoading
               ? const Center(child: CircularProgressIndicator())
               : _beitragsListe.isEmpty
-                  ? const Center(child: Text('Keine Mitglieder gefunden'))
+                  ? Center(child: Text(tr('Keine Mitglieder gefunden', 'Nu s-au găsit membri')))
                   : _buildBeitragsTable(),
         ),
       ],
@@ -274,13 +286,14 @@ class _FinanzverwaltungScreenState extends State<FinanzverwaltungScreen> with Si
               // nimmt den freien Platz ohnehin ein.
               Expanded(
                 child: Text(
-                  'Beitrag: ${_beitragProMonat.toStringAsFixed(0)} €/Monat • ab August 2025 • $_anzahlMonate Monate',
+                  tr('Beitrag: ${_beitragProMonat.toStringAsFixed(0)} €/Monat • ab August 2025 • $_anzahlMonate Monate',
+                      'Contribuție: ${_beitragProMonat.toStringAsFixed(0)} €/lună • din august 2025 • ${_roAnzahl(_anzahlMonate, 'lună', 'luni')}'),
                   style: TextStyle(fontSize: 14, color: Colors.grey.shade700, fontWeight: FontWeight.w500),
                 ),
               ),
               IconButton(
                 icon: const Icon(Icons.refresh),
-                tooltip: 'Aktualisieren',
+                tooltip: tr('Aktualisieren', 'Actualizează'),
                 onPressed: _loadBeitragszahlungen,
               ),
             ],
@@ -291,10 +304,10 @@ class _FinanzverwaltungScreenState extends State<FinanzverwaltungScreen> with Si
             runSpacing: 8,
             alignment: WrapAlignment.center,
             children: [
-              _statChip('Mitglieder', '$gesamtMitglieder', Colors.blue),
-              _statChip('Mit Schulden', '$mitSchulden', Colors.red),
-              _statChip('Offene Schulden', '${totalSchulden.toStringAsFixed(2)} €', Colors.red.shade800),
-              _statChip('Bezahlt', '${totalBezahlt.toStringAsFixed(2)} €', Colors.green),
+              _statChip(tr('Mitglieder', 'Membri'), '$gesamtMitglieder', Colors.blue),
+              _statChip(tr('Mit Schulden', 'Cu datorii'), '$mitSchulden', Colors.red),
+              _statChip(tr('Offene Schulden', 'Datorii restante'), '${totalSchulden.toStringAsFixed(2)} €', Colors.red.shade800),
+              _statChip(tr('Bezahlt', 'Plătit'), '${totalBezahlt.toStringAsFixed(2)} €', Colors.green),
             ],
           ),
         ],
@@ -382,7 +395,7 @@ class _FinanzverwaltungScreenState extends State<FinanzverwaltungScreen> with Si
             ),
             title: Text(mn, style: const TextStyle(fontWeight: FontWeight.w600)),
             subtitle: Text(
-              '$bezahltMonate/$anzahlMonate Monate bezahlt',
+              tr('$bezahltMonate/$anzahlMonate Monate bezahlt', '$bezahltMonate/$anzahlMonate luni plătite'),
               style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
             ),
             trailing: Column(
@@ -400,7 +413,9 @@ class _FinanzverwaltungScreenState extends State<FinanzverwaltungScreen> with Si
                     style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Colors.green.shade700),
                   ),
                 Text(
-                  hatSchulden ? '$offenMonate Monate offen' : 'Alles bezahlt',
+                  hatSchulden
+                      ? tr('$offenMonate Monate offen', _roAnzahl(offenMonate, 'lună restantă', 'luni restante'))
+                      : tr('Alles bezahlt', 'Totul plătit'),
                   style: TextStyle(fontSize: 11, color: hatSchulden ? Colors.red : Colors.green),
                 ),
               ],
@@ -464,7 +479,9 @@ class _FinanzverwaltungScreenState extends State<FinanzverwaltungScreen> with Si
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
-                      isBezahlt ? (status == 'befreit' ? 'Befreit' : 'Bezahlt') : 'Offen',
+                      isBezahlt
+                          ? (status == 'befreit' ? tr('Befreit', 'Scutit') : tr('Bezahlt', 'Plătit'))
+                          : tr('Offen', 'Neplătit'),
                       style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
@@ -476,7 +493,7 @@ class _FinanzverwaltungScreenState extends State<FinanzverwaltungScreen> with Si
                     const SizedBox(width: 4),
                     IconButton(
                       icon: const Icon(Icons.check, size: 18),
-                      tooltip: 'Als bezahlt markieren',
+                      tooltip: tr('Als bezahlt markieren', 'Marchează ca plătit'),
                       color: Colors.green,
                       onPressed: () => _markAsBezahlt(mn, monatNum, jahrNum, betrag),
                     ),
@@ -505,7 +522,8 @@ class _FinanzverwaltungScreenState extends State<FinanzverwaltungScreen> with Si
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('${_monatNamen[monat - 1]} $jahr als bezahlt markiert'),
+              content: Text(tr('${_monatNamen[monat - 1]} $jahr als bezahlt markiert',
+                  '${_monatNamen[monat - 1]} $jahr marcat ca plătit')),
               backgroundColor: Colors.green,
             ),
           );
@@ -535,7 +553,7 @@ class _FinanzverwaltungScreenState extends State<FinanzverwaltungScreen> with Si
                         children: [
                           Icon(Icons.account_balance, size: 64, color: Colors.grey.shade300),
                           const SizedBox(height: 16),
-                          Text('Keine Transaktionen', style: TextStyle(color: Colors.grey.shade500)),
+                          Text(tr('Keine Transaktionen', 'Nicio tranzacție'), style: TextStyle(color: Colors.grey.shade500)),
                         ],
                       ),
                     )
@@ -572,9 +590,9 @@ class _FinanzverwaltungScreenState extends State<FinanzverwaltungScreen> with Si
               const SizedBox(width: 16),
               DropdownButton<int?>(
                 value: _transaktionenMonat,
-                hint: const Text('Alle Monate'),
+                hint: Text(tr('Alle Monate', 'Toate lunile')),
                 items: [
-                  const DropdownMenuItem<int?>(value: null, child: Text('Alle Monate')),
+                  DropdownMenuItem<int?>(value: null, child: Text(tr('Alle Monate', 'Toate lunile'))),
                   for (int i = 1; i <= 12; i++)
                     DropdownMenuItem(value: i, child: Text(_monatNamen[i - 1])),
                 ],
@@ -586,11 +604,11 @@ class _FinanzverwaltungScreenState extends State<FinanzverwaltungScreen> with Si
               const SizedBox(width: 16),
               DropdownButton<String?>(
                 value: _transaktionenTyp,
-                hint: const Text('Alle'),
-                items: const [
-                  DropdownMenuItem<String?>(value: null, child: Text('Alle')),
-                  DropdownMenuItem(value: 'einnahme', child: Text('Einnahmen')),
-                  DropdownMenuItem(value: 'ausgabe', child: Text('Ausgaben')),
+                hint: Text(tr('Alle', 'Toate')),
+                items: [
+                  DropdownMenuItem<String?>(value: null, child: Text(tr('Alle', 'Toate'))),
+                  DropdownMenuItem(value: 'einnahme', child: Text(tr('Einnahmen', 'Venituri'))),
+                  DropdownMenuItem(value: 'ausgabe', child: Text(tr('Ausgaben', 'Cheltuieli'))),
                 ],
                 onChanged: (val) {
                   setState(() => _transaktionenTyp = val);
@@ -601,7 +619,7 @@ class _FinanzverwaltungScreenState extends State<FinanzverwaltungScreen> with Si
               ElevatedButton.icon(
                 onPressed: _showTransaktionDialog,
                 icon: const Icon(Icons.add, size: 18),
-                label: const Text('Neue Transaktion'),
+                label: Text(tr('Neue Transaktion', 'Tranzacție nouă')),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.green.shade700,
                   foregroundColor: Colors.white,
@@ -610,7 +628,7 @@ class _FinanzverwaltungScreenState extends State<FinanzverwaltungScreen> with Si
               const SizedBox(width: 8),
               IconButton(
                 icon: const Icon(Icons.refresh),
-                tooltip: 'Aktualisieren',
+                tooltip: tr('Aktualisieren', 'Actualizează'),
                 onPressed: _loadTransaktionen,
               ),
             ],
@@ -621,9 +639,9 @@ class _FinanzverwaltungScreenState extends State<FinanzverwaltungScreen> with Si
             runSpacing: 8,
             alignment: WrapAlignment.center,
             children: [
-              _statChip('Einnahmen', '${_einnahmen.toStringAsFixed(2)} €', Colors.green),
-              _statChip('Ausgaben', '${_ausgaben.toStringAsFixed(2)} €', Colors.red),
-              _statChip('Saldo', '${_saldo.toStringAsFixed(2)} €', _saldo >= 0 ? Colors.green.shade800 : Colors.red.shade800),
+              _statChip(tr('Einnahmen', 'Venituri'), '${_einnahmen.toStringAsFixed(2)} €', Colors.green),
+              _statChip(tr('Ausgaben', 'Cheltuieli'), '${_ausgaben.toStringAsFixed(2)} €', Colors.red),
+              _statChip(tr('Saldo', 'Sold'), '${_saldo.toStringAsFixed(2)} €', _saldo >= 0 ? Colors.green.shade800 : Colors.red.shade800),
             ],
           ),
         ],
@@ -657,7 +675,9 @@ class _FinanzverwaltungScreenState extends State<FinanzverwaltungScreen> with Si
               ),
             ),
             title: Text(
-              beschreibung.isNotEmpty ? beschreibung : (isEinnahme ? 'Einnahme' : 'Ausgabe'),
+              beschreibung.isNotEmpty
+                  ? beschreibung
+                  : (isEinnahme ? tr('Einnahme', 'Venit') : tr('Ausgabe', 'Cheltuială')),
               style: const TextStyle(fontWeight: FontWeight.w600),
             ),
             subtitle: Text(
@@ -678,7 +698,7 @@ class _FinanzverwaltungScreenState extends State<FinanzverwaltungScreen> with Si
                 const SizedBox(width: 8),
                 IconButton(
                   icon: Icon(Icons.delete_outline, color: Colors.red.shade300, size: 20),
-                  tooltip: 'Löschen',
+                  tooltip: tr('Löschen', 'Șterge'),
                   onPressed: () => _deleteTransaktion(t),
                 ),
               ],
@@ -707,7 +727,7 @@ class _FinanzverwaltungScreenState extends State<FinanzverwaltungScreen> with Si
             children: [
               Icon(Icons.add_card, color: Colors.green.shade700),
               const SizedBox(width: 12),
-              const Text('Neue Transaktion'),
+              Text(tr('Neue Transaktion', 'Tranzacție nouă')),
             ],
           ),
           content: SizedBox(
@@ -717,9 +737,9 @@ class _FinanzverwaltungScreenState extends State<FinanzverwaltungScreen> with Si
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   SegmentedButton<String>(
-                    segments: const [
-                      ButtonSegment(value: 'einnahme', label: Text('Einnahme'), icon: Icon(Icons.arrow_downward)),
-                      ButtonSegment(value: 'ausgabe', label: Text('Ausgabe'), icon: Icon(Icons.arrow_upward)),
+                    segments: [
+                      ButtonSegment(value: 'einnahme', label: Text(tr('Einnahme', 'Venit')), icon: const Icon(Icons.arrow_downward)),
+                      ButtonSegment(value: 'ausgabe', label: Text(tr('Ausgabe', 'Cheltuială')), icon: const Icon(Icons.arrow_upward)),
                     ],
                     selected: {typ},
                     onSelectionChanged: (set) => setDialogState(() => typ = set.first),
@@ -736,7 +756,7 @@ class _FinanzverwaltungScreenState extends State<FinanzverwaltungScreen> with Si
                   TextField(
                     controller: datumController,
                     decoration: InputDecoration(
-                      labelText: 'Datum',
+                      labelText: tr('Datum', 'Data'),
                       prefixIcon: const Icon(Icons.calendar_today),
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
                     ),
@@ -747,7 +767,10 @@ class _FinanzverwaltungScreenState extends State<FinanzverwaltungScreen> with Si
                         initialDate: DateTime.now(),
                         firstDate: DateTime(2020),
                         lastDate: DateTime(2030),
-                        locale: const Locale('de', 'DE'),
+                        // Kalender in der gewählten Sprache (Deutsch wie bisher).
+                        locale: LanguageService.instance.isRomanian
+                            ? const Locale('ro', 'RO')
+                            : const Locale('de', 'DE'),
                       );
                       if (picked != null) {
                         datumController.text = DateFormat('yyyy-MM-dd').format(picked);
@@ -758,7 +781,7 @@ class _FinanzverwaltungScreenState extends State<FinanzverwaltungScreen> with Si
                   TextField(
                     controller: betragController,
                     decoration: InputDecoration(
-                      labelText: 'Betrag (€)',
+                      labelText: tr('Betrag (€)', 'Sumă (€)'),
                       prefixIcon: const Icon(Icons.euro),
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
                     ),
@@ -768,7 +791,7 @@ class _FinanzverwaltungScreenState extends State<FinanzverwaltungScreen> with Si
                   TextField(
                     controller: beschreibungController,
                     decoration: InputDecoration(
-                      labelText: 'Beschreibung',
+                      labelText: tr('Beschreibung', 'Descriere'),
                       prefixIcon: const Icon(Icons.description),
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
                     ),
@@ -778,7 +801,7 @@ class _FinanzverwaltungScreenState extends State<FinanzverwaltungScreen> with Si
                   TextField(
                     controller: empfaengerController,
                     decoration: InputDecoration(
-                      labelText: typ == 'einnahme' ? 'Absender' : 'Empfänger',
+                      labelText: typ == 'einnahme' ? tr('Absender', 'Plătitor') : tr('Empfänger', 'Beneficiar'),
                       prefixIcon: const Icon(Icons.person),
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
                     ),
@@ -787,17 +810,17 @@ class _FinanzverwaltungScreenState extends State<FinanzverwaltungScreen> with Si
                   TextField(
                     controller: kategorieController,
                     decoration: InputDecoration(
-                      labelText: 'Kategorie',
+                      labelText: tr('Kategorie', 'Categorie'),
                       prefixIcon: const Icon(Icons.category),
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                      hintText: 'z.B. Mitgliedsbeitrag, Miete, Spende...',
+                      hintText: tr('z.B. Mitgliedsbeitrag, Miete, Spende...', 'de ex. cotizație, chirie, donație...'),
                     ),
                   ),
                   const SizedBox(height: 16),
                   TextField(
                     controller: referenzController,
                     decoration: InputDecoration(
-                      labelText: 'Referenz / Verwendungszweck',
+                      labelText: tr('Referenz / Verwendungszweck', 'Referință / detalii plată'),
                       prefixIcon: const Icon(Icons.tag),
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
                     ),
@@ -809,14 +832,17 @@ class _FinanzverwaltungScreenState extends State<FinanzverwaltungScreen> with Si
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: const Text('Abbrechen'),
+              child: Text(tr('Abbrechen', 'Anulare')),
             ),
             ElevatedButton(
               onPressed: () async {
                 final betrag = double.tryParse(betragController.text);
                 if (betrag == null || betrag <= 0) {
                   ScaffoldMessenger.of(ctx).showSnackBar(
-                    const SnackBar(content: Text('Bitte gültigen Betrag eingeben'), backgroundColor: Colors.orange),
+                    SnackBar(
+                      content: Text(tr('Bitte gültigen Betrag eingeben', 'Vă rugăm introduceți o sumă validă')),
+                      backgroundColor: Colors.orange,
+                    ),
                   );
                   return;
                 }
@@ -835,7 +861,10 @@ class _FinanzverwaltungScreenState extends State<FinanzverwaltungScreen> with Si
                     _loadTransaktionen();
                     if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Transaktion erstellt'), backgroundColor: Colors.green),
+                        SnackBar(
+                          content: Text(tr('Transaktion erstellt', 'Tranzacție înregistrată')),
+                          backgroundColor: Colors.green,
+                        ),
                       );
                     }
                   }
@@ -847,7 +876,7 @@ class _FinanzverwaltungScreenState extends State<FinanzverwaltungScreen> with Si
                 backgroundColor: Colors.green.shade700,
                 foregroundColor: Colors.white,
               ),
-              child: const Text('Speichern'),
+              child: Text(tr('Speichern', 'Salvează')),
             ),
           ],
         ),
@@ -862,14 +891,15 @@ class _FinanzverwaltungScreenState extends State<FinanzverwaltungScreen> with Si
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Transaktion löschen?'),
-        content: Text('Möchten Sie die Transaktion "${t['beschreibung'] ?? 'ohne Beschreibung'}" wirklich löschen?'),
+        title: Text(tr('Transaktion löschen?', 'Ștergeți tranzacția?')),
+        content: Text(tr('Möchten Sie die Transaktion "${t['beschreibung'] ?? 'ohne Beschreibung'}" wirklich löschen?',
+            'Sigur doriți să ștergeți tranzacția „${t['beschreibung'] ?? 'fără descriere'}”?')),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Abbrechen')),
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(tr('Abbrechen', 'Anulare'))),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Löschen'),
+            child: Text(tr('Löschen', 'Șterge')),
           ),
         ],
       ),
@@ -882,7 +912,7 @@ class _FinanzverwaltungScreenState extends State<FinanzverwaltungScreen> with Si
           _loadTransaktionen();
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Transaktion gelöscht'), backgroundColor: Colors.green),
+              SnackBar(content: Text(tr('Transaktion gelöscht', 'Tranzacție ștearsă')), backgroundColor: Colors.green),
             );
           }
         }
@@ -911,7 +941,7 @@ class _FinanzverwaltungScreenState extends State<FinanzverwaltungScreen> with Si
                         children: [
                           Icon(Icons.volunteer_activism, size: 64, color: Colors.grey.shade300),
                           const SizedBox(height: 16),
-                          Text('Keine Spenden', style: TextStyle(color: Colors.grey.shade500)),
+                          Text(tr('Keine Spenden', 'Nicio donație'), style: TextStyle(color: Colors.grey.shade500)),
                         ],
                       ),
                     )
@@ -949,7 +979,7 @@ class _FinanzverwaltungScreenState extends State<FinanzverwaltungScreen> with Si
               OutlinedButton.icon(
                 onPressed: _showVereinSettingsDialog,
                 icon: const Icon(Icons.settings, size: 18),
-                label: const Text('Vereinsdaten'),
+                label: Text(tr('Vereinsdaten', 'Date asociație')),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: Colors.grey.shade700,
                 ),
@@ -958,7 +988,7 @@ class _FinanzverwaltungScreenState extends State<FinanzverwaltungScreen> with Si
               ElevatedButton.icon(
                 onPressed: _showSpendeDialog,
                 icon: const Icon(Icons.add, size: 18),
-                label: const Text('Neue Spende'),
+                label: Text(tr('Neue Spende', 'Donație nouă')),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.purple.shade700,
                   foregroundColor: Colors.white,
@@ -967,7 +997,7 @@ class _FinanzverwaltungScreenState extends State<FinanzverwaltungScreen> with Si
               const SizedBox(width: 8),
               IconButton(
                 icon: const Icon(Icons.refresh),
-                tooltip: 'Aktualisieren',
+                tooltip: tr('Aktualisieren', 'Actualizează'),
                 onPressed: _loadSpenden,
               ),
             ],
@@ -978,9 +1008,9 @@ class _FinanzverwaltungScreenState extends State<FinanzverwaltungScreen> with Si
             runSpacing: 8,
             alignment: WrapAlignment.center,
             children: [
-              _statChip('Spenden', '$_spendenAnzahl', Colors.purple),
-              _statChip('Gesamt', '${_spendenTotal.toStringAsFixed(2)} €', Colors.purple.shade800),
-              _statChip('Mit Quittung', '$_spendenMitQuittung', Colors.green),
+              _statChip(tr('Spenden', 'Donații'), '$_spendenAnzahl', Colors.purple),
+              _statChip(tr('Gesamt', 'Total'), '${_spendenTotal.toStringAsFixed(2)} €', Colors.purple.shade800),
+              _statChip(tr('Mit Quittung', 'Cu chitanță'), '$_spendenMitQuittung', Colors.green),
             ],
           ),
           const SizedBox(height: 12),
@@ -998,8 +1028,13 @@ class _FinanzverwaltungScreenState extends State<FinanzverwaltungScreen> with Si
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    'Zuwendungsbestätigung nur ab 300,00 € erforderlich. '
-                    'Für Spenden bis 300,00 € genügt dem Finanzamt ein Kontoauszug als Nachweis (§ 50 Abs. 4 EStDV).',
+                    tr(
+                      'Zuwendungsbestätigung nur ab 300,00 € erforderlich. '
+                      'Für Spenden bis 300,00 € genügt dem Finanzamt ein Kontoauszug als Nachweis (§ 50 Abs. 4 EStDV).',
+                      'Confirmarea de donație (Zuwendungsbestätigung) este necesară doar de la 300,00 €. '
+                      'Pentru donații de până la 300,00 €, extrasul de cont este suficient ca dovadă '
+                      'pentru Finanzamt (§ 50 Abs. 4 EStDV).',
+                    ),
                     style: TextStyle(fontSize: 12, color: Colors.blue.shade800),
                   ),
                 ),
@@ -1068,7 +1103,7 @@ class _FinanzverwaltungScreenState extends State<FinanzverwaltungScreen> with Si
                         children: [
                           Icon(Icons.receipt_long, size: 12, color: Colors.green.shade600),
                           const SizedBox(width: 2),
-                          Text('Quittung', style: TextStyle(fontSize: 10, color: Colors.green.shade600)),
+                          Text(tr('Quittung', 'Chitanță'), style: TextStyle(fontSize: 10, color: Colors.green.shade600)),
                         ],
                       )
                     else if (!kannQuittung)
@@ -1077,7 +1112,7 @@ class _FinanzverwaltungScreenState extends State<FinanzverwaltungScreen> with Si
                         children: [
                           Icon(Icons.account_balance, size: 12, color: Colors.grey.shade500),
                           const SizedBox(width: 2),
-                          Text('Kontoauszug', style: TextStyle(fontSize: 10, color: Colors.grey.shade500)),
+                          Text(tr('Kontoauszug', 'Extras de cont'), style: TextStyle(fontSize: 10, color: Colors.grey.shade500)),
                         ],
                       ),
                   ],
@@ -1086,14 +1121,15 @@ class _FinanzverwaltungScreenState extends State<FinanzverwaltungScreen> with Si
                   const SizedBox(width: 4),
                   IconButton(
                     icon: Icon(Icons.picture_as_pdf, color: Colors.red.shade600, size: 22),
-                    tooltip: 'Zuwendungsbestätigung erstellen (PDF)',
+                    tooltip: tr('Zuwendungsbestätigung erstellen (PDF)',
+                        'Creează confirmarea de donație (Zuwendungsbestätigung, PDF)'),
                     onPressed: () => _generateZuwendungsbestaetigung(s),
                   ),
                 ],
                 const SizedBox(width: 4),
                 IconButton(
                   icon: Icon(Icons.delete_outline, color: Colors.red.shade300, size: 20),
-                  tooltip: 'Löschen',
+                  tooltip: tr('Löschen', 'Șterge'),
                   onPressed: () => _deleteSpende(s),
                 ),
               ],
@@ -1123,7 +1159,7 @@ class _FinanzverwaltungScreenState extends State<FinanzverwaltungScreen> with Si
             children: [
               Icon(Icons.volunteer_activism, color: Colors.purple.shade700),
               const SizedBox(width: 12),
-              const Text('Neue Spende'),
+              Text(tr('Neue Spende', 'Donație nouă')),
             ],
           ),
           content: SizedBox(
@@ -1135,7 +1171,7 @@ class _FinanzverwaltungScreenState extends State<FinanzverwaltungScreen> with Si
                   TextField(
                     controller: datumController,
                     decoration: InputDecoration(
-                      labelText: 'Datum',
+                      labelText: tr('Datum', 'Data'),
                       prefixIcon: const Icon(Icons.calendar_today),
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
                     ),
@@ -1146,7 +1182,10 @@ class _FinanzverwaltungScreenState extends State<FinanzverwaltungScreen> with Si
                         initialDate: DateTime.now(),
                         firstDate: DateTime(2020),
                         lastDate: DateTime(2030),
-                        locale: const Locale('de', 'DE'),
+                        // Kalender in der gewählten Sprache (Deutsch wie bisher).
+                        locale: LanguageService.instance.isRomanian
+                            ? const Locale('ro', 'RO')
+                            : const Locale('de', 'DE'),
                       );
                       if (picked != null) {
                         datumController.text = DateFormat('yyyy-MM-dd').format(picked);
@@ -1157,7 +1196,7 @@ class _FinanzverwaltungScreenState extends State<FinanzverwaltungScreen> with Si
                   TextField(
                     controller: spenderNameController,
                     decoration: InputDecoration(
-                      labelText: 'Spendername *',
+                      labelText: tr('Spendername *', 'Nume donator *'),
                       prefixIcon: const Icon(Icons.person),
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
                     ),
@@ -1166,10 +1205,11 @@ class _FinanzverwaltungScreenState extends State<FinanzverwaltungScreen> with Si
                   TextField(
                     controller: spenderAdresseController,
                     decoration: InputDecoration(
-                      labelText: 'Anschrift des Spenders (für Quittung > 300 €)',
+                      labelText: tr('Anschrift des Spenders (für Quittung > 300 €)',
+                          'Adresa donatorului (pentru chitanță > 300 €)'),
                       prefixIcon: const Icon(Icons.home),
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                      hintText: 'Straße Nr., PLZ Ort',
+                      hintText: tr('Straße Nr., PLZ Ort', 'Strada nr., cod poștal, localitate'),
                     ),
                     maxLines: 2,
                   ),
@@ -1177,17 +1217,17 @@ class _FinanzverwaltungScreenState extends State<FinanzverwaltungScreen> with Si
                   TextField(
                     controller: spenderMnController,
                     decoration: InputDecoration(
-                      labelText: 'Mitgliedernummer (optional)',
+                      labelText: tr('Mitgliedernummer (optional)', 'Număr de membru (opțional)'),
                       prefixIcon: const Icon(Icons.badge),
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                      hintText: 'Falls der Spender Mitglied ist',
+                      hintText: tr('Falls der Spender Mitglied ist', 'Dacă donatorul este membru'),
                     ),
                   ),
                   const SizedBox(height: 16),
                   TextField(
                     controller: betragController,
                     decoration: InputDecoration(
-                      labelText: 'Betrag (€) *',
+                      labelText: tr('Betrag (€) *', 'Sumă (€) *'),
                       prefixIcon: const Icon(Icons.euro),
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
                     ),
@@ -1197,17 +1237,20 @@ class _FinanzverwaltungScreenState extends State<FinanzverwaltungScreen> with Si
                   TextField(
                     controller: zweckController,
                     decoration: InputDecoration(
-                      labelText: 'Zweck / Verwendung',
+                      labelText: tr('Zweck / Verwendung', 'Scop / utilizare'),
                       prefixIcon: const Icon(Icons.description),
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                      hintText: 'z.B. Allgemeine Spende, Vereinsförderung...',
+                      // Der Zweck landet auf der deutschen Zuwendungsbestätigung —
+                      // darum bleiben die Beispiele deutsch.
+                      hintText: tr('z.B. Allgemeine Spende, Vereinsförderung...',
+                          'de ex. Allgemeine Spende, Vereinsförderung... (în germană)'),
                     ),
                   ),
                   const SizedBox(height: 16),
                   TextField(
                     controller: notizController,
                     decoration: InputDecoration(
-                      labelText: 'Notiz',
+                      labelText: tr('Notiz', 'Notă'),
                       prefixIcon: const Icon(Icons.note),
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
                     ),
@@ -1217,7 +1260,7 @@ class _FinanzverwaltungScreenState extends State<FinanzverwaltungScreen> with Si
                   CheckboxListTile(
                     value: quittung,
                     onChanged: (val) => setDialogState(() => quittung = val ?? false),
-                    title: const Text('Spendenquittung ausgestellt'),
+                    title: Text(tr('Spendenquittung ausgestellt', 'Chitanță de donație emisă')),
                     secondary: Icon(Icons.receipt_long, color: quittung ? Colors.green : Colors.grey),
                     controlAffinity: ListTileControlAffinity.leading,
                     contentPadding: EdgeInsets.zero,
@@ -1229,20 +1272,26 @@ class _FinanzverwaltungScreenState extends State<FinanzverwaltungScreen> with Si
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: const Text('Abbrechen'),
+              child: Text(tr('Abbrechen', 'Anulare')),
             ),
             ElevatedButton(
               onPressed: () async {
                 final betrag = double.tryParse(betragController.text);
                 if (betrag == null || betrag <= 0) {
                   ScaffoldMessenger.of(ctx).showSnackBar(
-                    const SnackBar(content: Text('Bitte gültigen Betrag eingeben'), backgroundColor: Colors.orange),
+                    SnackBar(
+                      content: Text(tr('Bitte gültigen Betrag eingeben', 'Vă rugăm introduceți o sumă validă')),
+                      backgroundColor: Colors.orange,
+                    ),
                   );
                   return;
                 }
                 if (spenderNameController.text.isEmpty) {
                   ScaffoldMessenger.of(ctx).showSnackBar(
-                    const SnackBar(content: Text('Bitte Spendername eingeben'), backgroundColor: Colors.orange),
+                    SnackBar(
+                      content: Text(tr('Bitte Spendername eingeben', 'Vă rugăm introduceți numele donatorului')),
+                      backgroundColor: Colors.orange,
+                    ),
                   );
                   return;
                 }
@@ -1262,7 +1311,10 @@ class _FinanzverwaltungScreenState extends State<FinanzverwaltungScreen> with Si
                     _loadSpenden();
                     if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Spende erstellt'), backgroundColor: Colors.green),
+                        SnackBar(
+                          content: Text(tr('Spende erstellt', 'Donație înregistrată')),
+                          backgroundColor: Colors.green,
+                        ),
                       );
                     }
                   }
@@ -1274,7 +1326,7 @@ class _FinanzverwaltungScreenState extends State<FinanzverwaltungScreen> with Si
                 backgroundColor: Colors.purple.shade700,
                 foregroundColor: Colors.white,
               ),
-              child: const Text('Speichern'),
+              child: Text(tr('Speichern', 'Salvează')),
             ),
           ],
         ),
@@ -1289,14 +1341,15 @@ class _FinanzverwaltungScreenState extends State<FinanzverwaltungScreen> with Si
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Spende löschen?'),
-        content: Text('Möchten Sie die Spende von "${s['spender_name'] ?? ''}" wirklich löschen?'),
+        title: Text(tr('Spende löschen?', 'Ștergeți donația?')),
+        content: Text(tr('Möchten Sie die Spende von "${s['spender_name'] ?? ''}" wirklich löschen?',
+            'Sigur doriți să ștergeți donația de la „${s['spender_name'] ?? ''}”?')),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Abbrechen')),
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(tr('Abbrechen', 'Anulare'))),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Löschen'),
+            child: Text(tr('Löschen', 'Șterge')),
           ),
         ],
       ),
@@ -1309,7 +1362,7 @@ class _FinanzverwaltungScreenState extends State<FinanzverwaltungScreen> with Si
           _loadSpenden();
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Spende gelöscht'), backgroundColor: Colors.green),
+              SnackBar(content: Text(tr('Spende gelöscht', 'Donație ștearsă')), backgroundColor: Colors.green),
             );
           }
         }
@@ -1340,7 +1393,7 @@ class _FinanzverwaltungScreenState extends State<FinanzverwaltungScreen> with Si
           children: [
             Icon(Icons.business, color: Colors.green.shade700),
             const SizedBox(width: 12),
-            const Expanded(child: Text('Vereinsdaten für Zuwendungsbestätigung')),
+            Expanded(child: Text(tr('Vereinsdaten für Zuwendungsbestätigung', 'Datele asociației pentru confirmarea de donație'))),
           ],
         ),
         content: SizedBox(
@@ -1351,28 +1404,34 @@ class _FinanzverwaltungScreenState extends State<FinanzverwaltungScreen> with Si
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Diese Daten werden auf der Zuwendungsbestätigung (Spendequittung) gedruckt. '
-                  'Bitte alle Felder ausfüllen.',
+                  // Die Felder landen auf dem deutschen Formular — der rumänische
+                  // Text sagt darum, dass sie deutsch auszufüllen sind.
+                  tr(
+                    'Diese Daten werden auf der Zuwendungsbestätigung (Spendequittung) gedruckt. '
+                    'Bitte alle Felder ausfüllen.',
+                    'Aceste date se tipăresc pe confirmarea de donație (Zuwendungsbestätigung), '
+                    'redactată în germană. Vă rugăm completați toate câmpurile.',
+                  ),
                   style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
                 ),
                 const SizedBox(height: 16),
                 TextField(
                   controller: nameCtrl,
                   decoration: InputDecoration(
-                    labelText: 'Vereinsname *',
+                    labelText: tr('Vereinsname *', 'Numele asociației *'),
                     prefixIcon: const Icon(Icons.business),
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                    hintText: 'z.B. ICD360S e.V.',
+                    hintText: tr('z.B. ICD360S e.V.', 'de ex. ICD360S e.V.'),
                   ),
                 ),
                 const SizedBox(height: 12),
                 TextField(
                   controller: adresseCtrl,
                   decoration: InputDecoration(
-                    labelText: 'Vereinsadresse *',
+                    labelText: tr('Vereinsadresse *', 'Adresa asociației *'),
                     prefixIcon: const Icon(Icons.location_on),
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                    hintText: 'Straße Nr., PLZ Ort',
+                    hintText: tr('Straße Nr., PLZ Ort', 'Strada nr., cod poștal, localitate'),
                   ),
                   maxLines: 2,
                 ),
@@ -1380,50 +1439,51 @@ class _FinanzverwaltungScreenState extends State<FinanzverwaltungScreen> with Si
                 TextField(
                   controller: steuernummerCtrl,
                   decoration: InputDecoration(
-                    labelText: 'Steuernummer *',
+                    labelText: tr('Steuernummer *', 'Număr fiscal (Steuernummer) *'),
                     prefixIcon: const Icon(Icons.numbers),
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                    hintText: 'z.B. 123/456/78900',
+                    hintText: tr('z.B. 123/456/78900', 'de ex. 123/456/78900'),
                   ),
                 ),
                 const SizedBox(height: 12),
                 TextField(
                   controller: finanzamtCtrl,
                   decoration: InputDecoration(
-                    labelText: 'Zuständiges Finanzamt *',
+                    labelText: tr('Zuständiges Finanzamt *', 'Finanzamt competent *'),
                     prefixIcon: const Icon(Icons.account_balance),
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                    hintText: 'z.B. Finanzamt München I',
+                    hintText: tr('z.B. Finanzamt München I', 'de ex. Finanzamt München I'),
                   ),
                 ),
                 const SizedBox(height: 12),
                 TextField(
                   controller: freistellungDatumCtrl,
                   decoration: InputDecoration(
-                    labelText: 'Datum Freistellungsbescheid *',
+                    labelText: tr('Datum Freistellungsbescheid *', 'Data deciziei de scutire (Freistellungsbescheid) *'),
                     prefixIcon: const Icon(Icons.calendar_today),
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                    hintText: 'z.B. 15.03.2025',
+                    hintText: tr('z.B. 15.03.2025', 'de ex. 15.03.2025'),
                   ),
                 ),
                 const SizedBox(height: 12),
                 TextField(
                   controller: freistellungZeitraumCtrl,
                   decoration: InputDecoration(
-                    labelText: 'Letzter Veranlagungszeitraum *',
+                    labelText: tr('Letzter Veranlagungszeitraum *', 'Ultima perioadă de impunere *'),
                     prefixIcon: const Icon(Icons.date_range),
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                    hintText: 'z.B. 2024',
+                    hintText: tr('z.B. 2024', 'de ex. 2024'),
                   ),
                 ),
                 const SizedBox(height: 12),
                 TextField(
                   controller: zweckCtrl,
                   decoration: InputDecoration(
-                    labelText: 'Steuerbegünstigter Zweck *',
+                    labelText: tr('Steuerbegünstigter Zweck *', 'Scop cu beneficii fiscale *'),
                     prefixIcon: const Icon(Icons.flag),
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                    hintText: 'z.B. Förderung der Bildung und Erziehung',
+                    hintText: tr('z.B. Förderung der Bildung und Erziehung',
+                        'de ex. Förderung der Bildung und Erziehung (în germană)'),
                   ),
                   maxLines: 2,
                 ),
@@ -1434,7 +1494,7 @@ class _FinanzverwaltungScreenState extends State<FinanzverwaltungScreen> with Si
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Abbrechen'),
+            child: Text(tr('Abbrechen', 'Anulare')),
           ),
           ElevatedButton(
             onPressed: () {
@@ -1451,7 +1511,10 @@ class _FinanzverwaltungScreenState extends State<FinanzverwaltungScreen> with Si
               Navigator.pop(ctx);
               if (mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Vereinsdaten gespeichert'), backgroundColor: Colors.green),
+                  SnackBar(
+                    content: Text(tr('Vereinsdaten gespeichert', 'Datele asociației au fost salvate')),
+                    backgroundColor: Colors.green,
+                  ),
                 );
               }
             },
@@ -1459,7 +1522,7 @@ class _FinanzverwaltungScreenState extends State<FinanzverwaltungScreen> with Si
               backgroundColor: Colors.green.shade700,
               foregroundColor: Colors.white,
             ),
-            child: const Text('Speichern'),
+            child: Text(tr('Speichern', 'Salvează')),
           ),
         ],
       ),
@@ -1477,10 +1540,11 @@ class _FinanzverwaltungScreenState extends State<FinanzverwaltungScreen> with Si
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Text('Bitte zuerst Vereinsdaten ausfüllen (Button "Vereinsdaten")'),
+            content: Text(tr('Bitte zuerst Vereinsdaten ausfüllen (Button "Vereinsdaten")',
+                'Vă rugăm completați mai întâi datele asociației (butonul „Date asociație”)')),
             backgroundColor: Colors.orange,
             action: SnackBarAction(
-              label: 'Ausfüllen',
+              label: tr('Ausfüllen', 'Completează'),
               textColor: Colors.white,
               onPressed: _showVereinSettingsDialog,
             ),
@@ -1499,8 +1563,9 @@ class _FinanzverwaltungScreenState extends State<FinanzverwaltungScreen> with Si
     if (spenderAdresse.isEmpty) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Anschrift des Spenders fehlt. Bitte Spende bearbeiten und Adresse hinzufügen.'),
+          SnackBar(
+            content: Text(tr('Anschrift des Spenders fehlt. Bitte Spende bearbeiten und Adresse hinzufügen.',
+                'Lipsește adresa donatorului. Vă rugăm editați donația și adăugați adresa.')),
             backgroundColor: Colors.orange,
           ),
         );
@@ -1721,7 +1786,7 @@ class _FinanzverwaltungScreenState extends State<FinanzverwaltungScreen> with Si
               children: [
                 Icon(Icons.picture_as_pdf, color: Colors.red.shade700),
                 const SizedBox(width: 12),
-                const Expanded(child: Text('Zuwendungsbestätigung')),
+                Expanded(child: Text(tr('Zuwendungsbestätigung', 'Confirmare de donație (Zuwendungsbestätigung)'))),
               ],
             ),
             content: SizedBox(
@@ -1737,14 +1802,14 @@ class _FinanzverwaltungScreenState extends State<FinanzverwaltungScreen> with Si
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(ctx),
-                child: const Text('Schließen'),
+                child: Text(tr('Schließen', 'Închide')),
               ),
               ElevatedButton.icon(
                 onPressed: () async {
                   await OpenFilex.open(file.path);
                 },
                 icon: const Icon(Icons.open_in_new, size: 18),
-                label: const Text('Öffnen'),
+                label: Text(tr('Öffnen', 'Deschide')),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.blue.shade700,
                   foregroundColor: Colors.white,
@@ -1764,7 +1829,10 @@ class _FinanzverwaltungScreenState extends State<FinanzverwaltungScreen> with Si
       _log.error('PDF generation failed: $e', tag: 'FINANZ');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('PDF Erstellung fehlgeschlagen: $e'), backgroundColor: Colors.red),
+          SnackBar(
+            content: Text(tr('PDF Erstellung fehlgeschlagen: $e', 'Crearea PDF-ului a eșuat: $e')),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     }
