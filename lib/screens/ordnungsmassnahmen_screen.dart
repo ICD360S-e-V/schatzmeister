@@ -9,13 +9,20 @@ import 'dart:typed_data';
 import '../models/user.dart';
 import '../services/verwarnung_service.dart';
 import '../services/api_service.dart';
+import '../services/language_service.dart';
 
 /// Verstoß-Kategorien basierend auf der Satzung des ICD360S e.V.
 class VerstossKategorie {
   final String id;
+  // titel/paragraph/beschreibung bleiben deutsch: sie gehen als `grund` an den
+  // Server, werden mit gespeicherten Verwarnungen verglichen und stehen im
+  // PDF-Schreiben. Angezeigt werden die anzeige*-Getter.
   final String titel;
   final String paragraph;
   final String beschreibung;
+  final String titelRo;
+  final String paragraphRo;
+  final String beschreibungRo;
   final IconData icon;
   final Color color;
 
@@ -24,16 +31,27 @@ class VerstossKategorie {
     required this.titel,
     required this.paragraph,
     required this.beschreibung,
+    required this.titelRo,
+    required this.paragraphRo,
+    required this.beschreibungRo,
     required this.icon,
     required this.color,
   });
+
+  String get anzeigeTitel => tr(titel, titelRo);
+  String get anzeigeParagraph => tr(paragraph, paragraphRo);
+  String get anzeigeBeschreibung => tr(beschreibung, beschreibungRo);
 }
 
 /// Ordnungsmaßnahmen gemäß §6 Abs. 6 Satzung
 class Massnahme {
   final String id;
+  // titel/beschreibung bleiben deutsch (PDF-Schreiben); angezeigt werden die
+  // anzeige*-Getter.
   final String titel;
   final String beschreibung;
+  final String titelRo;
+  final String beschreibungRo;
   final IconData icon;
   final Color color;
 
@@ -41,98 +59,148 @@ class Massnahme {
     required this.id,
     required this.titel,
     required this.beschreibung,
+    required this.titelRo,
+    required this.beschreibungRo,
     required this.icon,
     required this.color,
   });
+
+  String get anzeigeTitel => tr(titel, titelRo);
+  String get anzeigeBeschreibung => tr(beschreibung, beschreibungRo);
 }
 
 const _verstossKategorien = <VerstossKategorie>[
   VerstossKategorie(
     id: 'datenschutz',
     titel: 'Verstoß gegen den Datenschutz',
+    titelRo: 'Încălcarea protecției datelor',
     paragraph: '§11 Satzung / DSGVO',
+    paragraphRo: '§11 Statut / GDPR',
     beschreibung:
         'Unbefugte Weitergabe personenbezogener Daten, Verletzung der '
         'Vertraulichkeit, Verstoß gegen die Datenschutz-Grundverordnung.',
+    beschreibungRo:
+        'Divulgarea neautorizată a datelor cu caracter personal, încălcarea '
+        'confidențialității, încălcarea Regulamentului general privind '
+        'protecția datelor (GDPR).',
     icon: Icons.security,
     color: Colors.red,
   ),
   VerstossKategorie(
     id: 'satzung',
     titel: 'Verstoß gegen die Satzung',
+    titelRo: 'Încălcarea statutului',
     paragraph: '§6 Abs. 6 Satzung',
+    paragraphRo: '§6 alin. 6 Statut',
     beschreibung:
         'Allgemeiner Verstoß gegen Bestimmungen der Vereinssatzung.',
+    beschreibungRo:
+        'Încălcare generală a prevederilor statutului asociației.',
     icon: Icons.description,
     color: Colors.orange,
   ),
   VerstossKategorie(
     id: 'vereinsschaedigend',
     titel: 'Vereinsschädigendes Verhalten',
+    titelRo: 'Comportament dăunător asociației',
     paragraph: '§6 Abs. 3 / §6 Abs. 6 Satzung',
+    paragraphRo: '§6 alin. 3 / §6 alin. 6 Statut',
     beschreibung:
         'Handlungen, die den Verein, seine Mitglieder oder seinen Ruf '
         'schädigen oder das Vereinsleben stören.',
+    beschreibungRo:
+        'Acțiuni care dăunează asociației, membrilor sau reputației ei '
+        'ori perturbă viața asociației.',
     icon: Icons.dangerous,
     color: Colors.deepOrange,
   ),
   VerstossKategorie(
     id: 'pflichtverletzung',
     titel: 'Verletzung der Mitgliedspflichten',
+    titelRo: 'Încălcarea obligațiilor de membru',
     paragraph: '§6 Satzung',
+    paragraphRo: '§6 Statut',
     beschreibung:
         'Nichteinhaltung der aus der Mitgliedschaft resultierenden Pflichten '
         '(z.B. Beitragszahlung, Mitwirkungspflichten).',
+    beschreibungRo:
+        'Nerespectarea obligațiilor care decurg din calitatea de membru '
+        '(de ex. plata cotizației, obligații de cooperare).',
     icon: Icons.assignment_late,
     color: Colors.amber,
   ),
   VerstossKategorie(
     id: 'beitragsrueckstand',
     titel: 'Beitragsrückstand',
+    titelRo: 'Restanță la cotizație',
     paragraph: '§6 Abs. 3 / Abs. 4 Satzung',
+    paragraphRo: '§6 alin. 3 / alin. 4 Statut',
     beschreibung:
         'Nichtzahlung des Mitgliedsbeitrags über einen längeren Zeitraum '
         '(Streichung möglich nach 6 Monaten Rückstand).',
+    beschreibungRo:
+        'Neplata cotizației pe o perioadă mai lungă '
+        '(radierea este posibilă după 6 luni de restanță).',
     icon: Icons.money_off,
     color: Colors.brown,
   ),
   VerstossKategorie(
     id: 'rufschaedigung',
     titel: 'Rufschädigung des Vereins',
+    titelRo: 'Afectarea reputației asociației',
     paragraph: '§6 Abs. 6 Satzung',
+    paragraphRo: '§6 alin. 6 Statut',
     beschreibung:
         'Öffentliche oder private Äußerungen, die das Ansehen des Vereins '
         'oder seiner Mitglieder herabsetzen.',
+    beschreibungRo:
+        'Declarații publice sau private care afectează imaginea asociației '
+        'sau a membrilor săi.',
     icon: Icons.record_voice_over,
     color: Colors.purple,
   ),
   VerstossKategorie(
     id: 'vertraulichkeit',
     titel: 'Verstoß gegen die Vertraulichkeit',
+    titelRo: 'Încălcarea confidențialității',
     paragraph: '§11 Satzung',
+    paragraphRo: '§11 Statut',
     beschreibung:
         'Weitergabe vertraulicher Vereinsinformationen an Dritte, '
         'Bruch des Beratungsgeheimnisses.',
+    beschreibungRo:
+        'Divulgarea către terți a informațiilor confidențiale ale asociației, '
+        'încălcarea secretului deliberărilor.',
     icon: Icons.lock_open,
     color: Colors.indigo,
   ),
   VerstossKategorie(
     id: 'vereinsfrieden',
     titel: 'Störung des Vereinsfriedens',
+    titelRo: 'Tulburarea armoniei din asociație',
     paragraph: '§6 Abs. 6 Satzung',
+    paragraphRo: '§6 alin. 6 Statut',
     beschreibung:
         'Handlungen oder Äußerungen, die den inneren Frieden des Vereins '
         'gefährden oder zu Konflikten unter Mitgliedern führen.',
+    beschreibungRo:
+        'Acțiuni sau declarații care pun în pericol armonia internă a '
+        'asociației sau duc la conflicte între membri.',
     icon: Icons.warning_amber,
     color: Colors.teal,
   ),
   VerstossKategorie(
     id: 'sonstiges',
     titel: 'Sonstiger Verstoß',
+    titelRo: 'Altă încălcare',
     paragraph: '§6 Abs. 6 Satzung',
+    paragraphRo: '§6 alin. 6 Statut',
     beschreibung:
         'Weitere Pflichtverletzungen oder vereinsschädigendes Verhalten, '
         'das nicht in die obigen Kategorien fällt.',
+    beschreibungRo:
+        'Alte încălcări ale obligațiilor sau comportamente dăunătoare '
+        'asociației care nu se încadrează în categoriile de mai sus.',
     icon: Icons.more_horiz,
     color: Colors.grey,
   ),
@@ -142,28 +210,41 @@ const _massnahmen = <Massnahme>[
   Massnahme(
     id: 'verwarnung',
     titel: 'Schriftliche Verwarnung',
+    titelRo: 'Avertisment scris',
     beschreibung:
         'Formale schriftliche Verwarnung gemäß §6 Abs. 6 Nr. 1a der Satzung. '
         'Das Mitglied wird auf sein Fehlverhalten hingewiesen und zur '
         'künftigen Unterlassung aufgefordert.',
+    beschreibungRo:
+        'Avertisment scris formal conform §6 alin. 6 pct. 1a din statut. '
+        'Membrul este atenționat asupra abaterii și i se cere să nu o mai '
+        'repete.',
     icon: Icons.warning,
     color: Colors.orange,
   ),
   Massnahme(
     id: 'ordnungsgeld',
     titel: 'Ordnungsgeld (bis 100 €)',
+    titelRo: 'Amendă (până la 100 €)',
     beschreibung:
         'Verhängung eines Ordnungsgeldes bis zu 100 € gemäß §6 Abs. 6 Nr. 1b '
         'der Satzung.',
+    beschreibungRo:
+        'Aplicarea unei amenzi de până la 100 € conform §6 alin. 6 pct. 1b '
+        'din statut.',
     icon: Icons.euro,
     color: Colors.red,
   ),
   Massnahme(
     id: 'ausschluss',
     titel: 'Ausschluss aus dem Verein',
+    titelRo: 'Excluderea din asociație',
     beschreibung:
         'Ausschluss aus dem Verein gemäß §6 Abs. 6 Nr. 1c / §6 Abs. 3 '
         'der Satzung. Schärfste Ordnungsmaßnahme.',
+    beschreibungRo:
+        'Excluderea din asociație conform §6 alin. 6 pct. 1c / §6 alin. 3 '
+        'din statut. Cea mai severă măsură disciplinară.',
     icon: Icons.person_remove,
     color: Colors.red,
   ),
@@ -500,7 +581,7 @@ class VerwarnungPdfGenerator {
           children: [
             Icon(Icons.check_circle, color: Colors.green.shade700),
             const SizedBox(width: 12),
-            const Expanded(child: Text('PDF erstellt')),
+            Expanded(child: Text(tr('PDF erstellt', 'PDF creat'))),
           ],
         ),
         content: SizedBox(
@@ -520,7 +601,7 @@ class VerwarnungPdfGenerator {
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        'Gespeichert: ${file.path}',
+                        tr('Gespeichert: ${file.path}', 'Salvat: ${file.path}'),
                         style: TextStyle(
                             fontSize: 12, color: Colors.green.shade800),
                       ),
@@ -543,7 +624,7 @@ class VerwarnungPdfGenerator {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Schließen'),
+            child: Text(tr('Schließen', 'Închide')),
           ),
         ],
       ),
@@ -564,7 +645,7 @@ class VerwarnungPdfGenerator {
     }
   }
 
-  /// Map existing Verwarnung typ to display title
+  /// Map existing Verwarnung typ to the title used in the (German) PDF letter
   static String typToMassnahmeTitel(String typ) {
     switch (typ) {
       case 'ermahnung':
@@ -629,15 +710,17 @@ class _OrdnungsmassnahmenScreenState extends State<OrdnungsmassnahmenScreen> {
               IconButton(
                 icon: const Icon(Icons.arrow_back),
                 onPressed: widget.onBack,
-                tooltip: 'Zurück zur Übersicht',
+                tooltip: tr('Zurück zur Übersicht',
+                    'Înapoi la prezentarea generală'),
               ),
               const SizedBox(width: 8),
               Icon(Icons.gavel, size: 32, color: Colors.red.shade700),
               const SizedBox(width: 12),
-              const Expanded(
+              Expanded(
                 child: Text(
-                  'Ordnungsmaßnahmen',
-                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                  tr('Ordnungsmaßnahmen', 'Măsuri disciplinare'),
+                  style: const TextStyle(
+                      fontSize: 24, fontWeight: FontWeight.bold),
                 ),
               ),
             ],
@@ -646,7 +729,8 @@ class _OrdnungsmassnahmenScreenState extends State<OrdnungsmassnahmenScreen> {
           Padding(
             padding: const EdgeInsets.only(left: 56),
             child: Text(
-              'Gemäß §6 Abs. 6 der Satzung des ICD360S e.V.',
+              tr('Gemäß §6 Abs. 6 der Satzung des ICD360S e.V.',
+                  'Conform §6 alin. 6 din statutul (Satzung) asociației ICD360S e.V.'),
               style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
             ),
           ),
@@ -686,7 +770,7 @@ class _OrdnungsmassnahmenScreenState extends State<OrdnungsmassnahmenScreen> {
           children: [
             // Step 1: Mitglied
             _buildSectionHeader(
-              '1. Betroffenes Mitglied',
+              tr('1. Betroffenes Mitglied', '1. Membrul vizat'),
               Icons.person,
               Colors.blue,
             ),
@@ -696,7 +780,7 @@ class _OrdnungsmassnahmenScreenState extends State<OrdnungsmassnahmenScreen> {
 
             // Step 2: Verstoß-Kategorie
             _buildSectionHeader(
-              '2. Art des Verstoßes',
+              tr('2. Art des Verstoßes', '2. Tipul încălcării'),
               Icons.category,
               Colors.orange,
             ),
@@ -706,7 +790,7 @@ class _OrdnungsmassnahmenScreenState extends State<OrdnungsmassnahmenScreen> {
 
             // Step 3: Sachverhalt
             _buildSectionHeader(
-              '3. Sachverhalt / Beschreibung',
+              tr('3. Sachverhalt / Beschreibung', '3. Situația de fapt / descriere'),
               Icons.edit_note,
               Colors.blueGrey,
             ),
@@ -716,7 +800,7 @@ class _OrdnungsmassnahmenScreenState extends State<OrdnungsmassnahmenScreen> {
 
             // Step 4: Datum des Vorfalls
             _buildSectionHeader(
-              '4. Datum des Vorfalls',
+              tr('4. Datum des Vorfalls', '4. Data incidentului'),
               Icons.calendar_today,
               Colors.green,
             ),
@@ -726,7 +810,7 @@ class _OrdnungsmassnahmenScreenState extends State<OrdnungsmassnahmenScreen> {
 
             // Step 5: Ordnungsmaßnahme
             _buildSectionHeader(
-              '5. Ordnungsmaßnahme',
+              tr('5. Ordnungsmaßnahme', '5. Măsură disciplinară'),
               Icons.gavel,
               Colors.red,
             ),
@@ -757,8 +841,9 @@ class _OrdnungsmassnahmenScreenState extends State<OrdnungsmassnahmenScreen> {
                     : const Icon(Icons.picture_as_pdf),
                 label: Text(
                   _isGenerating
-                      ? 'PDF wird erstellt...'
-                      : 'Verwarnung als PDF erstellen',
+                      ? tr('PDF wird erstellt...', 'Se creează PDF-ul...')
+                      : tr('Verwarnung als PDF erstellen',
+                          'Creează avertismentul ca PDF'),
                   style: const TextStyle(fontSize: 16),
                 ),
                 style: ElevatedButton.styleFrom(
@@ -802,7 +887,7 @@ class _OrdnungsmassnahmenScreenState extends State<OrdnungsmassnahmenScreen> {
     return DropdownButtonFormField<User>(
       initialValue: _selectedUser,
       decoration: InputDecoration(
-        hintText: 'Mitglied auswählen...',
+        hintText: tr('Mitglied auswählen...', 'Selectați membrul...'),
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -867,7 +952,7 @@ class _OrdnungsmassnahmenScreenState extends State<OrdnungsmassnahmenScreen> {
                 Icon(v.icon, size: 18, color: selected ? v.color : Colors.grey),
                 const SizedBox(width: 6),
                 Text(
-                  v.titel,
+                  v.anzeigeTitel,
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: selected ? FontWeight.bold : FontWeight.normal,
@@ -887,10 +972,13 @@ class _OrdnungsmassnahmenScreenState extends State<OrdnungsmassnahmenScreen> {
       controller: _sachverhaltController,
       maxLines: 5,
       decoration: InputDecoration(
-        hintText:
+        hintText: tr(
             'Beschreiben Sie den Vorfall detailliert...\n\n'
             'z.B.: Am [Datum] hat das Mitglied [Name] gegenüber '
             '[Person] vertrauliche Informationen weitergegeben...',
+            'Descrieți incidentul în detaliu...\n\n'
+            'de ex.: La [data], membrul [nume] a divulgat informații '
+            'confidențiale către [persoană]...'),
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
         contentPadding: const EdgeInsets.all(16),
       ),
@@ -906,7 +994,9 @@ class _OrdnungsmassnahmenScreenState extends State<OrdnungsmassnahmenScreen> {
           initialDate: _vorfallDatum ?? DateTime.now(),
           firstDate: DateTime(2025),
           lastDate: DateTime.now(),
-          locale: const Locale('de', 'DE'),
+          locale: LanguageService.instance.isRomanian
+              ? const Locale('ro', 'RO')
+              : const Locale('de', 'DE'),
         );
         if (picked != null) {
           setState(() => _vorfallDatum = picked);
@@ -926,7 +1016,7 @@ class _OrdnungsmassnahmenScreenState extends State<OrdnungsmassnahmenScreen> {
             Text(
               _vorfallDatum != null
                   ? df.format(_vorfallDatum!)
-                  : 'Datum auswählen...',
+                  : tr('Datum auswählen...', 'Selectați data...'),
               style: TextStyle(
                 fontSize: 14,
                 color: _vorfallDatum != null
@@ -973,7 +1063,7 @@ class _OrdnungsmassnahmenScreenState extends State<OrdnungsmassnahmenScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          m.titel,
+                          m.anzeigeTitel,
                           style: TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.bold,
@@ -984,7 +1074,7 @@ class _OrdnungsmassnahmenScreenState extends State<OrdnungsmassnahmenScreen> {
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          m.beschreibung,
+                          m.anzeigeBeschreibung,
                           style: TextStyle(
                               fontSize: 11, color: Colors.grey.shade600),
                         ),
@@ -1005,7 +1095,8 @@ class _OrdnungsmassnahmenScreenState extends State<OrdnungsmassnahmenScreen> {
   Widget _buildOrdnungsgeldInput() {
     return Row(
       children: [
-        const Text('Betrag: ', style: TextStyle(fontWeight: FontWeight.bold)),
+        Text(tr('Betrag: ', 'Sumă: '),
+            style: const TextStyle(fontWeight: FontWeight.bold)),
         const SizedBox(width: 8),
         SizedBox(
           width: 100,
@@ -1042,10 +1133,10 @@ class _OrdnungsmassnahmenScreenState extends State<OrdnungsmassnahmenScreen> {
                 children: [
                   Icon(Icons.preview, size: 22, color: Colors.blue.shade700),
                   const SizedBox(width: 8),
-                  const Text(
-                    'Vorschau',
-                    style:
-                        TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  Text(
+                    tr('Vorschau', 'Previzualizare'),
+                    style: const TextStyle(
+                        fontSize: 16, fontWeight: FontWeight.bold),
                   ),
                 ],
               ),
@@ -1053,36 +1144,36 @@ class _OrdnungsmassnahmenScreenState extends State<OrdnungsmassnahmenScreen> {
 
               // Selected info
               _buildPreviewRow(
-                'Mitglied',
+                tr('Mitglied', 'Membru'),
                 _selectedUser != null
                     ? '${_selectedUser!.name} (${_selectedUser!.mitgliedernummer})'
                     : '—',
               ),
               _buildPreviewRow(
-                'Verstoß',
-                _selectedVerstoss?.titel ?? '—',
+                tr('Verstoß', 'Încălcare'),
+                _selectedVerstoss?.anzeigeTitel ?? '—',
               ),
               _buildPreviewRow(
-                'Rechtsgrundlage',
-                _selectedVerstoss?.paragraph ?? '—',
+                tr('Rechtsgrundlage', 'Temei juridic'),
+                _selectedVerstoss?.anzeigeParagraph ?? '—',
               ),
               _buildPreviewRow(
-                'Vorfallsdatum',
+                tr('Vorfallsdatum', 'Data incidentului'),
                 _vorfallDatum != null
                     ? DateFormat('dd.MM.yyyy').format(_vorfallDatum!)
                     : '—',
               ),
               _buildPreviewRow(
-                'Maßnahme',
-                _selectedMassnahme?.titel ?? '—',
+                tr('Maßnahme', 'Măsură'),
+                _selectedMassnahme?.anzeigeTitel ?? '—',
               ),
               if (_selectedMassnahme?.id == 'ordnungsgeld')
                 _buildPreviewRow(
-                  'Ordnungsgeld',
+                  tr('Ordnungsgeld', 'Amendă'),
                   '${_ordnungsgeldController.text} €',
                 ),
               _buildPreviewRow(
-                'Datum Schreiben',
+                tr('Datum Schreiben', 'Data scrisorii'),
                 DateFormat('dd.MM.yyyy').format(_datum),
               ),
               const SizedBox(height: 20),
@@ -1104,7 +1195,7 @@ class _OrdnungsmassnahmenScreenState extends State<OrdnungsmassnahmenScreen> {
                             size: 16, color: Colors.amber.shade800),
                         const SizedBox(width: 6),
                         Text(
-                          'Rechtliche Hinweise',
+                          tr('Rechtliche Hinweise', 'Note juridice'),
                           style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.bold,
@@ -1115,25 +1206,36 @@ class _OrdnungsmassnahmenScreenState extends State<OrdnungsmassnahmenScreen> {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      '• Gemäß §6 Abs. 6 Nr. 2 der Satzung ist dem '
-                      'Mitglied vor Verhängung einer Ordnungsmaßnahme '
-                      'Gelegenheit zur schriftlichen Stellungnahme '
-                      'innerhalb von 14 Tagen zu geben.',
+                      tr(
+                          '• Gemäß §6 Abs. 6 Nr. 2 der Satzung ist dem '
+                          'Mitglied vor Verhängung einer Ordnungsmaßnahme '
+                          'Gelegenheit zur schriftlichen Stellungnahme '
+                          'innerhalb von 14 Tagen zu geben.',
+                          '• Conform §6 alin. 6 pct. 2 din statut, înainte de '
+                          'aplicarea unei măsuri disciplinare membrului trebuie '
+                          'să i se acorde posibilitatea de a lua poziție în '
+                          'scris în termen de 14 zile.'),
                       style: TextStyle(
                           fontSize: 11, color: Colors.amber.shade900),
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      '• Gegen den Ausschluss kann das Mitglied '
-                      'innerhalb eines Monats Einspruch einlegen '
-                      '(§6 Abs. 3a Satzung).',
+                      tr(
+                          '• Gegen den Ausschluss kann das Mitglied '
+                          'innerhalb eines Monats Einspruch einlegen '
+                          '(§6 Abs. 3a Satzung).',
+                          '• Membrul poate contesta excluderea în termen '
+                          'de o lună (§6 alin. 3a din statut).'),
                       style: TextStyle(
                           fontSize: 11, color: Colors.amber.shade900),
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      '• Die Maßnahme muss in Bezug zum Vereinszweck '
-                      'und zur Ordnung des Vereins stehen.',
+                      tr(
+                          '• Die Maßnahme muss in Bezug zum Vereinszweck '
+                          'und zur Ordnung des Vereins stehen.',
+                          '• Măsura trebuie să aibă legătură cu scopul '
+                          'și cu ordinea internă a asociației.'),
                       style: TextStyle(
                           fontSize: 11, color: Colors.amber.shade900),
                     ),
@@ -1160,7 +1262,7 @@ class _OrdnungsmassnahmenScreenState extends State<OrdnungsmassnahmenScreen> {
                             size: 16, color: Colors.blue.shade800),
                         const SizedBox(width: 6),
                         Text(
-                          'Stufenfolge',
+                          tr('Stufenfolge', 'Gradarea măsurilor'),
                           style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.bold,
@@ -1171,9 +1273,13 @@ class _OrdnungsmassnahmenScreenState extends State<OrdnungsmassnahmenScreen> {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      '1. Schriftliche Verwarnung\n'
-                      '2. Ordnungsgeld (bis 100 €)\n'
-                      '3. Ausschluss aus dem Verein',
+                      tr(
+                          '1. Schriftliche Verwarnung\n'
+                          '2. Ordnungsgeld (bis 100 €)\n'
+                          '3. Ausschluss aus dem Verein',
+                          '1. Avertisment scris\n'
+                          '2. Amendă (până la 100 €)\n'
+                          '3. Excluderea din asociație'),
                       style: TextStyle(
                           fontSize: 11, color: Colors.blue.shade900),
                     ),
@@ -1307,7 +1413,8 @@ class _OrdnungsmassnahmenScreenState extends State<OrdnungsmassnahmenScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Fehler beim Erstellen: $e'),
+            content: Text(
+                tr('Fehler beim Erstellen: $e', 'Eroare la creare: $e')),
             backgroundColor: Colors.red,
           ),
         );
