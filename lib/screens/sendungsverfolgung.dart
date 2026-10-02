@@ -209,9 +209,13 @@ class _SendungsverfolgungViewState extends State<SendungsverfolgungView> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      // Eine Zeile: „Sendungsverfolgung" ist ein einziges
+                      // Wort und bräche auf dem Telefon sonst mittendrin um.
                       Text(
                         tr('Sendungsverfolgung', 'Urmărire colet'),
                         style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                       const SizedBox(height: 4),
                       // API Status indicator (clickable)
@@ -241,9 +245,15 @@ class _SendungsverfolgungViewState extends State<SendungsverfolgungView> {
                                   ),
                                 ),
                               const SizedBox(width: 6),
-                              Text(
-                                _apiStatusText,
-                                style: TextStyle(fontSize: 10, color: _apiStatusColor, fontWeight: FontWeight.w600),
+                              // Fehlermeldungen des Servers können lang sein
+                              // (auf 320 dp lief eine 394 px hinaus).
+                              Flexible(
+                                child: Text(
+                                  _apiStatusText,
+                                  style: TextStyle(fontSize: 10, color: _apiStatusColor, fontWeight: FontWeight.w600),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
                               ),
                             ],
                           ),
@@ -293,55 +303,72 @@ class _SendungsverfolgungViewState extends State<SendungsverfolgungView> {
                             ],
                           ),
                         )
-                      : ListView.separated(
-                          itemCount: _shipments.length,
-                          separatorBuilder: (_, __) => const Divider(height: 1),
-                          itemBuilder: (context, index) {
-                            final s = _shipments[index];
-                            final status = s['last_status'] as String?;
-
-                            return ListTile(
-                              dense: true,
-                              contentPadding: EdgeInsets.zero,
-                              leading: Icon(_statusIcon(status), color: _statusColor(status), size: 20),
-                              title: Text(
-                                s['beschreibung'] ?? s['tracking_number'] ?? '',
-                                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                              subtitle: Text(
-                                s['tracking_number'] ?? '',
-                                style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
-                              ),
-                              trailing: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  if (s['last_status_text'] != null)
-                                    Container(
-                                      constraints: const BoxConstraints(maxWidth: 100),
-                                      child: Text(
-                                        _shortStatus(s['last_status_text']),
-                                        style: TextStyle(fontSize: 10, color: _statusColor(status)),
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ),
-                                  IconButton(
-                                    icon: Icon(Icons.refresh, size: 16, color: Colors.grey.shade400),
-                                    onPressed: () => _trackShipment(s),
-                                    tooltip: tr('Status aktualisieren', 'Actualizează statusul'),
-                                    constraints: const BoxConstraints(),
-                                    padding: const EdgeInsets.all(4),
-                                  ),
-                                ],
-                              ),
-                              onTap: () => _showShipmentDetails(s),
-                            );
-                          },
+                      : LayoutBuilder(
+                          // Telefon: der Status steht unter der Sendungsnummer
+                          // statt rechts daneben — die 100 dp rechts ließen
+                          // Beschreibung und Nummer auf 360 dp kaum Platz.
+                          builder: (context, constraints) => ListView.separated(
+                            itemCount: _shipments.length,
+                            separatorBuilder: (_, __) => const Divider(height: 1),
+                            itemBuilder: (context, index) =>
+                                _buildSendungZeile(_shipments[index], schmal: constraints.maxWidth < 400),
+                          ),
                         ),
             ),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildSendungZeile(Map<String, dynamic> s, {required bool schmal}) {
+    final status = s['last_status'] as String?;
+    final statusText = s['last_status_text'] != null
+        ? Text(
+            _shortStatus(s['last_status_text']),
+            style: TextStyle(fontSize: 10, color: _statusColor(status)),
+            overflow: TextOverflow.ellipsis,
+          )
+        : null;
+    final nummer = Text(
+      s['tracking_number'] ?? '',
+      style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+    );
+
+    return ListTile(
+      dense: true,
+      contentPadding: EdgeInsets.zero,
+      leading: Icon(_statusIcon(status), color: _statusColor(status), size: 20),
+      title: Text(
+        s['beschreibung'] ?? s['tracking_number'] ?? '',
+        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+        overflow: TextOverflow.ellipsis,
+      ),
+      subtitle: schmal && statusText != null
+          ? Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [nummer, statusText],
+            )
+          : nummer,
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (!schmal && statusText != null)
+            Container(
+              constraints: const BoxConstraints(maxWidth: 100),
+              child: statusText,
+            ),
+          IconButton(
+            icon: Icon(Icons.refresh, size: 16, color: Colors.grey.shade400),
+            onPressed: () => _trackShipment(s),
+            tooltip: tr('Status aktualisieren', 'Actualizează statusul'),
+            constraints: const BoxConstraints(),
+            padding: const EdgeInsets.all(4),
+          ),
+        ],
+      ),
+      onTap: () => _showShipmentDetails(s),
     );
   }
 
@@ -405,7 +432,7 @@ class _SendungsverfolgungViewState extends State<SendungsverfolgungView> {
             children: [
               Icon(Icons.settings, color: Colors.blue.shade700),
               const SizedBox(width: 8),
-              Text(tr('DHL Portal Einstellungen', 'Setări portal DHL'), style: const TextStyle(fontSize: 16)),
+              Flexible(child: Text(tr('DHL Portal Einstellungen', 'Setări portal DHL'), style: const TextStyle(fontSize: 16))),
             ],
           ),
           content: SizedBox(
@@ -544,7 +571,7 @@ class _SendungsverfolgungViewState extends State<SendungsverfolgungView> {
           children: [
             Icon(Icons.track_changes, color: Colors.blue.shade700),
             const SizedBox(width: 8),
-            Text(tr('Sendung hinzufügen', 'Adaugă expediere')),
+            Flexible(child: Text(tr('Sendung hinzufügen', 'Adaugă expediere'))),
           ],
         ),
         content: SizedBox(
@@ -786,16 +813,23 @@ class _SendungsverfolgungViewState extends State<SendungsverfolgungView> {
         ),
         content: SizedBox(
           width: 400,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _detailRow(tr('Sendungsnummer', 'Număr de expediere'), shipment['tracking_number'] ?? '-'),
-              _detailRow(tr('Beschreibung', 'Descriere'), shipment['beschreibung'] ?? '-'),
-              _detailRow('Status', shipment['last_status_text'] ?? tr('Noch nicht abgefragt', 'Încă neverificat')),
-              _detailRow(tr('Letzte Prüfung', 'Ultima verificare'), shipment['last_checked'] ?? '-'),
-              _detailRow(tr('Erstellt', 'Creat la'), shipment['created_at'] ?? '-'),
-            ],
+          // Telefon: Bezeichnung über dem Wert — neben der 130 dp breiten
+          // Bezeichnung bliebe für die Sendungsnummer zu wenig Platz.
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final untereinander = constraints.maxWidth < 300;
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _detailRow(tr('Sendungsnummer', 'Număr de expediere'), shipment['tracking_number'] ?? '-', untereinander: untereinander),
+                  _detailRow(tr('Beschreibung', 'Descriere'), shipment['beschreibung'] ?? '-', untereinander: untereinander),
+                  _detailRow('Status', shipment['last_status_text'] ?? tr('Noch nicht abgefragt', 'Încă neverificat'), untereinander: untereinander),
+                  _detailRow(tr('Letzte Prüfung', 'Ultima verificare'), shipment['last_checked'] ?? '-', untereinander: untereinander),
+                  _detailRow(tr('Erstellt', 'Creat la'), shipment['created_at'] ?? '-', untereinander: untereinander),
+                ],
+              );
+            },
           ),
         ),
         actions: [
@@ -830,7 +864,19 @@ class _SendungsverfolgungViewState extends State<SendungsverfolgungView> {
     }
   }
 
-  Widget _detailRow(String label, String value) {
+  Widget _detailRow(String label, String value, {bool untereinander = false}) {
+    if (untereinander) {
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 8),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(label, style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+            Text(value, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
+          ],
+        ),
+      );
+    }
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Row(

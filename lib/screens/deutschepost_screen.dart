@@ -64,111 +64,167 @@ class _DeutschePostScreenState extends State<DeutschePostScreen> {
       );
     }
 
+    // 3 clickable service cards
+    final karten = [
+      _buildServiceCard(
+        icon: Icons.track_changes,
+        title: l.sendungsverfolgung,
+        subtitle: l.sendungsverfolgungSubtitle,
+        color: Colors.blue.shade700,
+        badge: _shipmentCount > 0 ? '$_shipmentCount' : null,
+        statusDot: _apiStatusColor,
+        statusText: _apiStatusText ?? l.checkingStatus,
+        onTap: () => setState(() => _subview = 'sendung'),
+      ),
+      _buildServiceCard(
+        icon: Icons.storefront,
+        title: l.filialfinderTitle,
+        subtitle: l.filialfinderSubtitle,
+        color: Colors.red.shade700,
+        comingSoon: true,
+        onTap: null,
+      ),
+      _buildServiceCard(
+        icon: Icons.credit_card,
+        title: l.postcardTitle,
+        subtitle: l.postcardSubtitle,
+        color: Colors.deepPurple.shade700,
+        badge: _postcardCount > 0 ? '$_postcardCount' : null,
+        onTap: () => setState(() => _subview = 'postcard'),
+      ),
+    ];
+
     // Overview
-    return Padding(
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header
-          Row(
+    // Erst ab 900 dp (Schreibtisch) stehen die drei Karten nebeneinander und
+    // füllen die Höhe — wie bisher. Schmaler (Telefon: gut 60 dp je Karte,
+    // Texte liefen unten hinaus) stehen sie untereinander, in natürlicher
+    // Höhe, und die ganze Seite scrollt.
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final breite = constraints.maxWidth;
+        if (breite < 900) {
+          return _buildUebersichtSchmal(l, karten, telefon: breite < 600);
+        }
+        return Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              IconButton(
-                icon: const Icon(Icons.arrow_back),
-                onPressed: widget.onBack,
-                tooltip: l.back,
-              ),
-              const SizedBox(width: 8),
-              Icon(Icons.local_shipping, size: 32, color: Colors.amber.shade700),
-              const SizedBox(width: 12),
-              Text(
-                l.deutschePostTitle,
-                style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-              ),
-              const Spacer(),
-              TextButton.icon(
-                icon: const Icon(Icons.open_in_new, size: 16),
-                label: const Text('deutschepost.de'),
-                onPressed: () => launchUrl(Uri.parse('https://www.deutschepost.de')),
+              // Header
+              _buildKopf(l.deutschePostTitle, Icons.local_shipping, 32, Colors.amber.shade700, 24,
+                  tooltip: l.back, onBack: widget.onBack, telefon: false),
+              const SizedBox(height: 16),
+
+              // Dienste & Preise
+              _buildDiensteUebersicht(),
+              const SizedBox(height: 24),
+
+              // 3 clickable service cards
+              Expanded(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(child: karten[0]),
+                    const SizedBox(width: 16),
+                    Expanded(child: karten[1]),
+                    const SizedBox(width: 16),
+                    Expanded(child: karten[2]),
+                  ],
+                ),
               ),
             ],
           ),
+        );
+      },
+    );
+  }
+
+  /// Telefon und Tablet: Kopf, Dienste & Preise und die drei Karten
+  /// untereinander (volle Breite, natürliche Höhe); die Seite scrollt.
+  Widget _buildUebersichtSchmal(AppLocalizations l, List<Widget> karten, {required bool telefon}) {
+    return SingleChildScrollView(
+      padding: EdgeInsets.all(telefon ? 16 : 24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _buildKopf(l.deutschePostTitle, Icons.local_shipping, 32, Colors.amber.shade700, 24,
+              tooltip: l.back, onBack: widget.onBack, telefon: telefon),
           const SizedBox(height: 16),
-
-          // Dienste & Preise
           _buildDiensteUebersicht(),
-          const SizedBox(height: 24),
-
-          // 3 clickable service cards
-          Expanded(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(child: _buildServiceCard(
-                  icon: Icons.track_changes,
-                  title: l.sendungsverfolgung,
-                  subtitle: l.sendungsverfolgungSubtitle,
-                  color: Colors.blue.shade700,
-                  badge: _shipmentCount > 0 ? '$_shipmentCount' : null,
-                  statusDot: _apiStatusColor,
-                  statusText: _apiStatusText ?? l.checkingStatus,
-                  onTap: () => setState(() => _subview = 'sendung'),
-                )),
-                const SizedBox(width: 16),
-                Expanded(child: _buildServiceCard(
-                  icon: Icons.storefront,
-                  title: l.filialfinderTitle,
-                  subtitle: l.filialfinderSubtitle,
-                  color: Colors.red.shade700,
-                  comingSoon: true,
-                  onTap: null,
-                )),
-                const SizedBox(width: 16),
-                Expanded(child: _buildServiceCard(
-                  icon: Icons.credit_card,
-                  title: l.postcardTitle,
-                  subtitle: l.postcardSubtitle,
-                  color: Colors.deepPurple.shade700,
-                  badge: _postcardCount > 0 ? '$_postcardCount' : null,
-                  onTap: () => setState(() => _subview = 'postcard'),
-                )),
-              ],
-            ),
-          ),
+          SizedBox(height: telefon ? 16 : 24),
+          for (var i = 0; i < karten.length; i++) ...[
+            if (i > 0) const SizedBox(height: 8),
+            karten[i],
+          ],
         ],
       ),
     );
   }
 
+  /// Kopfzeile: Zurück, Symbol, Titel und rechts der Link zu deutschepost.de.
+  /// Auf dem Telefon passen Titel und Link nicht in eine Zeile (auf 320 dp
+  /// 146 px zu breit): dort kürzt der Titel mit „…" und der Link steht
+  /// rechtsbündig darunter.
+  Widget _buildKopf(String title, IconData icon, double iconSize, Color color, double fontSize, {
+    required String tooltip,
+    required VoidCallback onBack,
+    required bool telefon,
+  }) {
+    final stil = TextStyle(fontSize: fontSize, fontWeight: FontWeight.bold);
+    final link = TextButton.icon(
+      icon: const Icon(Icons.open_in_new, size: 16),
+      label: const Text('deutschepost.de'),
+      onPressed: () => launchUrl(Uri.parse('https://www.deutschepost.de')),
+    );
+    final zeile = Row(
+      children: [
+        IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: onBack,
+          tooltip: tooltip,
+        ),
+        const SizedBox(width: 8),
+        Icon(icon, size: iconSize, color: color),
+        const SizedBox(width: 12),
+        if (telefon)
+          Expanded(child: Text(title, style: stil, maxLines: 1, overflow: TextOverflow.ellipsis))
+        else ...[
+          Text(title, style: stil),
+          const Spacer(),
+          link,
+        ],
+      ],
+    );
+    if (!telefon) return zeile;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        zeile,
+        Align(alignment: Alignment.centerRight, child: link),
+      ],
+    );
+  }
+
   Widget _buildSubviewWrapper(String title, IconData icon, Color color, Widget content) {
-    return Padding(
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // Telefon: schmalerer Rand, damit die Sendungsliste Platz hat.
+        final telefon = constraints.maxWidth < 600;
+        return Padding(
+          padding: EdgeInsets.all(telefon ? 16 : 24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              IconButton(
-                icon: const Icon(Icons.arrow_back),
-                onPressed: () => setState(() => _subview = null),
-                tooltip: AppLocalizations.of(context).backToOverview,
-              ),
-              const SizedBox(width: 8),
-              Icon(icon, size: 28, color: color),
-              const SizedBox(width: 12),
-              Text(title, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
-              const Spacer(),
-              TextButton.icon(
-                icon: const Icon(Icons.open_in_new, size: 16),
-                label: const Text('deutschepost.de'),
-                onPressed: () => launchUrl(Uri.parse('https://www.deutschepost.de')),
-              ),
+              _buildKopf(title, icon, 28, color, 22,
+                  tooltip: AppLocalizations.of(context).backToOverview,
+                  onBack: () => setState(() => _subview = null),
+                  telefon: telefon),
+              const SizedBox(height: 16),
+              Expanded(child: content),
             ],
           ),
-          const SizedBox(height: 16),
-          Expanded(child: content),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -203,8 +259,9 @@ class _DeutschePostScreenState extends State<DeutschePostScreen> {
                 child: Icon(icon, color: effectiveColor, size: 40),
               ),
               const SizedBox(height: 16),
-              // Zeilen begrenzt: auf dem Telefon stehen drei Karten
-              // nebeneinander, längere (rumänische) Texte liefen unten hinaus.
+              // Zeilen begrenzt: auf dem Schreibtisch stehen drei Karten
+              // nebeneinander und füllen die Höhe, längere (rumänische) Texte
+              // liefen dort unten hinaus.
               Text(title, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: comingSoon ? Colors.grey : null), textAlign: TextAlign.center, maxLines: 2, overflow: TextOverflow.ellipsis),
               const SizedBox(height: 6),
               Text(subtitle, style: TextStyle(fontSize: 12, color: Colors.grey.shade500), textAlign: TextAlign.center, maxLines: 3, overflow: TextOverflow.ellipsis),
@@ -311,12 +368,16 @@ class _DeutschePostScreenState extends State<DeutschePostScreen> {
           children: [
             Icon(icon, size: 18, color: color),
             const SizedBox(width: 8),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: color)),
-                Text(detail, style: TextStyle(fontSize: 10, color: Colors.grey.shade600)),
-              ],
+            // Flexible: auf schmalen Telefonen bricht ein langer Text um,
+            // statt aus dem Chip zu laufen.
+            Flexible(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: color)),
+                  Text(detail, style: TextStyle(fontSize: 10, color: Colors.grey.shade600)),
+                ],
+              ),
             ),
           ],
         ),

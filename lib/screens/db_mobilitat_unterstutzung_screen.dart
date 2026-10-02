@@ -130,6 +130,45 @@ class _DbMobilitaetUnterstuetzungScreenState
 
   @override
   Widget build(BuildContext context) {
+    // Auf dem Telefon passen Titel und vier Knöpfe nicht in eine Zeile (auf
+    // 320 dp 163 px zu breit): dort wandern die Knöpfe in die Adresszeile,
+    // wie bei einem Browser auf dem Telefon. Ab 600 dp bleibt alles wie bisher.
+    return LayoutBuilder(
+      builder: (context, constraints) => _buildSeite(telefon: constraints.maxWidth < 600),
+    );
+  }
+
+  // Navigation buttons
+  List<Widget> _buildNavigationsKnoepfe() => [
+        IconButton(
+          icon: const Icon(Icons.arrow_back_ios, size: 18),
+          onPressed: _goBack,
+          tooltip: tr('Zurück', 'Înapoi'),
+        ),
+        IconButton(
+          icon: const Icon(Icons.refresh, size: 20),
+          onPressed: _reload,
+          tooltip: tr('Aktualisieren', 'Actualizează'),
+        ),
+        IconButton(
+          icon: const Icon(Icons.home, size: 20),
+          onPressed: _loadHome,
+          tooltip: tr('Startseite', 'Pagina principală'),
+        ),
+        IconButton(
+          icon: const Icon(Icons.open_in_new, size: 20),
+          onPressed: _openExternal,
+          tooltip: tr('Im Browser öffnen', 'Deschide în browser'),
+        ),
+      ];
+
+  Widget _buildSeite({required bool telefon}) {
+    const titel = Text(
+      'DB Mobilitätsservice',
+      style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+    );
     return Column(
       children: [
         // Header
@@ -145,38 +184,21 @@ class _DbMobilitaetUnterstuetzungScreenState
               const SizedBox(width: 4),
               Icon(Icons.train, color: Colors.blue.shade700, size: 24),
               const SizedBox(width: 8),
-              const Text(
-                'DB Mobilitätsservice',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-              ),
-              const Spacer(),
-              // Navigation buttons
-              IconButton(
-                icon: const Icon(Icons.arrow_back_ios, size: 18),
-                onPressed: _goBack,
-                tooltip: tr('Zurück', 'Înapoi'),
-              ),
-              IconButton(
-                icon: const Icon(Icons.refresh, size: 20),
-                onPressed: _reload,
-                tooltip: tr('Aktualisieren', 'Actualizează'),
-              ),
-              IconButton(
-                icon: const Icon(Icons.home, size: 20),
-                onPressed: _loadHome,
-                tooltip: tr('Startseite', 'Pagina principală'),
-              ),
-              IconButton(
-                icon: const Icon(Icons.open_in_new, size: 20),
-                onPressed: _openExternal,
-                tooltip: tr('Im Browser öffnen', 'Deschide în browser'),
-              ),
+              if (telefon)
+                const Expanded(child: titel)
+              else ...[
+                titel,
+                const Spacer(),
+                ..._buildNavigationsKnoepfe(),
+              ],
             ],
           ),
         ),
         // URL bar
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+          padding: telefon
+              ? const EdgeInsets.only(left: 16, right: 4)
+              : const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
           color: Colors.grey.shade100,
           child: Row(
             children: [
@@ -195,6 +217,7 @@ class _DbMobilitaetUnterstuetzungScreenState
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
+              if (telefon) ..._buildNavigationsKnoepfe(),
             ],
           ),
         ),

@@ -43,61 +43,101 @@ class _BehoerdenScreenState extends State<BehoerdenScreen> {
       );
     }
 
-    return Padding(
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header with back button
-          Row(
+    // Erst ab 900 dp (Schreibtisch) stehen die drei Karten nebeneinander und
+    // füllen die Höhe — wie bisher. Schmaler passen sie nicht nebeneinander
+    // (auf dem Telefon gut 60 dp je Karte, schon auf 800 dp bricht
+    // „Handelsregister" mitten im Wort um): dort stehen sie untereinander, in
+    // natürlicher Höhe, und die Seite scrollt.
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth < 900) {
+          return _buildSchmal(telefon: constraints.maxWidth < 600);
+        }
+        return Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              IconButton(
-                icon: const Icon(Icons.arrow_back),
-                onPressed: widget.onBack,
-                tooltip: tr('Zurück', 'Înapoi'),
-              ),
-              const SizedBox(width: 8),
-              Icon(Icons.account_balance, size: 32, color: Colors.blue.shade700),
-              const SizedBox(width: 12),
-              Text(
-                tr('Behörden', 'Autorități'),
-                style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+              _buildHeader(),
+              const SizedBox(height: 24),
+              // Cards row
+              Expanded(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(child: _buildVereinregisterCard()),
+                    const SizedBox(width: 16),
+                    Expanded(child: _buildFinanzamtCard()),
+                    const SizedBox(width: 16),
+                    Expanded(child: _buildHandelsregisterCard()),
+                  ],
+                ),
               ),
             ],
           ),
-          const SizedBox(height: 24),
-          // Cards row
-          Expanded(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(child: _buildVereinregisterCard()),
-                const SizedBox(width: 16),
-                Expanded(child: _buildFinanzamtCard()),
-                const SizedBox(width: 16),
-                Expanded(child: _buildHandelsregisterCard()),
-              ],
-            ),
-          ),
+        );
+      },
+    );
+  }
+
+  /// Telefon und Tablet: Karten untereinander, volle Breite, die Seite scrollt.
+  Widget _buildSchmal({required bool telefon}) {
+    return SingleChildScrollView(
+      padding: EdgeInsets.all(telefon ? 16 : 24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _buildHeader(),
+          SizedBox(height: telefon ? 16 : 24),
+          _buildVereinregisterCard(fuellen: false),
+          const SizedBox(height: 8),
+          _buildFinanzamtCard(fuellen: false),
+          const SizedBox(height: 8),
+          _buildHandelsregisterCard(fuellen: false),
         ],
       ),
     );
   }
 
-  Widget _buildVereinregisterCard() {
+  // Header with back button
+  Widget _buildHeader() {
+    return Row(
+      children: [
+        IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: widget.onBack,
+          tooltip: tr('Zurück', 'Înapoi'),
+        ),
+        const SizedBox(width: 8),
+        Icon(Icons.account_balance, size: 32, color: Colors.blue.shade700),
+        const SizedBox(width: 12),
+        Flexible(
+          child: Text(
+            tr('Behörden', 'Autorități'),
+            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildVereinregisterCard({bool fuellen = true}) {
     return _buildClickableCard(
       icon: Icons.article,
-      // Titel und Untertitel nicht länger als auf Deutsch: drei Karten
-      // nebeneinander sind auf dem Telefon nur gut 60 dp breit, jede
-      // zusätzliche Zeile lief unten hinaus (im Test gemessen).
+      // Titel und Untertitel nicht länger als auf Deutsch: auf dem
+      // Schreibtisch stehen drei Karten nebeneinander und füllen die Höhe,
+      // jede zusätzliche Zeile kostet dort Platz.
       title: 'Vereinregister',
       color: Colors.indigo,
       subtitle: 'Amtsgericht Memmingen\nVR 201335 - ICD360S e.V.',
       onTap: () => setState(() => _subview = 'vereinregister'),
+      fuellen: fuellen,
     );
   }
 
-  Widget _buildHandelsregisterCard() {
+  Widget _buildHandelsregisterCard({bool fuellen = true}) {
     return _buildClickableCard(
       icon: Icons.search,
       title: 'Handelsregister',
@@ -105,10 +145,11 @@ class _BehoerdenScreenState extends State<BehoerdenScreen> {
       subtitle: tr('Firmen & Vereine suchen\nhandelsregister.de',
           'Caută firme și asociații\nhandelsregister.de'),
       onTap: () => setState(() => _subview = 'handelsregister'),
+      fuellen: fuellen,
     );
   }
 
-  Widget _buildFinanzamtCard() {
+  Widget _buildFinanzamtCard({bool fuellen = true}) {
     return _buildClickableCard(
       icon: Icons.receipt_long,
       title: 'Finanzamt',
@@ -116,16 +157,34 @@ class _BehoerdenScreenState extends State<BehoerdenScreen> {
       subtitle: tr('Finanzamt Neu-Ulm\nSteuernummer, Gemeinnützigkeit',
           'Finanzamt Neu-Ulm\nNumăr fiscal, statut nonprofit'),
       onTap: () => setState(() => _subview = 'finanzamt'),
+      fuellen: fuellen,
     );
   }
 
+  /// [fuellen]: die Karte füllt die Höhe der Zeile (Schreibtisch); sonst
+  /// natürliche Höhe (Telefon/Tablet, untereinander in einer scrollenden Seite).
   Widget _buildClickableCard({
     required IconData icon,
     required String title,
     required Color color,
     required String subtitle,
     required VoidCallback onTap,
+    bool fuellen = true,
   }) {
+    final inhalt = Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 40, color: color.withValues(alpha: 0.3)),
+          const SizedBox(height: 8),
+          Text(
+            subtitle,
+            style: TextStyle(color: Colors.grey.shade500, fontSize: 13),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
     return Card(
       clipBehavior: Clip.antiAlias,
       child: InkWell(
@@ -134,6 +193,7 @@ class _BehoerdenScreenState extends State<BehoerdenScreen> {
           padding: const EdgeInsets.all(16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: fuellen ? MainAxisSize.max : MainAxisSize.min,
             children: [
               Row(
                 children: [
@@ -156,22 +216,7 @@ class _BehoerdenScreenState extends State<BehoerdenScreen> {
                 ],
               ),
               const Divider(height: 24),
-              Expanded(
-                child: Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(icon, size: 40, color: color.withValues(alpha: 0.3)),
-                      const SizedBox(height: 8),
-                      Text(
-                        subtitle,
-                        style: TextStyle(color: Colors.grey.shade500, fontSize: 13),
-                        textAlign: TextAlign.center,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
+              if (fuellen) Expanded(child: inhalt) else inhalt,
             ],
           ),
         ),
