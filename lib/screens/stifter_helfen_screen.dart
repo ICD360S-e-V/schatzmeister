@@ -548,7 +548,7 @@ class _StifterHelfenScreenState extends State<StifterHelfenScreen> {
                                     IconButton(
                                       icon: Icon(Icons.open_in_new, size: 18, color: Colors.blue.shade700),
                                       onPressed: _openWebsite,
-                                      tooltip: tr('Website öffnen', 'Deschide website-ul'),
+                                      tooltip: tr('Website öffnen', 'Deschide site-ul'),
                                     ),
                                   ],
                                 ),

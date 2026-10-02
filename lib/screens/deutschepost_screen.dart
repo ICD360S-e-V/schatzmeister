@@ -203,9 +203,11 @@ class _DeutschePostScreenState extends State<DeutschePostScreen> {
                 child: Icon(icon, color: effectiveColor, size: 40),
               ),
               const SizedBox(height: 16),
-              Text(title, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: comingSoon ? Colors.grey : null), textAlign: TextAlign.center),
+              // Zeilen begrenzt: auf dem Telefon stehen drei Karten
+              // nebeneinander, längere (rumänische) Texte liefen unten hinaus.
+              Text(title, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: comingSoon ? Colors.grey : null), textAlign: TextAlign.center, maxLines: 2, overflow: TextOverflow.ellipsis),
               const SizedBox(height: 6),
-              Text(subtitle, style: TextStyle(fontSize: 12, color: Colors.grey.shade500), textAlign: TextAlign.center),
+              Text(subtitle, style: TextStyle(fontSize: 12, color: Colors.grey.shade500), textAlign: TextAlign.center, maxLines: 3, overflow: TextOverflow.ellipsis),
               const SizedBox(height: 12),
               if (comingSoon)
                 Container(
@@ -236,7 +238,9 @@ class _DeutschePostScreenState extends State<DeutschePostScreen> {
                       decoration: BoxDecoration(shape: BoxShape.circle, color: statusDot),
                     ),
                     const SizedBox(width: 6),
-                    Text(statusText, style: TextStyle(fontSize: 11, color: statusDot, fontWeight: FontWeight.w500)),
+                    Flexible(
+                      child: Text(statusText, style: TextStyle(fontSize: 11, color: statusDot, fontWeight: FontWeight.w500), overflow: TextOverflow.ellipsis),
+                    ),
                   ],
                 ),
               ],

@@ -187,7 +187,7 @@ class _NetzwerkScreenState extends State<NetzwerkScreen> {
                   child: _buildMainCard(
                     key: 'krankenkasse',
                     icon: Icons.health_and_safety,
-                    title: tr('Krankenkasse', 'Asigurare de sănătate'),
+                    title: tr('Krankenkasse', 'Casa de sănătate'),
                     subtitle: tr('Gesetzliche, Private Krankenversicherung',
                         'Asigurare de sănătate publică, privată'),
                     color: Colors.green.shade700,
@@ -229,10 +229,14 @@ class _NetzwerkScreenState extends State<NetzwerkScreen> {
                     child: Icon(icon, color: color, size: 24),
                   ),
                   const SizedBox(width: 12),
+                  // Zeilen begrenzt: auf dem Telefon stehen drei Karten
+                  // nebeneinander, längere (rumänische) Texte liefen unten hinaus.
                   Expanded(
                     child: Text(
                       title,
                       style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                   Icon(Icons.arrow_forward_ios, color: Colors.grey.shade400, size: 16),
@@ -250,6 +254,8 @@ class _NetzwerkScreenState extends State<NetzwerkScreen> {
                         subtitle,
                         style: TextStyle(color: Colors.grey.shade400, fontSize: 13),
                         textAlign: TextAlign.center,
+                        maxLines: 3,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ],
                   ),

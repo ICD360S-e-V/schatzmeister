@@ -59,7 +59,7 @@ class _ArbeitsagenturScreenState extends State<ArbeitsagenturScreen>
                       style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
                     ),
                     Text(
-                      tr('Mindestlohn · Zeitarbeit Tarife · Leistungen 2026', 'Salariu minim · Tarife muncă temporară · Prestații 2026'),
+                      tr('Mindestlohn · Zeitarbeit Tarife · Leistungen 2026', 'Salariu minim · tarife muncă temporară · prestații 2026'),
                       style: const TextStyle(fontSize: 13, color: Colors.grey),
                     ),
                   ],

@@ -143,11 +143,11 @@ enum TimeCategory {
   String get display {
     switch (this) {
       case TimeCategory.fahrzeit:
-        return tr('Fahrzeit', 'Timp deplasare');
+        return tr('Fahrzeit', 'Timp de deplasare');
       case TimeCategory.arbeitszeit:
-        return tr('Arbeitszeit', 'Timp lucru');
+        return tr('Arbeitszeit', 'Timp de lucru');
       case TimeCategory.wartezeit:
-        return tr('Wartezeit', 'Timp așteptare');
+        return tr('Wartezeit', 'Timp de așteptare');
     }
   }
 

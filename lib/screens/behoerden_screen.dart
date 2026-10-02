@@ -87,7 +87,10 @@ class _BehoerdenScreenState extends State<BehoerdenScreen> {
   Widget _buildVereinregisterCard() {
     return _buildClickableCard(
       icon: Icons.article,
-      title: tr('Vereinregister', 'Vereinregister (registrul asociațiilor)'),
+      // Titel und Untertitel nicht länger als auf Deutsch: drei Karten
+      // nebeneinander sind auf dem Telefon nur gut 60 dp breit, jede
+      // zusätzliche Zeile lief unten hinaus (im Test gemessen).
+      title: 'Vereinregister',
       color: Colors.indigo,
       subtitle: 'Amtsgericht Memmingen\nVR 201335 - ICD360S e.V.',
       onTap: () => setState(() => _subview = 'vereinregister'),
@@ -97,9 +100,10 @@ class _BehoerdenScreenState extends State<BehoerdenScreen> {
   Widget _buildHandelsregisterCard() {
     return _buildClickableCard(
       icon: Icons.search,
-      title: tr('Handelsregister', 'Handelsregister (registrul comerțului)'),
+      title: 'Handelsregister',
       color: Colors.green,
-      subtitle: tr('Firmen & Vereine suchen\nhandelsregister.de', 'Caută firme și asociații\nhandelsregister.de'),
+      subtitle: tr('Firmen & Vereine suchen\nhandelsregister.de',
+          'Caută firme și asociații\nhandelsregister.de'),
       onTap: () => setState(() => _subview = 'handelsregister'),
     );
   }
@@ -107,9 +111,10 @@ class _BehoerdenScreenState extends State<BehoerdenScreen> {
   Widget _buildFinanzamtCard() {
     return _buildClickableCard(
       icon: Icons.receipt_long,
-      title: tr('Finanzamt', 'Finanzamt (fisc)'),
+      title: 'Finanzamt',
       color: Colors.teal,
-      subtitle: tr('Finanzamt Neu-Ulm\nSteuernummer, Gemeinnützigkeit', 'Finanzamt Neu-Ulm\nNumăr fiscal, statut nonprofit (Gemeinnützigkeit)'),
+      subtitle: tr('Finanzamt Neu-Ulm\nSteuernummer, Gemeinnützigkeit',
+          'Finanzamt Neu-Ulm\nNumăr fiscal, statut nonprofit'),
       onTap: () => setState(() => _subview = 'finanzamt'),
     );
   }

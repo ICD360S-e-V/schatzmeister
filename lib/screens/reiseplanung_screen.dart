@@ -345,11 +345,15 @@ class _ReiseplanungScreenState extends State<ReiseplanungScreen> {
               const SizedBox(width: 4),
               Icon(Icons.route, color: Colors.indigo.shade700, size: 24),
               const SizedBox(width: 8),
-              Text(
-                tr('Reiseplanung', 'Planificare călătorie'),
-                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              // Expanded statt Text + Spacer: der rumänische Titel ist länger
+              // und lief auf dem Telefon rechts hinaus.
+              Expanded(
+                child: Text(
+                  tr('Reiseplanung', 'Planificare călătorii'),
+                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
-              const Spacer(),
               Text(
                 'Deutsche Bahn + DELFI',
                 style: TextStyle(fontSize: 11, color: Colors.grey.shade500),

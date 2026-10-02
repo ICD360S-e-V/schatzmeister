@@ -976,9 +976,13 @@ class _OrdnungsmassnahmenScreenState extends State<OrdnungsmassnahmenScreen> {
             'Beschreiben Sie den Vorfall detailliert...\n\n'
             'z.B.: Am [Datum] hat das Mitglied [Name] gegenüber '
             '[Person] vertrauliche Informationen weitergegeben...',
-            'Descrieți incidentul în detaliu...\n\n'
-            'de ex.: La [data], membrul [nume] a divulgat informații '
-            'confidențiale către [persoană]...'),
+            // Der Text geht unverändert in das deutsche Schreiben an das
+            // Mitglied — deshalb auf Rumänisch der Hinweis, deutsch zu
+            // schreiben, und das Beispiel bleibt deutsch.
+            'Descrieți incidentul în detaliu, în germană — textul apare '
+            'neschimbat în scrisoarea oficială...\n\n'
+            'de ex.: Am [Datum] hat das Mitglied [Name] gegenüber '
+            '[Person] vertrauliche Informationen weitergegeben...'),
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
         contentPadding: const EdgeInsets.all(16),
       ),

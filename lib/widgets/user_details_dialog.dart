@@ -1028,7 +1028,7 @@ class _UserDetailsDialogState extends State<UserDetailsDialog> with SingleTicker
                     children: VerwarnungPdfGenerator.verstossKategorien.map((vk) {
                       final selected = _selectedVerstossKat?.id == vk.id;
                       return ChoiceChip(
-                        label: Text(vk.titel, style: const TextStyle(fontSize: 11)),
+                        label: Text(vk.anzeigeTitel, style: const TextStyle(fontSize: 11)),
                         selected: selected,
                         onSelected: (_) => setState(() => _selectedVerstossKat = vk),
                         selectedColor: (vk.color as MaterialColor?)?.shade100 ?? vk.color.withValues(alpha: 0.2),
@@ -1052,7 +1052,7 @@ class _UserDetailsDialogState extends State<UserDetailsDialog> with SingleTicker
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
-                              '${_selectedVerstossKat!.paragraph} — ${_selectedVerstossKat!.beschreibung}',
+                              '${_selectedVerstossKat!.anzeigeParagraph} — ${_selectedVerstossKat!.anzeigeBeschreibung}',
                               style: TextStyle(fontSize: 11, color: Colors.grey.shade700),
                             ),
                           ),
@@ -1068,6 +1068,11 @@ class _UserDetailsDialogState extends State<UserDetailsDialog> with SingleTicker
                     maxLines: 3,
                     decoration: InputDecoration(
                       labelText: l.factsLabel,
+                      // Geht unverändert in das deutsche Verwarnungsschreiben.
+                      helperText: LanguageService.instance.isRomanian
+                          ? 'În germană — textul apare neschimbat în scrisoarea oficială.'
+                          : null,
+                      helperMaxLines: 2,
                       alignLabelWithHint: true,
                       prefixIcon: const Padding(
                         padding: EdgeInsets.only(bottom: 48),
@@ -1087,7 +1092,7 @@ class _UserDetailsDialogState extends State<UserDetailsDialog> with SingleTicker
                     children: VerwarnungPdfGenerator.massnahmen.map((m) {
                       final selected = _selectedMassnahmeTyp?.id == m.id;
                       return ChoiceChip(
-                        label: Text(m.titel, style: const TextStyle(fontSize: 11)),
+                        label: Text(m.anzeigeTitel, style: const TextStyle(fontSize: 11)),
                         selected: selected,
                         onSelected: (_) => setState(() => _selectedMassnahmeTyp = m),
                         selectedColor: (m.color as MaterialColor?)?.shade100 ?? m.color.withValues(alpha: 0.2),

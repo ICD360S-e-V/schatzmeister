@@ -141,7 +141,7 @@ class _VereinregisterScreenState extends State<VereinregisterScreen> {
                               labelText: l.addressRequired,
                               prefixIcon: const Icon(Icons.location_on),
                               border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                              hintText: tr('Straße Nr., PLZ Ort', 'Stradă nr., cod poștal localitate'),
+                              hintText: tr('Straße Nr., PLZ Ort', 'Stradă nr., cod poștal, localitate'),
                             ),
                             maxLines: 2,
                           ),

@@ -919,9 +919,9 @@ class AppLocalizations {
   String get doneTickets => _t('Erledigt', 'Finalizate');
   String get timeTracking => _t('Zeiterfassung', 'Urmărire timp');
   String get totalShortLabel => _t('gesamt', 'total');
-  String get travelTime => _t('Fahrzeit', 'Timp deplasare');
-  String get workTime => _t('Arbeitszeit', 'Timp lucru');
-  String get waitTime => _t('Wartezeit', 'Timp așteptare');
+  String get travelTime => _t('Fahrzeit', 'Timp de deplasare');
+  String get workTime => _t('Arbeitszeit', 'Timp de lucru');
+  String get waitTime => _t('Wartezeit', 'Timp de așteptare');
   String get noAppointmentsAvailable => _t('Keine Termine vorhanden', 'Nicio programare disponibilă');
   String appointmentsCount(int count) => _t('$count Termine', '$count programări');
   String get upcomingAppointments => _t('Anstehende Termine', 'Programări viitoare');
@@ -1402,7 +1402,7 @@ class AppLocalizations {
   String get vereinsdatenTitle => _t('Vereinsdaten', 'Date asociație');
   String get addVereinsdaten => _t('Vereinsdaten hinzufügen', 'Adăugați date asociație');
   String get enterVereinsdaten => _t('Name, Adresse, Kontaktdaten des Vereins eintragen', 'Completați numele, adresa, datele de contact ale asociației');
-  String get openWebsite => _t('Website öffnen', 'Deschide website-ul');
+  String get openWebsite => _t('Website öffnen', 'Deschide site-ul');
   String get foundingLabel => _t('Gründung', 'Fondare');
 
   // ============================================================

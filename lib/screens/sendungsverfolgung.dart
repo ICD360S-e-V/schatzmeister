@@ -210,7 +210,7 @@ class _SendungsverfolgungViewState extends State<SendungsverfolgungView> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        tr('Sendungsverfolgung', 'Urmărire expediere'),
+                        tr('Sendungsverfolgung', 'Urmărire colet'),
                         style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                       ),
                       const SizedBox(height: 4),
