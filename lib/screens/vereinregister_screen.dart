@@ -99,164 +99,175 @@ class _VereinregisterScreenState extends State<VereinregisterScreen> {
     final registernummerCtrl = TextEditingController(text: (d['registernummer'] ?? '').toString());
     final registergerichtCtrl = TextEditingController(text: (d['registergericht'] ?? '').toString());
 
+    final links = <Widget>[
+      TextField(
+        controller: nameCtrl,
+        decoration: InputDecoration(
+          labelText: l.vereinsname,
+          prefixIcon: const Icon(Icons.business),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+          hintText: tr('z.B. ICD360S e.V.', 'de ex. ICD360S e.V.'),
+        ),
+      ),
+      const SizedBox(height: 14),
+      TextField(
+        controller: adresseCtrl,
+        decoration: InputDecoration(
+          labelText: l.addressRequired,
+          prefixIcon: const Icon(Icons.location_on),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+          hintText: tr('Straße Nr., PLZ Ort', 'Stradă nr., cod poștal, localitate'),
+        ),
+        maxLines: 2,
+      ),
+      const SizedBox(height: 14),
+      TextField(
+        controller: gruendungsdatumCtrl,
+        decoration: InputDecoration(
+          labelText: l.foundingDate,
+          prefixIcon: const Icon(Icons.calendar_month),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+          hintText: tr('z.B. 01.01.2025', 'de ex. 01.01.2025'),
+        ),
+      ),
+      const SizedBox(height: 14),
+      TextField(
+        controller: registernummerCtrl,
+        decoration: InputDecoration(
+          labelText: l.registerNumber,
+          prefixIcon: const Icon(Icons.numbers),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+          hintText: tr('z.B. VR 201335', 'de ex. VR 201335'),
+        ),
+      ),
+      const SizedBox(height: 14),
+      TextField(
+        controller: registergerichtCtrl,
+        decoration: InputDecoration(
+          labelText: l.registerCourt,
+          prefixIcon: const Icon(Icons.account_balance),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+          hintText: tr('z.B. Amtsgericht Memmingen, Bayern',
+              'de ex. Amtsgericht Memmingen, Bayern'),
+        ),
+      ),
+    ];
+    final rechts = <Widget>[
+      TextField(
+        controller: emailCtrl,
+        decoration: InputDecoration(
+          labelText: l.email,
+          prefixIcon: const Icon(Icons.email),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+        ),
+      ),
+      const SizedBox(height: 14),
+      TextField(
+        controller: telefonFixCtrl,
+        decoration: InputDecoration(
+          labelText: l.landlinePhone,
+          prefixIcon: const Icon(Icons.phone),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+        ),
+      ),
+      const SizedBox(height: 14),
+      TextField(
+        controller: faxCtrl,
+        decoration: InputDecoration(
+          labelText: l.faxLabel,
+          prefixIcon: const Icon(Icons.fax),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+        ),
+      ),
+      const SizedBox(height: 14),
+      TextField(
+        controller: mobilCtrl,
+        decoration: InputDecoration(
+          labelText: l.mobilePhone,
+          prefixIcon: const Icon(Icons.phone_android),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+        ),
+      ),
+    ];
+
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Row(
-          children: [
-            Icon(Icons.settings, color: Colors.indigo.shade700),
-            const SizedBox(width: 10),
-            Text(l.vereinSettingsTitle),
-          ],
-        ),
-        content: SizedBox(
-          width: 700,
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Divider(),
-                const SizedBox(height: 8),
-                // Two-column layout
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Left column
-                    Expanded(
-                      child: Column(
-                        children: [
-                          TextField(
-                            controller: nameCtrl,
-                            decoration: InputDecoration(
-                              labelText: l.vereinsname,
-                              prefixIcon: const Icon(Icons.business),
-                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                              hintText: tr('z.B. ICD360S e.V.', 'de ex. ICD360S e.V.'),
-                            ),
-                          ),
-                          const SizedBox(height: 14),
-                          TextField(
-                            controller: adresseCtrl,
-                            decoration: InputDecoration(
-                              labelText: l.addressRequired,
-                              prefixIcon: const Icon(Icons.location_on),
-                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                              hintText: tr('Straße Nr., PLZ Ort', 'Stradă nr., cod poștal, localitate'),
-                            ),
-                            maxLines: 2,
-                          ),
-                          const SizedBox(height: 14),
-                          TextField(
-                            controller: gruendungsdatumCtrl,
-                            decoration: InputDecoration(
-                              labelText: l.foundingDate,
-                              prefixIcon: const Icon(Icons.calendar_month),
-                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                              hintText: tr('z.B. 01.01.2025', 'de ex. 01.01.2025'),
-                            ),
-                          ),
-                          const SizedBox(height: 14),
-                          TextField(
-                            controller: registernummerCtrl,
-                            decoration: InputDecoration(
-                              labelText: l.registerNumber,
-                              prefixIcon: const Icon(Icons.numbers),
-                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                              hintText: tr('z.B. VR 201335', 'de ex. VR 201335'),
-                            ),
-                          ),
-                          const SizedBox(height: 14),
-                          TextField(
-                            controller: registergerichtCtrl,
-                            decoration: InputDecoration(
-                              labelText: l.registerCourt,
-                              prefixIcon: const Icon(Icons.account_balance),
-                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                              hintText: tr('z.B. Amtsgericht Memmingen, Bayern',
-                                  'de ex. Amtsgericht Memmingen, Bayern'),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    // Right column
-                    Expanded(
-                      child: Column(
-                        children: [
-                          TextField(
-                            controller: emailCtrl,
-                            decoration: InputDecoration(
-                              labelText: l.email,
-                              prefixIcon: const Icon(Icons.email),
-                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                            ),
-                          ),
-                          const SizedBox(height: 14),
-                          TextField(
-                            controller: telefonFixCtrl,
-                            decoration: InputDecoration(
-                              labelText: l.landlinePhone,
-                              prefixIcon: const Icon(Icons.phone),
-                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                            ),
-                          ),
-                          const SizedBox(height: 14),
-                          TextField(
-                            controller: faxCtrl,
-                            decoration: InputDecoration(
-                              labelText: l.faxLabel,
-                              prefixIcon: const Icon(Icons.fax),
-                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                            ),
-                          ),
-                          const SizedBox(height: 14),
-                          TextField(
-                            controller: mobilCtrl,
-                            decoration: InputDecoration(
-                              labelText: l.mobilePhone,
-                              prefixIcon: const Icon(Icons.phone_android),
-                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
+      builder: (ctx) {
+        // Dialoge liegen über der ganzen App, nicht neben der Seitenleiste:
+        // hier zählt die Fensterbreite. (LayoutBuilder geht in AlertDialog
+        // nicht, der misst seinen Inhalt mit IntrinsicWidth.) Auf dem Telefon
+        // eine Spalte statt zwei — sonst bleiben den Feldern kaum 80 dp.
+        final telefon = MediaQuery.sizeOf(ctx).width < 600;
+        return AlertDialog(
+          insetPadding: telefon ? const EdgeInsets.symmetric(horizontal: 16, vertical: 24) : null,
+          title: Row(
+            children: [
+              Icon(Icons.settings, color: Colors.indigo.shade700),
+              const SizedBox(width: 10),
+              Flexible(
+                child: Text(
+                  l.vereinSettingsTitle,
+                  style: telefon ? const TextStyle(fontSize: 20) : null,
                 ),
-              ],
+              ),
+            ],
+          ),
+          content: SizedBox(
+            width: 700,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Divider(),
+                  const SizedBox(height: 8),
+                  if (telefon)
+                    Column(children: [...links, const SizedBox(height: 14), ...rechts])
+                  else
+                    // Two-column layout
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Left column
+                        Expanded(child: Column(children: links)),
+                        const SizedBox(width: 16),
+                        // Right column
+                        Expanded(child: Column(children: rechts)),
+                      ],
+                    ),
+                ],
+              ),
             ),
           ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text(l.cancel),
-          ),
-          ElevatedButton.icon(
-            onPressed: () {
-              _saveVereineinstellungen({
-                'vereinsname': nameCtrl.text,
-                'adresse': adresseCtrl.text,
-                'telefon_fix': telefonFixCtrl.text,
-                'fax': faxCtrl.text,
-                'mobil': mobilCtrl.text,
-                'email': emailCtrl.text,
-                'gruendungsdatum': gruendungsdatumCtrl.text,
-                'registernummer': registernummerCtrl.text,
-                'registergericht': registergerichtCtrl.text,
-              });
-              Navigator.pop(ctx);
-            },
-            icon: const Icon(Icons.save, size: 18),
-            label: Text(l.save),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.indigo.shade700,
-              foregroundColor: Colors.white,
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text(l.cancel),
             ),
-          ),
-        ],
-      ),
+            ElevatedButton.icon(
+              onPressed: () {
+                _saveVereineinstellungen({
+                  'vereinsname': nameCtrl.text,
+                  'adresse': adresseCtrl.text,
+                  'telefon_fix': telefonFixCtrl.text,
+                  'fax': faxCtrl.text,
+                  'mobil': mobilCtrl.text,
+                  'email': emailCtrl.text,
+                  'gruendungsdatum': gruendungsdatumCtrl.text,
+                  'registernummer': registernummerCtrl.text,
+                  'registergericht': registergerichtCtrl.text,
+                });
+                Navigator.pop(ctx);
+              },
+              icon: const Icon(Icons.save, size: 18),
+              label: Text(l.save),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.indigo.shade700,
+                foregroundColor: Colors.white,
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -273,73 +284,95 @@ class _VereinregisterScreenState extends State<VereinregisterScreen> {
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context);
-    return Padding(
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header
-          Row(
+    // Telefon: Breite, die der Bildschirm wirklich bekommt (LayoutBuilder).
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final telefon = constraints.maxWidth < 600;
+        return Padding(
+          padding: EdgeInsets.all(telefon ? 16 : 24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              IconButton(
-                icon: const Icon(Icons.arrow_back),
-                onPressed: widget.onBack,
-                tooltip: l.back,
-              ),
-              const SizedBox(width: 8),
-              Icon(Icons.article, size: 32, color: Colors.indigo.shade700),
-              const SizedBox(width: 12),
-              Text(
-                l.vereinregisterTitle,
-                style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-              ),
-              const Spacer(),
-              if (_data != null)
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: Colors.indigo.shade50,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.indigo.shade200),
+              // Header — auf dem Telefon ohne Zierbild und mit 20er Titel
+              Row(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.arrow_back),
+                    onPressed: widget.onBack,
+                    tooltip: l.back,
                   ),
-                  child: Text(
-                    _registernummer,
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.indigo.shade700,
+                  const SizedBox(width: 8),
+                  if (!telefon) ...[
+                    Icon(Icons.article, size: 32, color: Colors.indigo.shade700),
+                    const SizedBox(width: 12),
+                  ],
+                  // Registernummer rechts außen; passt sie nicht mehr neben
+                  // den Titel, steht sie darunter.
+                  Expanded(
+                    child: Wrap(
+                      alignment: WrapAlignment.spaceBetween,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      spacing: 12,
+                      runSpacing: 6,
+                      children: [
+                        Text(
+                          l.vereinregisterTitle,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(fontSize: telefon ? 20 : 24, fontWeight: FontWeight.bold),
+                        ),
+                        if (_data != null)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: Colors.indigo.shade50,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: Colors.indigo.shade200),
+                            ),
+                            child: Text(
+                              _registernummer,
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.indigo.shade700,
+                              ),
+                            ),
+                          ),
+                      ],
                     ),
                   ),
-                ),
+                ],
+              ),
+              SizedBox(height: telefon ? 16 : 24),
+              // Content
+              Expanded(
+                child: _isLoading || _vereineinstellungenLoading
+                    ? const Center(child: CircularProgressIndicator())
+                    : _data == null
+                        ? Center(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.article, size: 48, color: Colors.grey.shade300),
+                                const SizedBox(height: 12),
+                                Text(
+                                  l.noVereinregisterData,
+                                  textAlign: telefon ? TextAlign.center : null, // bricht nur dort um
+                                  style: TextStyle(color: Colors.grey.shade500, fontSize: 16),
+                                ),
+                              ],
+                            ),
+                          )
+                        : _buildContent(telefon),
+              ),
             ],
           ),
-          const SizedBox(height: 24),
-          // Content
-          Expanded(
-            child: _isLoading || _vereineinstellungenLoading
-                ? const Center(child: CircularProgressIndicator())
-                : _data == null
-                    ? Center(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.article, size: 48, color: Colors.grey.shade300),
-                            const SizedBox(height: 12),
-                            Text(
-                              l.noVereinregisterData,
-                              style: TextStyle(color: Colors.grey.shade500, fontSize: 16),
-                            ),
-                          ],
-                        ),
-                      )
-                    : _buildContent(),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 
-  Widget _buildContent() {
+  Widget _buildContent(bool telefon) {
     final l = AppLocalizations.of(context);
     final d = _data!;
     final ve = _vereineinstellungen;
@@ -419,13 +452,13 @@ class _VereinregisterScreenState extends State<VereinregisterScreen> {
                   ),
                   const SizedBox(height: 20),
                   // Address
-                  _buildInfoRow(Icons.location_on, l.address, '${d['strasse']} ${d['hausnummer']}, ${d['plz']} ${d['ort']}'),
+                  _buildInfoRow(Icons.location_on, l.address, '${d['strasse']} ${d['hausnummer']}, ${d['plz']} ${d['ort']}', gestapelt: telefon),
                   const SizedBox(height: 12),
-                  _buildInfoRow(Icons.phone, l.phone, d['telefon'] ?? '-'),
+                  _buildInfoRow(Icons.phone, l.phone, d['telefon'] ?? '-', gestapelt: telefon),
                   const SizedBox(height: 12),
-                  _buildInfoRow(Icons.fax, l.faxLabel, d['fax'] ?? '-'),
+                  _buildInfoRow(Icons.fax, l.faxLabel, d['fax'] ?? '-', gestapelt: telefon),
                   const SizedBox(height: 12),
-                  _buildInfoRow(Icons.email, l.email, d['email'] ?? '-'),
+                  _buildInfoRow(Icons.email, l.email, d['email'] ?? '-', gestapelt: telefon),
                   const SizedBox(height: 16),
                   // Action button
                   if (d['website'] != null)
@@ -479,30 +512,30 @@ class _VereinregisterScreenState extends State<VereinregisterScreen> {
                     const Divider(height: 28),
                     // Vereinsdaten fields
                     if ((ve['vereinsname'] ?? '').toString().trim().isNotEmpty)
-                      _buildInfoRow(Icons.business, l.name, ve['vereinsname'].toString()),
+                      _buildInfoRow(Icons.business, l.name, ve['vereinsname'].toString(), gestapelt: telefon),
                     if ((ve['adresse'] ?? '').toString().trim().isNotEmpty) ...[
                       const SizedBox(height: 12),
-                      _buildInfoRow(Icons.location_on, l.address, ve['adresse'].toString()),
+                      _buildInfoRow(Icons.location_on, l.address, ve['adresse'].toString(), gestapelt: telefon),
                     ],
                     if ((ve['telefon_fix'] ?? '').toString().trim().isNotEmpty) ...[
                       const SizedBox(height: 12),
-                      _buildInfoRow(Icons.phone, l.phone, ve['telefon_fix'].toString()),
+                      _buildInfoRow(Icons.phone, l.phone, ve['telefon_fix'].toString(), gestapelt: telefon),
                     ],
                     if ((ve['fax'] ?? '').toString().trim().isNotEmpty) ...[
                       const SizedBox(height: 12),
-                      _buildInfoRow(Icons.fax, l.faxLabel, ve['fax'].toString()),
+                      _buildInfoRow(Icons.fax, l.faxLabel, ve['fax'].toString(), gestapelt: telefon),
                     ],
                     if ((ve['mobil'] ?? '').toString().trim().isNotEmpty) ...[
                       const SizedBox(height: 12),
-                      _buildInfoRow(Icons.phone_android, l.mobilePhone, ve['mobil'].toString()),
+                      _buildInfoRow(Icons.phone_android, l.mobilePhone, ve['mobil'].toString(), gestapelt: telefon),
                     ],
                     if ((ve['email'] ?? '').toString().trim().isNotEmpty) ...[
                       const SizedBox(height: 12),
-                      _buildInfoRow(Icons.email, l.email, ve['email'].toString()),
+                      _buildInfoRow(Icons.email, l.email, ve['email'].toString(), gestapelt: telefon),
                     ],
                     if ((ve['gruendungsdatum'] ?? '').toString().trim().isNotEmpty) ...[
                       const SizedBox(height: 12),
-                      _buildInfoRow(Icons.calendar_month, l.foundingLabel, ve['gruendungsdatum'].toString()),
+                      _buildInfoRow(Icons.calendar_month, l.foundingLabel, ve['gruendungsdatum'].toString(), gestapelt: telefon),
                     ],
                   ],
                 ),
@@ -552,7 +585,34 @@ class _VereinregisterScreenState extends State<VereinregisterScreen> {
     );
   }
 
-  Widget _buildInfoRow(IconData icon, String label, String value) {
+  Widget _buildInfoRow(IconData icon, String label, String value, {bool gestapelt = false}) {
+    // Telefon: Bezeichnung über dem Wert statt in einer 70-dp-Spalte daneben —
+    // sonst brächen lange Werte (E-Mail-Adressen) auf 320 dp mitten im Wort.
+    if (gestapelt) {
+      return Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 18, color: Colors.grey.shade600),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  value,
+                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+                ),
+              ],
+            ),
+          ),
+        ],
+      );
+    }
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
