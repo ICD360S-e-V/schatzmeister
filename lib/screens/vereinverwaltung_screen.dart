@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../services/api_service.dart';
+import '../services/language_service.dart';
 import '../models/user.dart';
 import '../l10n/app_localizations.dart';
 import 'behoerden_screen.dart';
@@ -625,8 +626,8 @@ class _VereinverwaltungScreenState extends State<VereinverwaltungScreen> {
                 'Dedicated Server: 148.251.68.9 (Proxmox)',
                 'Cloud Storage',
                 'Backup Solutions',
-                'Rechnungen & Verträge',
-                'Support-Tickets',
+                tr('Rechnungen & Verträge', 'Facturi și contracte'),
+                tr('Support-Tickets', 'Tichete de suport'),
               ],
             ),
           ),
@@ -665,11 +666,11 @@ class _VereinverwaltungScreenState extends State<VereinverwaltungScreen> {
               title: l.inwxDomainServices,
               color: Colors.blueGrey,
               items: [
-                'Domain: icd360s.de',
-                'DNS-Verwaltung',
-                'SSL-Zertifikate',
-                'E-Mail-Weiterleitungen',
-                'Nameserver-Einstellungen',
+                tr('Domain: icd360s.de', 'Domeniu: icd360s.de'),
+                tr('DNS-Verwaltung', 'Administrare DNS'),
+                tr('SSL-Zertifikate', 'Certificate SSL'),
+                tr('E-Mail-Weiterleitungen', 'Redirecționări e-mail'),
+                tr('Nameserver-Einstellungen', 'Setări nameserver'),
               ],
             ),
           ),
@@ -727,7 +728,8 @@ class _VereinverwaltungScreenState extends State<VereinverwaltungScreen> {
       icon: Icons.volunteer_activism,
       title: 'Stifter-helfen',
       color: Colors.deepPurple,
-      subtitle: 'IT for Nonprofits - Software-Spenden',
+      subtitle: tr('IT for Nonprofits - Software-Spenden',
+          'IT for Nonprofits - donații de software'),
       onTap: () => setState(() => _vereinSubview = 'stifter-helfen'),
       badge: _stifterHelfenOpenAufgaben > 0
           ? l.openTasksLabel(_stifterHelfenOpenAufgaben)
@@ -800,8 +802,10 @@ class _VereinverwaltungScreenState extends State<VereinverwaltungScreen> {
                     title: l.softwareDonations,
                     color: Colors.deepPurple,
                     items: [
-                      'Microsoft 365 (bis zu 90% Rabatt)',
-                      'Adobe Creative Cloud (65% Rabatt)',
+                      tr('Microsoft 365 (bis zu 90% Rabatt)',
+                          'Microsoft 365 (reducere de până la 90%)'),
+                      tr('Adobe Creative Cloud (65% Rabatt)',
+                          'Adobe Creative Cloud (reducere de 65%)'),
                       'Dropbox Business',
                       'Zoom Pro/Business',
                       'Slack',

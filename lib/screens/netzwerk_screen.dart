@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
+import '../services/language_service.dart';
 import '../services/logger_service.dart';
 import 'arbeitsagentur_screen.dart';
 
@@ -105,9 +106,9 @@ class _NetzwerkScreenState extends State<NetzwerkScreen> {
             children: [
               Icon(Icons.location_city, size: 32, color: Colors.indigo.shade700),
               const SizedBox(width: 12),
-              const Text(
-                'Netzwerk',
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+              Text(
+                tr('Netzwerk', 'Rețea'),
+                style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
               ),
             ],
           ),
@@ -122,8 +123,9 @@ class _NetzwerkScreenState extends State<NetzwerkScreen> {
                   child: _buildMainCard(
                     key: 'behoerden',
                     icon: Icons.account_balance,
-                    title: 'Behörden',
-                    subtitle: 'Ämter, Verwaltung, Bürgerservice',
+                    title: tr('Behörden', 'Autorități'),
+                    subtitle: tr('Ämter, Verwaltung, Bürgerservice',
+                        'Oficii, administrație, servicii pentru cetățeni'),
                     color: Colors.blue.shade700,
                   ),
                 ),
@@ -132,8 +134,9 @@ class _NetzwerkScreenState extends State<NetzwerkScreen> {
                   child: _buildMainCard(
                     key: 'krankenhaeuser',
                     icon: Icons.local_hospital,
-                    title: 'Krankenhäuser',
-                    subtitle: 'Kliniken, Notaufnahme, Stationen',
+                    title: tr('Krankenhäuser', 'Spitale'),
+                    subtitle: tr('Kliniken, Notaufnahme, Stationen',
+                        'Clinici, urgențe, secții'),
                     color: Colors.red.shade700,
                   ),
                 ),
@@ -142,8 +145,9 @@ class _NetzwerkScreenState extends State<NetzwerkScreen> {
                   child: _buildMainCard(
                     key: 'praxen',
                     icon: Icons.medical_services,
-                    title: 'Praxen',
-                    subtitle: 'Ärzte, Zahnärzte, Fachärzte',
+                    title: tr('Praxen', 'Cabinete medicale'),
+                    subtitle: tr('Ärzte, Zahnärzte, Fachärzte',
+                        'Medici, stomatologi, medici specialiști'),
                     color: Colors.teal.shade700,
                   ),
                 ),
@@ -161,8 +165,9 @@ class _NetzwerkScreenState extends State<NetzwerkScreen> {
                   child: _buildMainCard(
                     key: 'drogerie',
                     icon: Icons.local_pharmacy,
-                    title: 'Drogerie',
-                    subtitle: 'Apotheken, Drogerien, Gesundheit',
+                    title: tr('Drogerie', 'Drogherie'),
+                    subtitle: tr('Apotheken, Drogerien, Gesundheit',
+                        'Farmacii, drogherii, sănătate'),
                     color: Colors.pink.shade700,
                   ),
                 ),
@@ -171,8 +176,9 @@ class _NetzwerkScreenState extends State<NetzwerkScreen> {
                   child: _buildMainCard(
                     key: 'maerkte',
                     icon: Icons.store,
-                    title: 'Märkte',
-                    subtitle: 'Supermärkte, Wochenmärkte, Einzelhandel',
+                    title: tr('Märkte', 'Magazine'),
+                    subtitle: tr('Supermärkte, Wochenmärkte, Einzelhandel',
+                        'Supermarketuri, piețe săptămânale, comerț cu amănuntul'),
                     color: Colors.orange.shade700,
                   ),
                 ),
@@ -181,8 +187,9 @@ class _NetzwerkScreenState extends State<NetzwerkScreen> {
                   child: _buildMainCard(
                     key: 'krankenkasse',
                     icon: Icons.health_and_safety,
-                    title: 'Krankenkasse',
-                    subtitle: 'Gesetzliche, Private Krankenversicherung',
+                    title: tr('Krankenkasse', 'Asigurare de sănătate'),
+                    subtitle: tr('Gesetzliche, Private Krankenversicherung',
+                        'Asigurare de sănătate publică, privată'),
                     color: Colors.green.shade700,
                   ),
                 ),
@@ -287,7 +294,7 @@ class _NetzwerkScreenState extends State<NetzwerkScreen> {
                   _subview = null;
                   _moduleFilter[moduleKey] = null;
                 }),
-                tooltip: 'Zurück',
+                tooltip: tr('Zurück', 'Înapoi'),
               ),
               const SizedBox(width: 8),
               Icon(config.icon, size: 32, color: config.color),
@@ -306,7 +313,7 @@ class _NetzwerkScreenState extends State<NetzwerkScreen> {
                     borderRadius: BorderRadius.circular(16),
                   ),
                   child: Text(
-                    '${data.length} Einträge',
+                    tr('${data.length} Einträge', '${data.length} intrări'),
                     style: TextStyle(
                       color: config.color,
                       fontWeight: FontWeight.w600,
@@ -324,7 +331,7 @@ class _NetzwerkScreenState extends State<NetzwerkScreen> {
               child: ListView(
                 scrollDirection: Axis.horizontal,
                 children: [
-                  _buildFilterChip(moduleKey, null, 'Alle', Icons.list, config.color, currentFilter),
+                  _buildFilterChip(moduleKey, null, tr('Alle', 'Toate'), Icons.list, config.color, currentFilter),
                   const SizedBox(width: 8),
                   ...stats.map((stat) {
                     final filterKey = stat[config.filterField] as String? ?? '';
@@ -354,7 +361,7 @@ class _NetzwerkScreenState extends State<NetzwerkScreen> {
                             Icon(config.icon, size: 64, color: Colors.grey.shade300),
                             const SizedBox(height: 16),
                             Text(
-                              'Keine Einträge gefunden',
+                              tr('Keine Einträge gefunden', 'Nu s-au găsit intrări'),
                               style: TextStyle(color: Colors.grey.shade400, fontSize: 16),
                             ),
                           ],
@@ -380,14 +387,14 @@ class _NetzwerkScreenState extends State<NetzwerkScreen> {
               IconButton(
                 icon: const Icon(Icons.arrow_back),
                 onPressed: () => setState(() => _subview = null),
-                tooltip: 'Zurück',
+                tooltip: tr('Zurück', 'Înapoi'),
               ),
               const SizedBox(width: 8),
               Icon(Icons.account_balance, size: 32, color: Colors.blue.shade700),
               const SizedBox(width: 12),
-              const Text(
-                'Behörden',
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+              Text(
+                tr('Behörden', 'Autorități'),
+                style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
               ),
             ],
           ),
@@ -396,7 +403,8 @@ class _NetzwerkScreenState extends State<NetzwerkScreen> {
           _buildSpecialBehoerdenCard(
             icon: Icons.change_history,
             title: 'Bundesagentur für Arbeit',
-            subtitle: 'Mindestlohn · Zeitarbeit Tarife · Leistungen 2026',
+            subtitle: tr('Mindestlohn · Zeitarbeit Tarife · Leistungen 2026',
+                'Salariu minim · tarife muncă temporară · prestații 2026'),
             color: const Color(0xFFE30613), // BA corporate red
             onTap: () => setState(() => _subview = 'arbeitsagentur'),
           ),
@@ -488,7 +496,9 @@ class _NetzwerkScreenState extends State<NetzwerkScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: grouped.entries.map((entry) {
-          final groupLabel = entry.value.first[config.filterLabelField] as String? ?? entry.key;
+          // 'Sonstige' bleibt Gruppierungsschlüssel; übersetzt wird nur die Anzeige.
+          final groupLabel = entry.value.first[config.filterLabelField] as String? ??
+              (entry.key == 'Sonstige' ? tr('Sonstige', 'Altele') : entry.key);
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -619,13 +629,13 @@ class _NetzwerkScreenState extends State<NetzwerkScreen> {
       case 'drogerie':
       case 'maerkte':
         final filialen = item['filialen_anzahl'];
-        return filialen != null ? '$filialen Filialen' : '';
+        return filialen != null ? tr('$filialen Filialen', '$filialen filiale') : '';
       case 'krankenkasse':
         final zusatz = item['zusatzbeitrag'];
         final bw = item['bundesweit'] == 1 || item['bundesweit'] == true;
         final parts = <String>[];
         if (zusatz != null) parts.add('$zusatz%');
-        if (bw) parts.add('bundesweit');
+        if (bw) parts.add(tr('bundesweit', 'la nivel național'));
         return parts.join(' · ');
       default:
         return '';
@@ -633,11 +643,14 @@ class _NetzwerkScreenState extends State<NetzwerkScreen> {
   }
 
   /// Configurație pentru fiecare modul
-  static final Map<String, _ModuleConfig> _moduleConfigs = {
+  ///
+  /// Getter statt `static final`: die Titel kommen aus tr() und müssen bei
+  /// jedem Aufbau in der aktuell gewählten Sprache entstehen.
+  static Map<String, _ModuleConfig> get _moduleConfigs => {
     'behoerden': _ModuleConfig(
       key: 'behoerden',
       icon: Icons.account_balance,
-      title: 'Behörden',
+      title: tr('Behörden', 'Autorități'),
       color: Colors.blue.shade700,
       filterField: 'kategorie',
       filterLabelField: 'kategorie',
@@ -645,7 +658,7 @@ class _NetzwerkScreenState extends State<NetzwerkScreen> {
     'krankenhaeuser': _ModuleConfig(
       key: 'krankenhaeuser',
       icon: Icons.local_hospital,
-      title: 'Krankenhäuser',
+      title: tr('Krankenhäuser', 'Spitale'),
       color: Colors.red.shade700,
       filterField: 'typ',
       filterLabelField: 'typ_label',
@@ -653,7 +666,7 @@ class _NetzwerkScreenState extends State<NetzwerkScreen> {
     'praxen': _ModuleConfig(
       key: 'praxen',
       icon: Icons.medical_services,
-      title: 'Praxen',
+      title: tr('Praxen', 'Cabinete medicale'),
       color: Colors.teal.shade700,
       filterField: 'kategorie',
       filterLabelField: 'kategorie',
@@ -661,7 +674,7 @@ class _NetzwerkScreenState extends State<NetzwerkScreen> {
     'drogerie': _ModuleConfig(
       key: 'drogerie',
       icon: Icons.local_pharmacy,
-      title: 'Drogerie',
+      title: tr('Drogerie', 'Drogherie'),
       color: Colors.pink.shade700,
       filterField: 'typ',
       filterLabelField: 'typ_label',
@@ -669,7 +682,7 @@ class _NetzwerkScreenState extends State<NetzwerkScreen> {
     'maerkte': _ModuleConfig(
       key: 'maerkte',
       icon: Icons.store,
-      title: 'Märkte',
+      title: tr('Märkte', 'Magazine'),
       color: Colors.orange.shade700,
       filterField: 'typ',
       filterLabelField: 'typ_label',
@@ -677,7 +690,7 @@ class _NetzwerkScreenState extends State<NetzwerkScreen> {
     'krankenkasse': _ModuleConfig(
       key: 'krankenkasse',
       icon: Icons.health_and_safety,
-      title: 'Krankenkassen',
+      title: tr('Krankenkassen', 'Asigurări de sănătate'),
       color: Colors.green.shade700,
       filterField: 'typ',
       filterLabelField: 'typ_label',

@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../l10n/app_localizations.dart';
+import '../services/language_service.dart';
 import '../services/platform_service.dart';
 
 // Platform-specific imports
@@ -95,7 +96,7 @@ class _WebViewScreenState extends State<WebViewScreen> {
         });
       }
     } catch (e) {
-      _showError('Windows WebView Fehler: $e');
+      _showError(tr('Windows WebView Fehler: $e', 'Eroare WebView Windows: $e'));
     }
   }
 
@@ -148,7 +149,7 @@ class _WebViewScreenState extends State<WebViewScreen> {
     } catch (e, stack) {
       debugPrint('[WebView] Init ERROR: $e');
       debugPrint('[WebView] Stack: $stack');
-      _showError('WebView Fehler: $e');
+      _showError(tr('WebView Fehler: $e', 'Eroare WebView: $e'));
     }
   }
 

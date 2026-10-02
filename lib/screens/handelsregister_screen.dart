@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 import '../services/api_service.dart';
 import '../services/handelsregister_client_service.dart';
+import '../services/language_service.dart';
 import '../widgets/file_viewer_dialog.dart';
 import '../l10n/app_localizations.dart';
 
@@ -260,11 +261,11 @@ class _HandelsregisterScreenState extends State<HandelsregisterScreen> {
                           const SizedBox(height: 4),
                           TextField(
                             controller: _nummerController,
-                            decoration: const InputDecoration(
+                            decoration: InputDecoration(
                               isDense: true,
-                              contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                              border: OutlineInputBorder(),
-                              hintText: 'z.B. 201335',
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                              border: const OutlineInputBorder(),
+                              hintText: tr('z.B. 201335', 'de ex. 201335'),
                             ),
                             style: const TextStyle(fontSize: 14),
                             onSubmitted: (_) => _search(),
@@ -275,11 +276,11 @@ class _HandelsregisterScreenState extends State<HandelsregisterScreen> {
                           const SizedBox(height: 4),
                           TextField(
                             controller: _gerichtController,
-                            decoration: const InputDecoration(
+                            decoration: InputDecoration(
                               isDense: true,
-                              contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                              border: OutlineInputBorder(),
-                              hintText: 'z.B. München',
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                              border: const OutlineInputBorder(),
+                              hintText: tr('z.B. München', 'de ex. München'),
                             ),
                             style: const TextStyle(fontSize: 14),
                             onSubmitted: (_) => _search(),
@@ -290,11 +291,11 @@ class _HandelsregisterScreenState extends State<HandelsregisterScreen> {
                           const SizedBox(height: 4),
                           TextField(
                             controller: _schlagwoerterController,
-                            decoration: const InputDecoration(
+                            decoration: InputDecoration(
                               isDense: true,
-                              contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                              border: OutlineInputBorder(),
-                              hintText: 'Firmenname...',
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                              border: const OutlineInputBorder(),
+                              hintText: tr('Firmenname...', 'Numele firmei...'),
                             ),
                             style: const TextStyle(fontSize: 14),
                             onSubmitted: (_) => _search(),

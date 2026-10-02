@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
+import '../services/language_service.dart';
 import '../widgets/notar_cards.dart';
 import '../widgets/notar_dialogs.dart';
 
@@ -214,7 +215,7 @@ class _NotarScreenState extends State<NotarScreen> {
               IconButton(
                 icon: const Icon(Icons.arrow_back),
                 onPressed: widget.onBack,
-                tooltip: 'Zurück',
+                tooltip: tr('Zurück', 'Înapoi'),
               ),
               const SizedBox(width: 8),
               Icon(Icons.gavel, size: 32, color: Colors.orange.shade700),
