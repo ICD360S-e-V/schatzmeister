@@ -2173,6 +2173,220 @@ class ApiService {
     return jsonDecode(response.body);
   }
 
+  // ========== VERIFIZIERUNG — EIGENE ANGABEN (Profil ▸ Verifizierung) ==========
+  //
+  // Kopie der Aufrufe aus der Mitglieder-App (Stand 15.10.2026), aber gegen
+  // den EIGENEN Namensraum `api/schatzmeister/verifizierung/`: dort prüft
+  // smRequireSchatzmeister() die Rolle, und jeder Endpunkt schreibt nur die
+  // Daten des angemeldeten Schatzmeisters. Rümpfe und Antworten sind dieselben
+  // wie bei `member/…`, damit die kopierte Oberfläche unverändert bleibt.
+  //
+  // ⚠️ Nie `/member/` oder `/admin/` — der Schatzmeister hat sein eigenes API
+  // (Entscheidung des Vorsitzenden, 02.10.2026). `getVerifizierung` oben ist
+  // der alte Weg über `admin/verifizierung_list` (immer 403); ihn ruft nur noch
+  // der abgehängte user_details_dialog.
+
+  static const String _verifizierung = '$baseUrl/schatzmeister/verifizierung';
+
+  /// Auswahlliste der Staatsangehörigkeiten. Schlägt der Abruf fehl, kommt
+  /// eine leere Liste zurück: das Feld fällt dann auf Freitext zurück, damit
+  /// die Verifizierung nicht an einer Auswahlliste scheitert.
+  Future<List<Map<String, dynamic>>> getStaatsangehoerigkeiten() async {
+    try {
+      final response = await _client.get(
+        Uri.parse('$_verifizierung/staatsangehoerigkeiten.php'),
+        headers: _headers,
+      );
+      final body = jsonDecode(response.body);
+      if (body is Map && body['success'] == true && body['data'] is List) {
+        return List<Map<String, dynamic>>.from(body['data']);
+      }
+    } catch (_) {
+      // bewusst still — siehe oben
+    }
+    return const [];
+  }
+
+  /// Die acht Stufen samt den eigenen Angaben und den Zustimmungen.
+  Future<Map<String, dynamic>> getMyVerifizierung() async {
+    final response = await _client.get(
+      Uri.parse('$_verifizierung/liste.php'),
+      headers: _headers,
+    );
+    return jsonDecode(response.body);
+  }
+
+  /// Stufe 1 — persönliche Angaben.
+  Future<Map<String, dynamic>> updatePersonalData({
+    required String vorname,
+    String? vorname2,
+    required String nachname,
+    String? geburtsname,
+    required String strasse,
+    required String hausnummer,
+    required String plz,
+    required String ort,
+    String? bundesland,
+    String? land,
+    String? telefonMobil,
+    String? telefonFix,
+    String? email,
+    String? geburtsdatum,
+    String? geburtsort,
+    String? geschlecht,
+    String? familienstand,
+    String? staatsangehoerigkeit,
+    String? aufenthaltsstatus,
+    String? muttersprache,
+    String? mitgliedsart,
+  }) async {
+    final body = personalDataBody(
+      vorname: vorname,
+      vorname2: vorname2,
+      nachname: nachname,
+      geburtsname: geburtsname,
+      strasse: strasse,
+      hausnummer: hausnummer,
+      plz: plz,
+      ort: ort,
+      bundesland: bundesland,
+      land: land,
+      telefonMobil: telefonMobil,
+      telefonFix: telefonFix,
+      email: email,
+      geburtsdatum: geburtsdatum,
+      geburtsort: geburtsort,
+      geschlecht: geschlecht,
+      familienstand: familienstand,
+      staatsangehoerigkeit: staatsangehoerigkeit,
+      aufenthaltsstatus: aufenthaltsstatus,
+      muttersprache: muttersprache,
+      mitgliedsart: mitgliedsart,
+    );
+    final response = await _client.post(
+      Uri.parse('$_verifizierung/persoenlich.php'),
+      headers: _headers,
+      body: jsonEncode(body),
+    );
+    return jsonDecode(response.body);
+  }
+
+  /// Der Rumpf für [updatePersonalData] — wörtlich wie in der Mitglieder-App.
+  ///
+  /// ⚠️ Optionale Felder gehen NUR mit, wenn sie übergeben wurden: ein
+  /// leerer Wert hieße für den Server „leeren“ (bei der Mobilnummer sogar
+  /// „ändern“ → 422).
+  static Map<String, dynamic> personalDataBody({
+    required String vorname,
+    String? vorname2,
+    required String nachname,
+    String? geburtsname,
+    required String strasse,
+    required String hausnummer,
+    required String plz,
+    required String ort,
+    String? bundesland,
+    String? land,
+    String? telefonMobil,
+    String? telefonFix,
+    String? email,
+    String? geburtsdatum,
+    String? geburtsort,
+    String? geschlecht,
+    String? familienstand,
+    String? staatsangehoerigkeit,
+    String? aufenthaltsstatus,
+    String? muttersprache,
+    String? mitgliedsart,
+  }) {
+    final body = <String, dynamic>{
+      'vorname': vorname,
+      'nachname': nachname,
+      'strasse': strasse,
+      'hausnummer': hausnummer,
+      'plz': plz,
+      'ort': ort,
+      if (vorname2 != null) 'vorname2': vorname2,
+      if (bundesland != null) 'bundesland': bundesland,
+      if (land != null) 'land': land,
+      if (telefonMobil != null) 'telefon_mobil': telefonMobil,
+      if (telefonFix != null) 'telefon_fix': telefonFix,
+    };
+    if (geburtsname != null && geburtsname.isNotEmpty) body['geburtsname'] = geburtsname;
+    if (email != null && email.isNotEmpty) body['email'] = email;
+    if (geburtsdatum != null && geburtsdatum.isNotEmpty) body['geburtsdatum'] = geburtsdatum;
+    if (geburtsort != null && geburtsort.isNotEmpty) body['geburtsort'] = geburtsort;
+    if (geschlecht != null && geschlecht.isNotEmpty) body['geschlecht'] = geschlecht;
+    if (familienstand != null && familienstand.isNotEmpty) body['familienstand'] = familienstand;
+    if (staatsangehoerigkeit != null && staatsangehoerigkeit.isNotEmpty) body['staatsangehoerigkeit'] = staatsangehoerigkeit;
+    if (aufenthaltsstatus != null && aufenthaltsstatus.isNotEmpty) body['aufenthaltsstatus'] = aufenthaltsstatus;
+    if (muttersprache != null && muttersprache.isNotEmpty) body['muttersprache'] = muttersprache;
+    if (mitgliedsart != null && mitgliedsart.isNotEmpty) body['mitgliedsart'] = mitgliedsart;
+    return body;
+  }
+
+  /// Stufe 2 — nur die Mitgliedsart, ohne ein einziges anderes Feld.
+  Future<Map<String, dynamic>> updateMitgliedsart(String mitgliedsart) async {
+    final response = await _client.post(
+      Uri.parse('$_verifizierung/persoenlich.php'),
+      headers: _headers,
+      body: jsonEncode({'mitgliedsart': mitgliedsart}),
+    );
+    return jsonDecode(response.body);
+  }
+
+  /// Stufe 3 — finanzielle Situation.
+  Future<Map<String, dynamic>> updateFinanzielleSituation({
+    required String finanzielleSituation,
+  }) async {
+    final response = await _client.post(
+      Uri.parse('$_verifizierung/finanzen.php'),
+      headers: _headers,
+      body: jsonEncode({'finanzielle_situation': finanzielleSituation}),
+    );
+    return jsonDecode(response.body);
+  }
+
+  /// Stufe 4 — Zahlungsweg und Zahltag.
+  Future<Map<String, dynamic>> updateZahlungsdaten({
+    required String zahlungsmethode,
+    int? zahlungstag,
+  }) async {
+    final body = <String, dynamic>{'zahlungsmethode': zahlungsmethode};
+    if (zahlungstag != null) body['zahlungstag'] = zahlungstag;
+    final response = await _client.post(
+      Uri.parse('$_verifizierung/zahlung.php'),
+      headers: _headers,
+      body: jsonEncode(body),
+    );
+    return jsonDecode(response.body);
+  }
+
+  /// Stufe 5 — Beginn der Mitgliedschaft.
+  Future<Map<String, dynamic>> updateMitgliedschaftsbeginn({
+    required String option,
+    String? datum,
+  }) async {
+    final body = <String, dynamic>{'mitgliedschaftsbeginn_option': option};
+    if (datum != null) body['mitgliedschaftsbeginn_datum'] = datum;
+    final response = await _client.post(
+      Uri.parse('$_verifizierung/beginn.php'),
+      headers: _headers,
+      body: jsonEncode(body),
+    );
+    return jsonDecode(response.body);
+  }
+
+  /// Stufe 6–8 — Satzung, Datenschutz, Widerrufsbelehrung annehmen.
+  Future<Map<String, dynamic>> acceptDocument(int stufe) async {
+    final response = await _client.post(
+      Uri.parse('$_verifizierung/dokument.php'),
+      headers: _headers,
+      body: jsonEncode({'stufe': stufe}),
+    );
+    return jsonDecode(response.body);
+  }
+
   // ========== FINANZVERWALTUNG ==========
 
   // Bank-Transaktionen abrufen

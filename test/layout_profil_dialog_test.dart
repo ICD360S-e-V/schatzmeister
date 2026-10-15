@@ -14,6 +14,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:icd360sev_schatzmeister/l10n/app_localizations.dart';
 import 'package:icd360sev_schatzmeister/services/api_service.dart';
 import 'package:icd360sev_schatzmeister/services/language_service.dart';
+import 'package:icd360sev_schatzmeister/utils/mitglied_felder.dart';
 import 'package:icd360sev_schatzmeister/widgets/profile_dialog.dart';
 
 import 'layout_teil8_hilfen.dart';
@@ -139,24 +140,40 @@ void main() {
           });
         });
 
+        // Die Verifizierung ist seit dem 15.10.2026 die Kopie der
+        // Mitglieder-App (widgets/verifizierung_tab.dart): fünf Stufen der
+        // Reihe nach, jede erst offen, wenn die vorige ausgefüllt ist, dazu die
+        // Zustimmungen 6–8. Die Daten kommen aus schatzmeister/verifizierung/.
         for (final variante in const ['A', 'B']) {
           testWidgets('Verifizierung $variante aufgeklappt — ${fall.key} [$sprache]',
               (tester) async {
             Teil8Daten.verifizierung = variante;
             await _pruefe(tester, fall.value, sprache, (l) async {
               await _tippen(tester, _reiter(l.verification));
-              final stufen = find.byType(ExpansionTile);
-              expect(stufen, findsNWidgets(2));
-              await _tippen(tester, stufen.at(0));
-              await _tippen(tester, find.byType(ExpansionTile).at(1));
-              // A: Stufe 1 geprüft (Anschrift lesbar), Stufe 3 offen;
-              // B: Stufe 1 offen (Eingabefelder), Stufe 3 geprüft.
-              await bisSichtbar(
-                  tester,
-                  variante == 'A'
-                      ? find.text('Bürgermeister-Hartmann-Straße')
-                      : find.widgetWithText(TextField, 'Bürgermeister-Hartmann-Straße'));
-              expect(find.text(l.sepaDirectDebit), findsWidgets);
+              await bisSichtbar(tester, find.byType(ExpansionTile),
+                  grund: 'Verifizierung nicht geladen');
+              // Eine Stufe öffnet sich, sobald die VORIGE ausgefüllt oder
+              // geprüft ist (wie in der Mitglieder-App).
+              // A: 1, 2 geprüft, 3 offen, 4 geprüft → 1, 2, 3 und 5 zum
+              //    Aufklappen, 4 gesperrt (3 ist noch offen);
+              // B: nur Stufe 1 offen → eine Karte, der Rest gesperrt.
+              final anzahl = variante == 'A' ? 4 : 1;
+              expect(find.byType(ExpansionTile), findsNWidgets(anzahl));
+              for (var i = 0; i < anzahl; i++) {
+                await _tippen(tester, find.byType(ExpansionTile).at(i));
+              }
+              // Stufe 1: die Anschrift steht im Feld — geprüft nur lesbar,
+              // offen zum Bearbeiten.
+              final strasse = find.widgetWithText(TextField, 'Bürgermeister-Hartmann-Straße');
+              await bisSichtbar(tester, strasse);
+              expect(tester.widget<TextField>(strasse).enabled, variante == 'B');
+              // Die Mobilnummer ändert der Vorstand — nie ein offenes Feld.
+              final mobil = find.widgetWithText(TextField, '+49 1520 98765432');
+              expect(tester.widget<TextField>(mobil).enabled, isFalse);
+              if (variante == 'A') {
+                // Stufe 3 offen: die Auswahl der finanziellen Situation.
+                expect(find.text(finanzielleSituationAnzeige('buergergeld')), findsOneWidget);
+              }
             });
           });
         }
