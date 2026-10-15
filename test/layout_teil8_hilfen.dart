@@ -331,8 +331,9 @@ class _FalscheAntwort extends Stream<List<int>> implements HttpClientResponse {
 
 /// Schalter für Varianten, die sich gegenseitig ausschließen.
 class Teil8Daten {
-  /// Verifizierung: 'A' = Stufe 1 geprüft, Stufe 3 offen;
-  ///                 'B' = Stufe 1 offen, Stufe 3 geprüft.
+  /// Verifizierung (schatzmeister/verifizierung/liste.php):
+  ///   'A' = Stufe 1, 2 und 4 geprüft, 3 und 5 offen;
+  ///   'B' = Stufe 1 offen (Eingabefelder), 2–5 gesperrt.
   static String verifizierung = 'A';
 
   /// `chat/start.php` antwortet mit Unsinn — der Live-Chat landet dann im
@@ -377,6 +378,66 @@ Map<String, dynamic> _profil() => {
       'last_login': _sql(DateTime.now().subtract(const Duration(hours: 2))),
       'mitgliedschaft_datum': '2024-02-15',
       'email': kIchMail,
+    };
+
+/// Antwort von `schatzmeister/verifizierung/liste.php` — dieselbe Form wie
+/// `member/verifizierung_list.php`.
+///
+/// [a] = Stufe 1 geprüft (Felder nur lesbar), Stufe 3 offen (Auswahl);
+/// sonst Stufe 1 offen (Eingabefelder), die übrigen gesperrt.
+Map<String, dynamic> _verifizierung(bool a) => {
+      'success': true,
+      'data': {
+        'stufen': [
+          for (var s = 1; s <= 8; s++)
+            {
+              'stufe': s,
+              'status': a
+                  ? switch (s) { 1 || 2 || 4 => 'geprueft', 3 || 5 => 'offen', _ => 'ausgefuellt' }
+                  : (s >= 6 ? 'ausgefuellt' : 'offen'),
+              'notiz': null,
+              'geprueft_am': a && (s == 1 || s == 2 || s == 4) ? '2026-05-04 09:12:00' : null,
+              'geprueft_von_name': a && (s == 1 || s == 2 || s == 4) ? 'Alexandru-Constantin Popescu-Ionescu' : null,
+            },
+        ],
+        'personal_data': {
+          'vorname': 'Maria-Elena',
+          'vorname2': 'Alexandrina',
+          'nachname': 'Popescu-Ionescu',
+          'geburtsname': 'Constantinescu-Georgescu',
+          'strasse': 'Bürgermeister-Hartmann-Straße',
+          'hausnummer': '112a',
+          'plz': '89231',
+          'ort': 'Neu-Ulm',
+          'bundesland': 'Bayern',
+          'land': 'Deutschland',
+          'email': kIchMail,
+          'telefon_mobil': '+49 1520 98765432',
+          'telefon_fix': '+49 731 1234567',
+          'mitgliedsart': 'ordentlich',
+          'finanzielle_situation': null,
+          'zahlungsmethode': 'ueberweisung',
+          'zahlungstag': 15,
+          'mitgliedschaftsbeginn_option': null,
+          'mitgliedschaftsbeginn_datum': null,
+          'geburtsdatum': '1984-03-17',
+          'geburtsort': 'Timișoara',
+          'geschlecht': 'W',
+          'familienstand': 'verheiratet',
+          'staatsangehoerigkeit': 'rumänisch',
+          'aufenthaltsstatus': 'EU-/EWR-Bürger — Freizügigkeitsrecht (§ 2 FreizügG/EU)',
+          'muttersprache': 'Rumänisch',
+          'datenschutz_accepted_at': '2024-02-01 10:00:00',
+          'satzung_accepted_at': '2024-02-01 10:00:00',
+          'widerrufsbelehrung_accepted_at': '2024-02-01 10:00:00',
+        },
+        'completed_count': a ? 3 : 0,
+        'document_acceptances': {
+          'datenschutz': '2024-02-01 10:00:00',
+          'satzung': '2024-02-01 10:00:00',
+          'widerrufsbelehrung': '2024-02-01 10:00:00',
+        },
+      },
     };
 
 Map<String, dynamic> _ticket(int id, String betreff, String status, DateTime termin) => {
@@ -676,6 +737,22 @@ Antwort? teil8Antworten(String methode, Uri url, String rumpf) {
           'last_used': _iso(jetzt.subtract(const Duration(days: 2))),
           'is_current': false,
         },
+      ],
+    });
+  }
+  // ── Profil ▸ Verifizierung (eigenes API, seit 15.10.2026) ─────────────
+  if (p.endsWith('/schatzmeister/verifizierung/liste.php')) {
+    return (status: 200, json: _verifizierung(Teil8Daten.verifizierung == 'A'));
+  }
+  if (p.endsWith('/schatzmeister/verifizierung/staatsangehoerigkeiten.php')) {
+    return (status: 200, json: {
+      'success': true,
+      'data': [
+        {'bezeichnung': 'deutsch', 'kontinent': 'Europa'},
+        {'bezeichnung': 'rumänisch', 'kontinent': 'Europa'},
+        {'bezeichnung': 'ukrainisch', 'kontinent': 'Europa'},
+        {'bezeichnung': 'bosnisch-herzegowinisch', 'kontinent': 'Europa'},
+        {'bezeichnung': 'kongolesisch (Demokratische Republik Kongo)', 'kontinent': 'Afrika'},
       ],
     });
   }
