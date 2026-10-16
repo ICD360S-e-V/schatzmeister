@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/io_client.dart';
@@ -20,6 +21,14 @@ class LoggerService {
   final _controller = StreamController<List<LogEntry>>.broadcast();
   final _secureStorage = const FlutterSecureStorage();
   late final http.Client _httpClient;
+
+  /// Statt des echten Clients — nur im Test.
+  @visibleForTesting
+  static http.Client? testClient;
+
+  /// Die Marke der Zeilen des FehlerWaechter. Der Server trägt sie ins
+  /// Fenster „App-Fehler“ der Vorsitzer-App ein, mit [LogEntry.felder].
+  static const String fehlerTag = 'FEHLER';
 
   String? _deviceId;
   String? _machineName;
@@ -66,12 +75,14 @@ class LoggerService {
     return values.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
   }
 
-  void log(String message, {LogLevel level = LogLevel.info, String? tag}) {
+  void log(String message,
+      {LogLevel level = LogLevel.info, String? tag, Map<String, Object?>? felder}) {
     final entry = LogEntry(
       timestamp: DateTime.now(),
       message: message,
       level: level,
       tag: tag,
+      felder: felder,
     );
     _logs.add(entry);
     if (_logs.length > 500) {
@@ -85,11 +96,19 @@ class LoggerService {
       _uploadQueue.removeAt(0);
     }
 
-    // Upload immediately for errors
-    if (level == LogLevel.error && _mitgliedernummer != null) {
+    // Upload immediately for errors — auch für die Zeilen des FehlerWaechter.
+    if ((level == LogLevel.error || tag == fehlerTag) && _mitgliedernummer != null) {
       _uploadLogsToServer();
     }
   }
+
+  /// Eine Zeile des FehlerWaechter: Marke [fehlerTag], dazu die Felder, die
+  /// der Server liest (`engine`, `stack`, `fingerprint`, `count`, `version`).
+  /// Sie gehen nur in der Übertragung mit ([LogEntry.alsJson]), nicht in
+  /// den Text der Zeile.
+  void fehlerZeile(String text,
+          {required LogLevel level, required Map<String, Object?> felder}) =>
+      log(text, level: level, tag: fehlerTag, felder: felder);
 
   void info(String message, {String? tag}) => log(message, level: LogLevel.info, tag: tag);
   void warning(String message, {String? tag}) => log(message, level: LogLevel.warning, tag: tag);
@@ -173,14 +192,9 @@ class LoggerService {
       final logsToUpload = List<LogEntry>.from(_uploadQueue);
       _uploadQueue.clear();
 
-      final logsJson = logsToUpload.map((log) => {
-        'timestamp': log.timestamp.toIso8601String(),
-        'message': log.message,
-        'level': log.level.toString().split('.').last,
-        'tag': log.tag,
-      }).toList();
+      final logsJson = logsToUpload.map((log) => log.alsJson()).toList();
 
-      final response = await _httpClient.post(
+      final response = await (testClient ?? _httpClient).post(
         Uri.parse(_uploadUrl),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
@@ -205,6 +219,15 @@ class LoggerService {
       // Don't re-add to queue to avoid infinite growth on network errors
     }
   }
+
+  @visibleForTesting
+  void zuruecksetzen() {
+    _logs.clear();
+    _uploadQueue.clear();
+    _uploadTimer?.cancel();
+    _uploadTimer = null;
+    _mitgliedernummer = null;
+  }
 }
 
 enum LogLevel { debug, info, warning, error }
@@ -215,12 +238,27 @@ class LogEntry {
   final LogLevel level;
   final String? tag;
 
+  /// Nur an den Zeilen des FehlerWaechter: `engine`, `stack`,
+  /// `fingerprint`, `count`, `version`.
+  final Map<String, Object?>? felder;
+
   LogEntry({
     required this.timestamp,
     required this.message,
     required this.level,
     this.tag,
+    this.felder,
   });
+
+  /// So geht die Zeile zum Server: die vier Felder jeder Zeile, eine Zeile
+  /// des FehlerWaechter dazu mit ihren [felder] — die vier gewinnen.
+  Map<String, Object?> alsJson() => {
+        ...?felder,
+        'timestamp': timestamp.toIso8601String(),
+        'message': message,
+        'level': level.name,
+        'tag': tag,
+      };
 
   String get levelIcon {
     switch (level) {

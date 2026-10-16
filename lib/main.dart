@@ -6,6 +6,7 @@ import 'l10n/app_localizations.dart';
 import 'screens/login_with_code_screen.dart';
 import 'screens/sprachauswahl_screen.dart';
 import 'services/api_service.dart';
+import 'services/fehler_waechter.dart';
 import 'services/language_service.dart';
 import 'services/notification_service.dart';
 import 'services/logger_service.dart';
@@ -28,6 +29,33 @@ void main(List<String> args) async {
   // Jede Kopie — auch „Kopieren" im Kontextmenü — nach 30 s gelöscht, auf
   // Android sensibel markiert. Siehe [SicherClipboardBindung].
   SicherClipboardBindung.ensureInitialized();
+
+  // Fix Flutter keyboard desync bug on desktop (github.com/flutter/flutter/issues/125975)
+  // When HardwareKeyboard state desyncs, re-sync and clear pressed keys
+  // (Bis zum 16.10.2026 erst kurz vor runApp gesetzt — jetzt vorn, damit der
+  // FehlerWaechter gleich danach auch jeden Fehler beim Start sieht.)
+  FlutterError.onError = (FlutterErrorDetails details) {
+    final message = details.exceptionAsString();
+    if (message.contains('KeyDownEvent') || message.contains('KeyUpEvent') || message.contains('KeyRepeatEvent')) {
+      if (message.contains('physical key is already pressed') ||
+          message.contains('physical key is not pressed') ||
+          message.contains('pressed on a different logical key')) {
+        // Re-sync keyboard state with engine immediately and after a short delay
+        HardwareKeyboard.instance.syncKeyboardState();
+        Future.delayed(const Duration(milliseconds: 100), () {
+          HardwareKeyboard.instance.syncKeyboardState();
+        });
+        return;
+      }
+    }
+    FlutterError.presentError(details);
+  };
+
+  // Und jeder Fehler, den niemand fängt — auch der ohne Flutter auf dem
+  // Stapel (Future, Timer, Stream) —, als FEHLER-Zeile zum Server: Fenster
+  // „App-Fehler“ der Vorsitzer-App. NACH dem Handler oben, der im Wächter
+  // weiterläuft. Siehe [FehlerWaechter].
+  FehlerWaechter.einrichten('haupt');
 
   // Gewählte Sprache vor dem ersten Bild laden — sonst blitzte die
   // Oberfläche einen Frame lang auf Deutsch auf.
@@ -86,25 +114,6 @@ void main(List<String> args) async {
   await StartupService().initialize();
 
   // Diagnostic service will be started from LoginScreen after user consent
-
-  // Fix Flutter keyboard desync bug on desktop (github.com/flutter/flutter/issues/125975)
-  // When HardwareKeyboard state desyncs, re-sync and clear pressed keys
-  FlutterError.onError = (FlutterErrorDetails details) {
-    final message = details.exceptionAsString();
-    if (message.contains('KeyDownEvent') || message.contains('KeyUpEvent') || message.contains('KeyRepeatEvent')) {
-      if (message.contains('physical key is already pressed') ||
-          message.contains('physical key is not pressed') ||
-          message.contains('pressed on a different logical key')) {
-        // Re-sync keyboard state with engine immediately and after a short delay
-        HardwareKeyboard.instance.syncKeyboardState();
-        Future.delayed(const Duration(milliseconds: 100), () {
-          HardwareKeyboard.instance.syncKeyboardState();
-        });
-        return;
-      }
-    }
-    FlutterError.presentError(details);
-  };
 
   // „Zwischenablage gelöscht" als SnackBar über dem, was gerade offen ist.
   zwischenablageHinweisAnmelden(NotificationService.navigatorKey);
