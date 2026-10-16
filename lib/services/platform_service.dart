@@ -95,9 +95,6 @@ class PlatformService {
     return 'Unknown';
   }
 
-  /// Returns the platform operating system version
-  static String get osVersion => Platform.operatingSystemVersion;
-
   /// Returns the local hostname
   static String get hostName => Platform.localHostname;
 

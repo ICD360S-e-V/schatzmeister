@@ -631,34 +631,6 @@ class VerwarnungPdfGenerator {
     );
   }
 
-  /// Map existing Verwarnung typ to a Massnahme id
-  static String typToMassnahmeId(String typ) {
-    switch (typ) {
-      case 'ermahnung':
-        return 'verwarnung';
-      case 'abmahnung':
-        return 'verwarnung';
-      case 'letzte_abmahnung':
-        return 'verwarnung';
-      default:
-        return 'verwarnung';
-    }
-  }
-
-  /// Map existing Verwarnung typ to the title used in the (German) PDF letter
-  static String typToMassnahmeTitel(String typ) {
-    switch (typ) {
-      case 'ermahnung':
-        return 'Ermahnung';
-      case 'abmahnung':
-        return 'Abmahnung';
-      case 'letzte_abmahnung':
-        return 'Letzte Abmahnung';
-      default:
-        return 'Schriftliche Verwarnung';
-    }
-  }
-
   /// Get Verstoss lists for external use
   static List<VerstossKategorie> get verstossKategorien => _verstossKategorien;
   static List<Massnahme> get massnahmen => _massnahmen;

@@ -161,21 +161,6 @@ Color getStatusColor(String status) {
   }
 }
 
-/// All available statuses for dropdowns (ordered by lifecycle)
-/// Getter statt const: Bezeichnungen folgen der gewählten Sprache.
-List<Map<String, String>> get allStatuses => [
-  {'value': 'nicht_verifiziert', 'label': tr('Nicht verifiziert', 'Neverificat'), 'description': tr('Konto erstellt, Identität noch nicht bestätigt (30 Tage Frist)', 'Cont creat, identitate încă neconfirmată (termen de 30 de zile)')},
-  {'value': 'neu', 'label': tr('Neu (Antrag)', 'Nou (cerere)'), 'description': tr('Aufnahmeantrag eingegangen', 'Cerere de admitere primită')},
-  {'value': 'active', 'label': tr('Aktiv', 'Activ'), 'description': tr('Ordentliches Mitglied', 'Membru ordinar')},
-  {'value': 'passiv', 'label': tr('Passiv', 'Pasiv'), 'description': tr('Zahlt Beitrag, nimmt nicht aktiv teil', 'Plătește contribuția, nu participă activ')},
-  {'value': 'ruhend', 'label': tr('Ruhend', 'În pauză'), 'description': tr('Mitgliedschaft vorübergehend ruhend', 'Calitatea de membru este temporar în pauză')},
-  {'value': 'gesperrt', 'label': tr('Gesperrt', 'Suspendat'), 'description': tr('Mitgliedschaftsrechte vorübergehend entzogen', 'Drepturile de membru retrase temporar')},
-  {'value': 'gekuendigt_selbst', 'label': tr('Gekündigt (selbst)', 'Reziliat (de membru)'), 'description': tr('Austritt durch Mitglied', 'Retragere la cererea membrului')},
-  {'value': 'gekuendigt_verein', 'label': tr('Gekündigt (Verein)', 'Reziliat (de asociație)'), 'description': tr('Kündigung durch den Verein', 'Reziliere de către asociație')},
-  {'value': 'ausgeschlossen', 'label': tr('Ausgeschlossen', 'Exclus'), 'description': tr('Vereinsausschluss nach Satzung', 'Excludere din asociație conform statutului (Satzung)')},
-  {'value': 'verstorben', 'label': tr('Verstorben', 'Decedat'), 'description': tr('Mitglied verstorben', 'Membru decedat')},
-];
-
 /// Returns the role prefix for Benutzernummer
 String getRolePrefix(String role) {
   switch (role) {
@@ -279,16 +264,4 @@ bool isValidMitgliedernummer(String mitgliedernummer) {
   final validPattern = RegExp(r'^(V|SV|S|SF|K|KP|MG|B|E|EM|FM|M)\d{5}$|^[1-9]\d{4}$');
 
   return validPattern.hasMatch(sanitized);
-}
-
-/// Sanitizes email input (basic validation)
-String sanitizeEmail(String email) {
-  return email.trim().toLowerCase();
-}
-
-/// Validates email format
-bool isValidEmail(String email) {
-  final sanitized = sanitizeEmail(email);
-  final emailPattern = RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$');
-  return emailPattern.hasMatch(sanitized);
 }

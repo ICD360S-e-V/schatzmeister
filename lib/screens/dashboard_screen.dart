@@ -73,7 +73,7 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
   StreamSubscription<TicketNotificationEvent>? _ticketNotificationSubscription;
   StreamSubscription<String>? _notificationClickSubscription;
 
-  // Pending incoming call (when AdminChatDialog is not open)
+  // Pending incoming call (when the chat dialog is not open)
   CallOfferEvent? _pendingCall;
   bool _isAdminChatOpen = false;
 
@@ -266,7 +266,7 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
         callerName: event.callerName,
         onAccept: () {
           Navigator.of(ctx).pop();
-          // Open AdminChatDialog with pending call
+          // Open the chat dialog with the pending call
           _showAdminChatDialogWithCall();
         },
         onReject: () {

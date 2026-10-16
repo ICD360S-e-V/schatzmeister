@@ -3,9 +3,6 @@ import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:http/io_client.dart';
 import 'device_key_service.dart';
-import 'logger_service.dart';
-
-final _log = LoggerService();
 
 /// Member document model
 class MemberDokument {
@@ -76,10 +73,6 @@ class MemberDokument {
     final parts = originalFilename.split('.');
     return parts.length > 1 ? parts.last.toUpperCase() : '';
   }
-
-  bool get isExpired => ablaufDatum != null && ablaufDatum!.isBefore(DateTime.now());
-
-  bool get isExpiringSoon => daysUntilExpiry != null && daysUntilExpiry! >= 0 && daysUntilExpiry! <= 30;
 }
 
 /// DokumenteService - handles member document API calls
@@ -111,136 +104,6 @@ class DokumenteService {
     };
   }
 
-  /// Upload a single document for a user
-  Future<MemberDokument?> uploadDokument({
-    required int userId,
-    required String dokumentName,
-    required File file,
-    String? beschreibung,
-    String kategorie = 'vereindokumente',
-    String? dokumentTyp,
-    String? ablaufDatum,
-  }) async {
-    try {
-      final deviceKey = _deviceKeyService.deviceKey;
-      final uri = Uri.parse('$baseUrl/schatzmeister/dokumente_upload.php');
-      final request = http.MultipartRequest('POST', uri);
-
-      request.headers['User-Agent'] = 'ICD360S-Schatzmeister/1.0';
-      if (_token != null) {
-        request.headers['Authorization'] = 'Bearer $_token';
-      }
-      if (deviceKey != null) {
-        request.headers['X-Device-Key'] = deviceKey;
-      }
-
-      request.fields['user_id'] = userId.toString();
-      request.fields['dokument_name'] = dokumentName;
-      request.fields['kategorie'] = kategorie;
-      if (beschreibung != null && beschreibung.isNotEmpty) {
-        request.fields['beschreibung'] = beschreibung;
-      }
-      if (dokumentTyp != null && dokumentTyp.isNotEmpty) {
-        request.fields['dokument_typ'] = dokumentTyp;
-      }
-      if (ablaufDatum != null && ablaufDatum.isNotEmpty) {
-        request.fields['ablauf_datum'] = ablaufDatum;
-      }
-
-      request.files.add(await http.MultipartFile.fromPath('file', file.path));
-
-      _log.debug('Upload request to: ${uri.toString()}', tag: 'DOKUMENTE');
-      _log.debug('Headers: ${request.headers}', tag: 'DOKUMENTE');
-      _log.debug('Fields: ${request.fields}', tag: 'DOKUMENTE');
-      _log.debug('Files count: ${request.files.length}', tag: 'DOKUMENTE');
-
-      final streamedResponse = await _client.send(request);
-      final response = await http.Response.fromStream(streamedResponse);
-
-      _log.debug('Upload response status: ${response.statusCode}', tag: 'DOKUMENTE');
-      _log.debug('Upload response body: ${response.body}', tag: 'DOKUMENTE');
-
-      final data = jsonDecode(response.body);
-
-      if (response.statusCode == 201 && data['success'] == true) {
-        return MemberDokument.fromJson(data['dokument']);
-      }
-
-      _log.error('Upload failed: status=${response.statusCode}, body=${response.body}', tag: 'DOKUMENTE');
-      return null;
-    } catch (e) {
-      _log.error('Upload exception: $e', tag: 'DOKUMENTE');
-      return null;
-    }
-  }
-
-  /// Upload multiple documents for a user (batch upload, max 10)
-  Future<List<MemberDokument>> uploadMultipleDokumente({
-    required int userId,
-    required List<File> files,
-    String dokumentName = '',
-    String? beschreibung,
-    String kategorie = 'vereindokumente',
-    String? dokumentTyp,
-    String? ablaufDatum,
-  }) async {
-    try {
-      final deviceKey = _deviceKeyService.deviceKey;
-      final uri = Uri.parse('$baseUrl/schatzmeister/dokumente_upload.php');
-      final request = http.MultipartRequest('POST', uri);
-
-      request.headers['User-Agent'] = 'ICD360S-Schatzmeister/1.0';
-      if (_token != null) {
-        request.headers['Authorization'] = 'Bearer $_token';
-      }
-      if (deviceKey != null) {
-        request.headers['X-Device-Key'] = deviceKey;
-      }
-
-      request.fields['user_id'] = userId.toString();
-      request.fields['dokument_name'] = dokumentName;
-      request.fields['kategorie'] = kategorie;
-      if (beschreibung != null && beschreibung.isNotEmpty) {
-        request.fields['beschreibung'] = beschreibung;
-      }
-      if (dokumentTyp != null && dokumentTyp.isNotEmpty) {
-        request.fields['dokument_typ'] = dokumentTyp;
-      }
-      if (ablaufDatum != null && ablaufDatum.isNotEmpty) {
-        request.fields['ablauf_datum'] = ablaufDatum;
-      }
-
-      for (final file in files) {
-        request.files.add(await http.MultipartFile.fromPath('files[]', file.path));
-      }
-
-      _log.debug('Multi-upload request to: ${uri.toString()}', tag: 'DOKUMENTE');
-      _log.debug('Files count: ${request.files.length}', tag: 'DOKUMENTE');
-
-      final streamedResponse = await _client.send(request);
-      final response = await http.Response.fromStream(streamedResponse);
-
-      _log.debug('Multi-upload response status: ${response.statusCode}', tag: 'DOKUMENTE');
-      _log.debug('Multi-upload response body: ${response.body}', tag: 'DOKUMENTE');
-
-      final data = jsonDecode(response.body);
-
-      if (response.statusCode == 201 && data['success'] == true) {
-        if (data['dokumente'] != null) {
-          return (data['dokumente'] as List).map((d) => MemberDokument.fromJson(d)).toList();
-        } else if (data['dokument'] != null) {
-          return [MemberDokument.fromJson(data['dokument'])];
-        }
-      }
-
-      _log.error('Multi-upload failed: status=${response.statusCode}, body=${response.body}', tag: 'DOKUMENTE');
-      return [];
-    } catch (e) {
-      _log.error('Multi-upload exception: $e', tag: 'DOKUMENTE');
-      return [];
-    }
-  }
-
   /// Get all documents for a user
   Future<List<MemberDokument>> getDokumente(int userId) async {
     try {
@@ -259,22 +122,6 @@ class DokumenteService {
       return [];
     } catch (e) {
       return [];
-    }
-  }
-
-  /// Delete a document
-  Future<bool> deleteDokument(int id) async {
-    try {
-      final response = await _client.post(
-        Uri.parse('$baseUrl/schatzmeister/dokumente_delete.php'),
-        headers: _headers,
-        body: jsonEncode({'id': id}),
-      );
-
-      final data = jsonDecode(response.body);
-      return response.statusCode == 200 && data['success'] == true;
-    } catch (e) {
-      return false;
     }
   }
 
