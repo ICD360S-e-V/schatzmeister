@@ -3,6 +3,8 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
+import 'fehler_waechter.dart';
+
 /// Schaltet FLAG_SECURE um.
 ///
 /// Die App setzt FLAG_SECURE beim Start, damit niemand die Finanzansichten
@@ -70,7 +72,7 @@ class ScreenCaptureFgService {
     // Den Rückweg zuerst anmelden: die Antwort auf „Beenden" darf nicht davon
     // abhängen, ob der Start selbst noch durchläuft.
     _beiStopp = beiStopp;
-    _ch.setMethodCallHandler(_vonAndroid);
+    _ch.setMethodCallHandler(FehlerWaechter.kanal('fernwartung', _vonAndroid));
     if (!Platform.isAndroid) return;
     try {
       await _ch.invokeMethod('start', {

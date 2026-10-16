@@ -4,6 +4,8 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
+import '../services/fehler_waechter.dart';
+
 /// Kopiert in die Zwischenablage — abgesichert, für JEDE Kopie der App. Wie
 /// in der Vorsitzer-App (#1045, 02.10.2026); Festlegung des Vorsitzenden:
 /// „cand copiem ceva indiferent ce este sa fie 30 de secunde timerul si sa
@@ -97,7 +99,7 @@ class SicherClipboard {
   static void melderSetzen(
       void Function(DateTime zeit, {required bool spaet}) melder) {
     _melder = melder;
-    kanal.setMethodCallHandler(_vonAndroid);
+    kanal.setMethodCallHandler(FehlerWaechter.kanal('zwischenablage', _vonAndroid));
   }
 
   /// Nimmt [melder] wieder ab — nur, wenn er noch der aktuelle ist.

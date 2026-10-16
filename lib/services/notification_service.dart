@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'fehler_waechter.dart';
 import 'language_service.dart';
 import 'logger_service.dart';
 import 'tray_service.dart';
@@ -111,13 +112,13 @@ class NotificationService {
 
       // Listen for notification click events from native macOS
       if (Platform.isMacOS) {
-        _macOSChannel.setMethodCallHandler((call) async {
+        _macOSChannel.setMethodCallHandler(FehlerWaechter.kanal('macos', (call) async {
           if (call.method == 'onNotificationClicked') {
             final payload = call.arguments as String? ?? '';
             _log.info('macOS notification clicked, payload: $payload', tag: 'NOTIF');
             _clickController.add(payload);
           }
-        });
+        }));
       }
 
       _isInitialized = true;
