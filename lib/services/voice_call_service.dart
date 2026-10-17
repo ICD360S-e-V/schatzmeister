@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'logger_service.dart';
 
@@ -707,6 +708,15 @@ class VoiceCallService {
     _log.info('VoiceCallService: STATE CHANGE: $_callState → $state (notifying listeners)', tag: 'CALL');
     _callState = state;
     _callStateController.add(state);
+  }
+
+  /// Für Tests: den Zustand setzen, ohne Verbindung (z. B. die Update-Sperre
+  /// während eines Anrufs, test/update_von_selbst_test.dart). Wie in der
+  /// Vorsitzer- und der Mitglieder-App.
+  @visibleForTesting
+  void testZustand(CallState s) {
+    _callState = s;
+    _callStateController.add(s);
   }
 
   /// Cleanup resources

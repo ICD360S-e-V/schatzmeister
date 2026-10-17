@@ -50,9 +50,6 @@ class ChatService {
   // Stream controller for new device login notifications
   final _newDeviceLoginController = StreamController<NewDeviceLoginEvent>.broadcast();
 
-  // Stream controller for online users tracking
-  final _onlineUsersController = StreamController<Set<String>>.broadcast();
-
   // Stream controller for ticket notifications
   final _ticketNotificationController = StreamController<TicketNotificationEvent>.broadcast();
 
@@ -66,9 +63,6 @@ class ChatService {
   // Set to track online users by mitgliedernummer
   final Set<String> _onlineUsers = {};
 
-  // Set to track muted conversation IDs (suppress notifications)
-  final Set<int> _mutedConversations = {};
-
   // Store current logged-in user's name and ID to filter out our own messages from notifications
   String? _currentUserName;
   int? _currentUserId;
@@ -80,9 +74,6 @@ class ChatService {
   Stream<TypingEvent> get typingStream => _typingController.stream;
   Stream<bool> get connectionStream => _connectionController.stream;
   Stream<String> get errorStream => _errorController.stream;
-
-  // Public stream - Online Users
-  Stream<Set<String>> get onlineUsersStream => _onlineUsersController.stream;
 
   // Public streams - Voice Call
   Stream<CallOfferEvent> get callOfferStream => _callOfferController.stream;
@@ -105,46 +96,6 @@ class ChatService {
   Stream<RemoteOfferEvent> get remoteOfferStream => _remoteOfferController.stream;
   Stream<RemoteEndedEvent> get remoteEndedStream => _remoteEndedController.stream;
   Stream<RemoteIceEvent> get remoteIceStream => _remoteIceController.stream;
-
-  bool get isConnected => _isConnected;
-
-  /// Check if a user is currently online
-  bool isUserOnline(String mitgliedernummer) {
-    return _onlineUsers.contains(mitgliedernummer);
-  }
-
-  /// Get the set of currently online users
-  Set<String> get onlineUsers => Set.from(_onlineUsers);
-
-  /// Mark a conversation as muted (suppress notifications)
-  void muteConversation(int conversationId) {
-    _mutedConversations.add(conversationId);
-  }
-
-  /// Unmute a conversation (restore notifications)
-  void unmuteConversation(int conversationId) {
-    _mutedConversations.remove(conversationId);
-  }
-
-  /// Check if a conversation is muted
-  bool isConversationMuted(int conversationId) {
-    return _mutedConversations.contains(conversationId);
-  }
-
-  /// Sync muted conversations from loaded conversation list
-  void syncMutedConversations(List<Map<String, dynamic>> conversations) {
-    _mutedConversations.clear();
-    for (final conv in conversations) {
-      if (conv['is_muted'] == true) {
-        final id = conv['id'];
-        if (id is int) {
-          _mutedConversations.add(id);
-        } else if (id != null) {
-          _mutedConversations.add(int.tryParse(id.toString()) ?? 0);
-        }
-      }
-    }
-  }
 
   /// Der naechste Anlauf soll sich zuerst ein frisches Token holen.
   /// Wird allein von `auth_error` gesetzt und beim Verbrauch geloescht.
@@ -399,14 +350,6 @@ class ChatService {
     });
   }
 
-  /// Leave a conversation room
-  void leaveConversation(int conversationId) {
-    _send({
-      'type': 'leave',
-      'conversation_id': conversationId,
-    });
-  }
-
   /// Send a chat message
   void sendMessage(int conversationId, String message) {
     _send({
@@ -565,7 +508,6 @@ class ChatService {
             for (var user in onlineList) {
               _onlineUsers.add(user.toString());
             }
-            _onlineUsersController.add(Set.from(_onlineUsers));
             _log.info('Loaded ${_onlineUsers.length} online users on connect', tag: 'WS');
           }
           authCompleter?.complete(true);
@@ -599,10 +541,7 @@ class ChatService {
 
           _log.debug('Notification check: isOwnMessage=$isOwnMessage', tag: 'NOTIF');
 
-          // Check if conversation is muted
-          final isMuted = _mutedConversations.contains(chatMsg.conversationId);
-
-          if (!isOwnMessage && !isMuted) {
+          if (!isOwnMessage) {
             // Message from anyone else → show notification
             _log.info('TRIGGERING notification from: ${chatMsg.senderName}', tag: 'NOTIF');
             NotificationService().showChatMessage(
@@ -610,8 +549,6 @@ class ChatService {
               message: chatMsg.message,
               conversationId: chatMsg.conversationId,
             );
-          } else if (isMuted && !isOwnMessage) {
-            _log.debug('SKIPPED notification - conversation muted (from: ${chatMsg.senderName})', tag: 'NOTIF');
           } else {
             _log.debug('SKIPPED notification - own message (from: ${chatMsg.senderName})', tag: 'NOTIF');
           }
@@ -665,7 +602,6 @@ class ChatService {
             for (var user in onlineList) {
               _onlineUsers.add(user.toString());
             }
-            _onlineUsersController.add(Set.from(_onlineUsers));
             _log.debug('Online users sync: ${_onlineUsers.length} online', tag: 'WS');
           }
           break;
@@ -674,7 +610,6 @@ class ChatService {
           final joinedUser = json['mitgliedernummer']?.toString();
           if (joinedUser != null) {
             _onlineUsers.add(joinedUser);
-            _onlineUsersController.add(Set.from(_onlineUsers));
             _log.debug('User joined: $joinedUser (total online: ${_onlineUsers.length})', tag: 'WS');
           }
           break;
@@ -684,7 +619,6 @@ class ChatService {
           final leftUser = json['mitgliedernummer']?.toString();
           if (leftUser != null) {
             _onlineUsers.remove(leftUser);
-            _onlineUsersController.add(Set.from(_onlineUsers));
             _log.debug('User left: $leftUser (total online: ${_onlineUsers.length})', tag: 'WS');
           }
           break;
@@ -806,7 +740,6 @@ class ChatService {
     _iceCandidateController.close();
     _callBusyController.close();
     _readReceiptController.close();
-    _onlineUsersController.close();
     _newDeviceLoginController.close();
     _ticketNotificationController.close();
     _remoteOfferController.close();

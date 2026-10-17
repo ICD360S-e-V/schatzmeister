@@ -27,9 +27,6 @@ class NotificationService {
   static final GlobalKey<NavigatorState> navigatorKey =
       GlobalKey<NavigatorState>();
 
-  // Track if admin chat dialog is currently open
-  static bool _isChatDialogOpen = false;
-
   bool _isInitialized = false;
 
   // Flutter Local Notifications plugin instance
@@ -53,21 +50,6 @@ class NotificationService {
   static String get _channelDescription =>
       tr('Benachrichtigungen für Chat, Anrufe und Updates',
           'Notificări pentru chat, apeluri și actualizări');
-
-  /// Chat-Dialog-Status setzen (von AdminChatDialog aufrufen)
-  static void setChatDialogOpen(bool isOpen) {
-    _isChatDialogOpen = isOpen;
-    _log.debug('Chat-Dialog geöffnet: $isOpen', tag: 'NOTIF');
-
-    // Beim Öffnen des Chats: Ungelesen-Zähler und Blinken zurücksetzen
-    if (isOpen && PlatformService.isDesktop) {
-      TrayService().clearUnread();
-      TrayService().stopFlashing();
-    }
-  }
-
-  /// Check if chat dialog is currently open
-  static bool get isChatDialogOpen => _isChatDialogOpen;
 
   /// Initialize the notification service
   Future<void> initialize() async {
@@ -197,7 +179,7 @@ class NotificationService {
     // Acțiuni bazate pe tip
     switch (type) {
       case 'chat':
-        // Deschide chat-ul - gestionat de UI (AdminChatDialog)
+        // Deschide chat-ul - gestionat de UI (dashboard)
         _log.info('Navigare la conversație: $data', tag: 'NOTIF');
         break;
       case 'call':
@@ -322,7 +304,7 @@ class NotificationService {
     }
   }
 
-  /// Chat-Benachrichtigung anzeigen (nur wenn Chat-Dialog geschlossen ist)
+  /// Chat-Benachrichtigung anzeigen
   Future<void> showChatMessage({
     required String senderName,
     required String message,
@@ -331,25 +313,19 @@ class NotificationService {
     _log.info(
         // 🔴 Hier standen Absendername UND voller Nachrichtentext.
         'Chat-Benachrichtigung (Absender ${senderName.length} Z., '
-        'Text ${message.length} Z., chatOffen=$_isChatDialogOpen)',
+        'Text ${message.length} Z.)',
         tag: 'NOTIF');
 
-    // Nur benachrichtigen wenn Chat-Dialog NICHT geöffnet ist
-    if (!_isChatDialogOpen) {
-      // Native notification on all platforms
-      await show(
-        title: tr('Neue Nachricht von $senderName', 'Mesaj nou de la $senderName'),
-        body: message,
-        payload: 'chat:$conversationId',
-      );
+    // Native notification on all platforms
+    await show(
+      title: tr('Neue Nachricht von $senderName', 'Mesaj nou de la $senderName'),
+      body: message,
+      payload: 'chat:$conversationId',
+    );
 
-      // Desktop: Tray Badge + Taskbar Flash
-      if (PlatformService.isDesktop) {
-        await TrayService().incrementUnread();
-      }
-    } else {
-      _log.debug('Benachrichtigung übersprungen - Chat-Dialog ist geöffnet',
-          tag: 'NOTIF');
+    // Desktop: Tray Badge + Taskbar Flash
+    if (PlatformService.isDesktop) {
+      await TrayService().incrementUnread();
     }
   }
 

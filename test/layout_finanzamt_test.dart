@@ -1,15 +1,17 @@
 // Finanzamt MIT Daten auf Telefon, Tablet und Schreibtisch.
 //
 // bildschirme_telefon_test.dart sieht den Bildschirm nur leer („Keine
-// Finanzamt-Daten“). Die drei Karten (Kontakt, Steuernummer/Zuständiger,
-// Dokumente) entstehen erst mit Serverdaten — und genau die standen
-// nebeneinander und waren auf dem Telefon kaum 60 dp breit. Hier kommen
-// lange, echte Werte vom vorgetäuschten Server, dazu der Hochlade-Dialog mit
-// den langen rumänischen Kategorien. Gemessen mit Roboto, wie dort.
+// Finanzamt-Daten“). Die Karten (Kontakt, Steuernummer/Zuständiger)
+// entstehen erst mit Serverdaten — und genau die standen nebeneinander und
+// waren auf dem Telefon kaum 60 dp breit. Hier kommen lange, echte Werte vom
+// vorgetäuschten Server. Gemessen mit Roboto, wie dort.
+//
+// Die Dokumentenkarte ist seit dem 16.10.2026 weg: sie rief
+// admin/finanzamt/* — Endpunkte nur des Vorsitzers, für den Schatzmeister
+// immer 403.
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -61,10 +63,14 @@ Widget _rahmen(Widget kind, String sprache) => MaterialApp(
 http.Response _json(Object daten) => http.Response(jsonEncode(daten), 200,
     headers: {'content-type': 'application/json; charset=utf-8'});
 
+/// Jede Adresse, die der Bildschirm gefragt hat.
+final _gefragt = <String>[];
+
 /// Der Server, wie FinanzamtScreen ihn liest: Finanzamt-Eintrag (Notizen
-/// zeilenweise „Schlüssel: Wert“), Vorstand, Dokumentenliste.
-http.Client _server({required bool mitDokumenten}) => MockClient((anfrage) async {
+/// zeilenweise „Schlüssel: Wert“) und Vorstand.
+http.Client _server() => MockClient((anfrage) async {
       final pfad = anfrage.url.path;
+      _gefragt.add(pfad);
       if (pfad.endsWith('/vereinverwaltung/get.php')) {
         return _json({
           'success': true,
@@ -105,75 +111,8 @@ http.Client _server({required bool mitDokumenten}) => MockClient((anfrage) async
           },
         });
       }
-      if (pfad.endsWith('/admin/finanzamt/dokumente.php')) {
-        return _json({
-          'success': true,
-          'data': {
-            'dokumente': !mitDokumenten
-                ? []
-                : [
-                    {
-                      'id': 1,
-                      'original_name':
-                          'Freistellungsbescheid_2025_Finanzamt_Neu-Ulm_Koerperschaftsteuer_ICD360S.pdf',
-                      'kategorie': 'freistellungsbescheid',
-                      'beschreibung':
-                          'Freistellungsbescheid vom 15.01.2026 für die Jahre 2022 bis 2024, Anlage zur Satzungsprüfung nach § 60a AO',
-                      'created_at': '2026-01-15 10:12:00',
-                    },
-                    {
-                      'id': 2,
-                      'original_name': 'Schreiben_Gemeinnuetzigkeit.png',
-                      'kategorie': 'gemeinnuetzigkeit',
-                      'beschreibung': '',
-                      'created_at': '2026-02-03 08:00:00',
-                    },
-                    {
-                      'id': '3',
-                      'original_name': 'Steuerbescheid_2024.docx',
-                      'kategorie': 'steuerbescheid',
-                      'beschreibung': 'Bescheid über Körperschaftsteuer und Solidaritätszuschlag',
-                      'created_at': '2026-03-20 14:30:00',
-                    },
-                    {
-                      'id': 4,
-                      'original_name': 'Korrespondenz_Rueckfrage_Zuwendungsbestaetigungen.tiff',
-                      'kategorie': 'korrespondenz',
-                      'beschreibung': 'Rückfrage zu Zuwendungsbestätigungen',
-                      'created_at': '2026-04-01 09:45:00',
-                    },
-                  ],
-          },
-        });
-      }
       return _json({'success': false, 'message': 'unbekannt: $pfad'});
     });
-
-/// Dateiauswahl ohne Plattform: liefert eine Datei mit langem Namen.
-class _Auswahl extends FilePicker {
-  @override
-  Future<FilePickerResult?> pickFiles({
-    String? dialogTitle,
-    String? initialDirectory,
-    FileType type = FileType.any,
-    List<String>? allowedExtensions,
-    Function(FilePickerStatus)? onFileLoading,
-    bool allowCompression = true,
-    int compressionQuality = 30,
-    bool allowMultiple = false,
-    bool withData = false,
-    bool withReadStream = false,
-    bool lockParentWindow = false,
-    bool readSequential = false,
-  }) async =>
-      FilePickerResult([
-        PlatformFile(
-          name: 'Bescheid_ueber_die_Feststellung_der_Einhaltung_der_satzungsmaessigen_Voraussetzungen.pdf',
-          path: '/tmp/bescheid.pdf',
-          size: 245760,
-        ),
-      ]);
-}
 
 /// Lässt jede senkrechte Liste einmal von oben bis unten laufen: eine
 /// ListView baut nur, was zu sehen ist — ein Überlauf weiter unten fiele
@@ -271,8 +210,9 @@ void main() {
   group('Finanzamt mit Daten', () {
     for (final sprache in ['de', 'ro']) {
       for (final fall in kBreiten.entries) {
-        testWidgets('Karten mit Dokumenten — ${fall.key} [$sprache]', (tester) async {
-          ApiService().testClient = _server(mitDokumenten: true);
+        testWidgets('Karten mit Daten — ${fall.key} [$sprache]', (tester) async {
+          ApiService().testClient = _server();
+          _gefragt.clear();
           final gesehen = <String>[];
           final fehler = await _pruefe(tester, fall.value, sprache,
               FinanzamtScreen(apiService: ApiService(), onBack: () {}), () async {
@@ -281,56 +221,16 @@ void main() {
               'Finanzamt Neu-Ulm mit Außenstelle Illertissen',
               '151/123/45678',
               'Maximilian-Alexander Schönberger-Constantinescu',
-              'Steuerbescheid_2024.docx',
-              'Korrespondenz_Rueckfrage_Zuwendungsbestaetigungen.tiff',
             ]) {
               await _zeigen(tester, find.text(wert));
               if (find.text(wert).evaluate().isNotEmpty) gesehen.add(wert);
             }
           });
-          expect(gesehen, hasLength(5), reason: 'alle gelieferten Daten müssen zu sehen sein: $gesehen');
+          expect(gesehen, hasLength(3), reason: 'alle gelieferten Daten müssen zu sehen sein: $gesehen');
           expect(fehler, isEmpty, reason: '${fall.key} [$sprache]:\n${fehler.join('\n')}');
-        });
-
-        testWidgets('ohne Dokumente — ${fall.key} [$sprache]', (tester) async {
-          ApiService().testClient = _server(mitDokumenten: false);
-          var daten = false;
-          final fehler = await _pruefe(tester, fall.value, sprache,
-              FinanzamtScreen(apiService: ApiService(), onBack: () {}), () async {
-            final name = find.text('Finanzamt Neu-Ulm mit Außenstelle Illertissen').evaluate().isNotEmpty;
-            final leer = find.text(sprache == 'de'
-                ? 'Noch keine Dokumente\nhochgeladen'
-                : 'Niciun document\nîncărcat încă');
-            await _zeigen(tester, leer);
-            daten = name && leer.evaluate().isNotEmpty;
-          });
-          expect(daten, isTrue, reason: 'Daten und der leere Dokumentenbereich müssen zu sehen sein');
-          expect(fehler, isEmpty, reason: '${fall.key} [$sprache]:\n${fehler.join('\n')}');
-        });
-
-        testWidgets('Hochlade-Dialog mit Kategorienliste — ${fall.key} [$sprache]', (tester) async {
-          ApiService().testClient = _server(mitDokumenten: true);
-          FilePicker.platform = _Auswahl();
-          var dialogDa = false;
-          var listeOffen = false;
-          final fehler = await _pruefe(tester, fall.value, sprache,
-              FinanzamtScreen(apiService: ApiService(), onBack: () {}), () async {
-            final hochladen = find.byIcon(Icons.upload_file);
-            await _zeigen(tester, hochladen);
-            await tester.tap(hochladen.first);
-            await tester.pump();
-            await tester.pump(const Duration(milliseconds: 300));
-            dialogDa = find.byType(AlertDialog).evaluate().isNotEmpty &&
-                find.textContaining('Bescheid_ueber_die_Feststellung').evaluate().isNotEmpty;
-            // Kategorienliste aufklappen (die langen rumänischen Namen).
-            await tester.tap(find.byWidgetPredicate((w) => w is DropdownButtonFormField<String>));
-            await tester.pump();
-            await tester.pump(const Duration(milliseconds: 300));
-            listeOffen = find.text(sprache == 'de' ? 'Korrespondenz' : 'Corespondență').evaluate().isNotEmpty;
-          });
-          expect(dialogDa, isTrue, reason: 'der Hochlade-Dialog muss aufgehen');
-          expect(listeOffen, isTrue, reason: 'die Kategorienliste muss aufgehen');
-          expect(fehler, isEmpty, reason: '${fall.key} [$sprache]:\n${fehler.join('\n')}');
+          expect(_gefragt, isNotEmpty);
+          expect(_gefragt.where((p) => p.contains('/admin/')), isEmpty,
+              reason: 'admin/ ist der Namensraum des Vorsitzers — für den Schatzmeister immer 403');
         });
       }
     }

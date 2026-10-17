@@ -74,7 +74,6 @@ class AppLocalizations {
   // BRANDING PANEL (Login Left Side)
   // ============================================================
   String get memberManagement => _t('Mitgliederverwaltung', 'Administrarea membrilor');
-  String get appointmentManagement => _t('Terminverwaltung', 'Administrarea programărilor');
   String get ticketManagement => _t('Ticketverwaltung', 'Administrarea tichetelor');
   String get organizationManagement => _t('Vereinverwaltung', 'Administrarea asociației');
 
@@ -311,7 +310,6 @@ class AppLocalizations {
   String get attachment => _t('Anhang', 'Atașament');
   String get attachments => _t('Anhänge', 'Atașamente');
   String get message => _t('Nachricht', 'Mesaj');
-  String get messages => _t('Nachrichten', 'Mesaje');
   String get comment => _t('Kommentar', 'Comentariu');
   String get comments => _t('Kommentare', 'Comentarii');
   String get reply => _t('Antworten', 'Răspunde');
@@ -434,29 +432,16 @@ class AppLocalizations {
   String nTickets(int count) => count == 1 ? '1 Ticket' : '$count Tickets';
   String todayDash(String dayName, String dateStr) => _t('Heute — $dayName, $dateStr', 'Astăzi — $dayName, $dateStr');
   String get noTicketsForToday => _t('Keine Tickets für heute', 'Niciun tichet pentru astăzi');
-  String get previousWeek => _t('Vorherige Woche', 'Săptămâna anterioară');
-  String get nextWeekNav => _t('Nächste Woche', 'Săptămâna următoare');
   String get weekView => _t('Woche', 'Săptămână');
   String get waitingMember => _t('Warten Benutzer', 'Așteptare utilizator');
   String get waitingStaff => _t('Warten Mitarbeiter', 'Așteptare personal');
   String get waitingAuthority => _t('Warten Behörde', 'Așteptare autoritate');
   String get waitingDocuments => _t('Warten Unterlagen', 'Așteptare documente');
-  String get monday => _t('Montag', 'Luni');
-  String get tuesday => _t('Dienstag', 'Marți');
-  String get wednesday => _t('Mittwoch', 'Miercuri');
-  String get thursday => _t('Donnerstag', 'Joi');
-  String get friday => _t('Freitag', 'Vineri');
-  String get saturday => _t('Samstag', 'Sâmbătă');
-  String get sunday => _t('Sonntag', 'Duminică');
 
   // ============================================================
   // TERMINVERWALTUNG SCREEN
   // ============================================================
   String get terminverwaltung => _t('Terminverwaltung', 'Administrarea programărilor');
-  String get onlyNational => _t('Nur national', 'Doar național');
-  String get holiday => _t('Feiertag', 'Sărbătoare legală');
-  String get vacation => _t('Urlaub', 'Concediu');
-  String get lunchBreak => _t('Mittagspause', 'Pauza de prânz');
 
   // ============================================================
   // TICKET DIALOGS
@@ -487,42 +472,9 @@ class AppLocalizations {
   // ============================================================
   // TERMIN DIALOGS
   // ============================================================
-  String get newTermin => _t('Neuer Termin', 'Programare nouă');
-  String get editTermin => _t('Termin bearbeiten', 'Editează programarea');
   String get category => _t('Kategorie', 'Categorie');
-  String get categoryRequired => _t('Kategorie *', 'Categorie *');
-  String get boardMeeting => _t('Vorstandssitzung', 'Ședință de conducere');
-  String get generalAssembly => _t('Mitgliederversammlung', 'Adunare generală');
-  String get training => _t('Schulung', 'Instruire');
-  String get other => _t('Sonstiges', 'Altele');
-  String get titleRequired => _t('Titel *', 'Titlu *');
-  String get titleIsRequired => _t('Titel erforderlich', 'Titlul este obligatoriu');
   String get required => _t('Erforderlich', 'Obligatoriu');
   String get durationMinutes => _t('Dauer (Min.)', 'Durata (min.)');
-  String get locationRequired => _t('Ort *', 'Locație *');
-  String get locationIsRequired => _t('Ort erforderlich', 'Locația este obligatorie');
-  String participantsSelected(int count) => _t(
-    'Teilnehmer ($count ausgewählt) *',
-    'Participanți ($count selectați) *',
-  );
-  String get selectAll => _t('Alle auswählen', 'Selectează toate');
-  String get selectNone => _t('Keine', 'Niciuna');
-  String get linkedTicketOptional => _t('Verknüpftes Ticket (optional)', 'Tichet asociat (opțional)');
-  String get noTicketLinked => _t('Kein Ticket', 'Niciun tichet');
-  String get createTermin => _t('Termin erstellen', 'Creează programare');
-  String get atLeastOneParticipant => _t('Bitte mindestens einen Teilnehmer auswählen', 'Vă rugăm selectați cel puțin un participant');
-  String get terminTimeRestriction => _t(
-    'Termine sind nur möglich:\n08:00-12:00 und 14:00-18:00 Uhr',
-    'Programările sunt posibile doar:\n08:00-12:00 și 14:00-18:00',
-  );
-  String get terminCreatedSuccess => _t('Termin erfolgreich erstellt', 'Programare creată cu succes');
-  String get terminUpdated => _t('Termin aktualisiert', 'Programare actualizată');
-  String get terminDeleted => _t('Termin gelöscht', 'Programare ștearsă');
-  String get deleteTermin => _t('Termin löschen?', 'Ștergeți programarea?');
-  String deleteTerminConfirm(String title) => _t(
-    'Möchten Sie "$title" wirklich löschen?',
-    'Doriți cu adevărat să ștergeți "$title"?',
-  );
   String errorMessage(String msg) => _t('Fehler: $msg', 'Eroare: $msg');
 
   // ============================================================
@@ -650,17 +602,6 @@ class AppLocalizations {
   // Profile - Verifizierung
   String get verificationNotAvailable => _t('Verifizierung nicht verfügbar', 'Verificare indisponibilă');
   String stagesVerified(int verified, int total) => _t('$verified/$total Stufen geprüft', '$verified/$total etape verificate');
-  String stageName(int stufe) {
-    switch (stufe) {
-      case 1: return _t('Persönliche Daten', 'Date personale');
-      case 2: return _t('Mitgliedsart', 'Tip de membru');
-      case 3: return _t('Zahlungsmethode', 'Metoda de plată');
-      case 4: return _t('Satzung', 'Statut');
-      case 5: return _t('Datenschutz', 'Protecția datelor');
-      case 6: return _t('Widerrufsbelehrung', 'Instrucțiuni de retragere');
-      default: return _t('Stufe $stufe', 'Etapa $stufe');
-    }
-  }
   String get statusVerified => _t('Geprüft', 'Verificat');
   String get statusRejected => _t('Abgelehnt', 'Respins');
   String get statusOpenVerif => _t('Offen', 'Deschis');
@@ -675,7 +616,6 @@ class AppLocalizations {
   String get personalDataSaved => _t('Persönliche Daten gespeichert', 'Date personale salvate');
   String get paymentDataSaved => _t('Zahlungsdaten gespeichert', 'Date de plată salvate');
   String get noPaymentMethodChosen => _t('Keine Zahlungsmethode gewählt.', 'Nicio metodă de plată selectată.');
-  String get selectPaymentMethod => _t('Zahlungsmethode auswählen', 'Selectați metoda de plată');
   String get paymentDay => _t('Zahlungstag (monatliche Erinnerung)', 'Ziua de plată (memento lunar)');
   String get dayOfMonth => _t('Tag des Monats', 'Ziua lunii');
   String paymentDayReminder(int day) => _t(
@@ -690,18 +630,14 @@ class AppLocalizations {
   // ============================================================
   // PERSONAL DATA DIALOG
   // ============================================================
-  String get personalData => _t('Persönliche Daten', 'Date personale');
   String get updateContactData => _t('Aktualisieren Sie Ihre Kontaktdaten', 'Actualizați-vă datele de contact');
   String get dataLoading => _t('Daten werden geladen...', 'Datele se încarcă...');
-  String get firstName => _t('Vorname', 'Prenume');
-  String get lastName => _t('Nachname', 'Nume de familie');
   String get pleaseEnterFirstName => _t('Bitte Vorname eingeben', 'Vă rugăm introduceți prenumele');
   String get pleaseEnterLastName => _t('Bitte Nachname eingeben', 'Vă rugăm introduceți numele de familie');
   String get street => _t('Straße', 'Strada');
   String get houseNumber => _t('Nr.', 'Nr.');
   String get postalCode => _t('PLZ', 'Cod poștal');
   String get city => _t('Ort', 'Localitate');
-  String get birthDate => _t('Geburtsdatum', 'Data nașterii');
   String get birthDateHint => _t('TT.MM.JJJJ', 'ZZ.LL.AAAA');
   String get phoneNumber => _t('Telefonnummer', 'Număr de telefon');
   String get saveData => _t('Daten speichern', 'Salvează datele');
@@ -710,53 +646,10 @@ class AppLocalizations {
   // ============================================================
   // USER DETAILS DIALOG
   // ============================================================
-  String get noChanges => _t('Keine Änderungen', 'Nicio modificare');
-  String get userUpdatedSuccess => _t('Benutzer erfolgreich aktualisiert', 'Utilizator actualizat cu succes');
-  String errorLoading(String msg) => _t('Fehler beim Laden: $msg', 'Eroare la încărcare: $msg');
-  String connectionErrorWith2(String e) => _t('Verbindungsfehler: $e', 'Eroare de conexiune: $e');
-  String get errorUpdating => _t('Fehler beim Aktualisieren', 'Eroare la actualizare');
   String errorWith(String e) => _t('Fehler: $e', 'Eroare: $e');
-  String get sessionRevoked => _t('Sitzung widerrufen - Benutzer wurde abgemeldet', 'Sesiune revocată - Utilizatorul a fost deconectat');
-  String get pleaseSelectViolationCategory => _t('Bitte Verstoß-Kategorie auswählen', 'Vă rugăm selectați categoria de încălcare');
-  String get pleaseSelectMeasure => _t('Bitte Maßnahme auswählen', 'Vă rugăm selectați măsura');
-  String get pleaseDescribeFacts => _t('Bitte Sachverhalt beschreiben', 'Vă rugăm descrieți situația de fapt');
-  String measureCreatedFor(String measure, String name) => _t('$measure für $name erstellt', '$measure creat pentru $name');
-  String get errorCreatingWarning => _t('Fehler beim Erstellen der Verwarnung', 'Eroare la crearea avertismentului');
-  String get deleteWarningTitle => _t('Verwarnung löschen?', 'Ștergeți avertismentul?');
-  String deleteWarningConfirm(String typ, String date) => _t('$typ vom $date wirklich löschen?', 'Ștergeți $typ din $date?');
-  String get warningDeleted => _t('Verwarnung gelöscht', 'Avertisment șters');
-  String get errorDeleting => _t('Fehler beim Löschen', 'Eroare la ștergere');
-  String get createPdf => _t('PDF erstellen', 'Creează PDF');
-  String get deleteWarning => _t('Verwarnung löschen', 'Șterge avertisment');
-  String get accountDeactivated => _t('Konto deaktiviert', 'Cont dezactivat');
-  String get accountActive => _t('Konto aktiv', 'Cont activ');
-  String get accountData => _t('Kontodaten', 'Date cont');
-  String get accountTab => _t('Konto', 'Cont');
   String get sessionsTab => _t('Sitzungen', 'Sesiuni');
-  String get warningsTab => _t('Verwarnungen', 'Avertismente');
-  String get documentsTab => _t('Dokumente', 'Documente');
-  String get membershipTab => _t('Mitgliedschaft', 'Calitate de membru');
-  String get verificationTab => _t('Verifizierung', 'Verificare');
-  String get discountTab => _t('Ermäßigung', 'Reducere');
-  String get notesTab => _t('Notizen', 'Note');
   String get ticketsTab => _t('Tickets', 'Tichete');
-  String get appointmentsTab => _t('Termine', 'Programări');
-  String get registrationSection => _t('Registrierung', 'Înregistrare');
-  String get deactivationSection => _t('Deaktivierung', 'Dezactivare');
-  String get deactivatedOn => _t('Deaktiviert am', 'Dezactivat la');
-  String get notRecorded => _t('Nicht erfasst', 'Neînregistrat');
   String get reason => _t('Grund', 'Motiv');
-  String get noReasonGiven => _t('Kein Grund angegeben', 'Niciun motiv specificat');
-  String get autoDeactivationInfo => _t(
-    'Dieses Konto wurde automatisch deaktiviert, da die Verifizierung nicht innerhalb von 30 Tagen nach der Registrierung abgeschlossen wurde.',
-    'Acest cont a fost dezactivat automat deoarece verificarea nu a fost finalizată în termen de 30 de zile de la înregistrare.',
-  );
-  String editFieldLabel(String label) => _t('$label bearbeiten', 'Editează $label');
-  String get editName => _t('Name bearbeiten', 'Editează numele');
-  String get editEmail => _t('E-Mail bearbeiten', 'Editează e-mail');
-  String get editRole => _t('Rolle bearbeiten', 'Editează rolul');
-  String get changePasswordTitle => _t('Passwort ändern', 'Schimbă parola');
-  String get minChars8 => _t('Mindestens 8 Zeichen', 'Cel puțin 8 caractere');
   String get activeSessions => _t('Aktive Sitzungen', 'Sesiuni active');
   String get noActiveSessions => _t('Keine aktiven Sitzungen', 'Niciun sesiune activă');
   String get registeredDevices => _t('Registrierte Geräte', 'Dispozitive înregistrate');
@@ -765,153 +658,9 @@ class AppLocalizations {
   String get revokeSessionTooltip => _t('Sitzung widerrufen (Force Logout)', 'Revocă sesiune (Deconectare forțată)');
   String get inactive => _t('Inaktiv', 'Inactiv');
   String lastUsed(String date) => _t('Zuletzt verwendet: $date', 'Ultima utilizare: $date');
-  String get newDisciplinaryMeasure => _t('Neue Ordnungsmaßnahme', 'Măsură disciplinară nouă');
-  String get violationLabel => _t('Verstoß:', 'Încălcare:');
-  String get factsLabel => _t('Sachverhalt (was ist passiert?)', 'Situația de fapt (ce s-a întâmplat?)');
-  String get measureSectionLabel => _t('Maßnahme (§6 Abs. 6):', 'Măsură (§6 alin. 6):');
-  String get amountMax100 => _t('Betrag (max. 100 €)', 'Sumă (max. 100 €)');
-  String get issueMeasurePdf => _t('Maßnahme ausstellen + PDF', 'Emite măsură + PDF');
-  String warningsCount(int count) => _t('Verwarnungen ($count)', 'Avertismente ($count)');
-  String get noWarnings => _t('Keine Verwarnungen vorhanden', 'Niciun avertisment');
-  String get max10FilesPerUpload => _t('Maximum 10 Dateien pro Upload', 'Maximum 10 fișiere per încărcare');
-  String fileTooLarge(String name) => _t('"$name" ist zu groß (max. 100 MB)', '"$name" este prea mare (max. 100 MB)');
-  String get uploadAssociationDoc => _t('Vereindokument hochladen', 'Încarcă document asociație');
-  String get uploadAuthorityDoc => _t('Behörde Unterlagen hochladen', 'Încarcă documente autoritate');
-  String get documentName => _t('Dokumentname', 'Nume document');
   String get documentType => _t('Dokumenttyp', 'Tip document');
-  String get descriptionOptional => _t('Beschreibung (optional)', 'Descriere (opțional)');
-  String get expiryDate => _t('Ablaufdatum', 'Data de expirare');
-  String get noExpiryDate => _t('Kein Ablaufdatum', 'Fără dată de expirare');
-  String get expiryAutoDeleteInfo => _t('Dokumente mit Ablaufdatum werden nach Ablauf automatisch gelöscht.', 'Documentele cu dată de expirare vor fi șterse automat după expirare.');
-  String uploadFilesCount(int count) => _t('$count ${count == 1 ? "Datei" : "Dateien"} hochladen', '$count ${count == 1 ? "fișier" : "fișiere"} încarcă');
-  String documentUploaded(String name) => _t('Dokument "$name" hochgeladen', 'Document "$name" încărcat');
-  String get errorUploading2 => _t('Fehler beim Hochladen', 'Eroare la încărcare');
-  String documentsUploaded(int count) => _t('$count Dokumente hochgeladen', '$count documente încărcate');
-  String get deleteDocumentTitle => _t('Dokument löschen?', 'Ștergeți documentul?');
-  String deleteDocumentConfirm(String name, String filename) => _t('"$name" ($filename) wirklich löschen?', 'Ștergeți "$name" ($filename)?');
-  String get documentDeleted => _t('Dokument gelöscht', 'Document șters');
-  String get previewOnlyPdfImages => _t('Vorschau nur für PDF und Bilder verfügbar', 'Previzualizarea este disponibilă doar pentru PDF și imagini');
-  String get fileLoading => _t('Datei wird geladen...', 'Fișierul se încarcă...');
-  String get errorLoadingFile => _t('Fehler beim Laden der Datei', 'Eroare la încărcarea fișierului');
-  String errorDisplaying(String e) => _t('Fehler beim Anzeigen: $e', 'Eroare la afișare: $e');
-  String savedFilename(String filename) => _t('Gespeichert: $filename', 'Salvat: $filename');
   String get errorSaving2 => _t('Fehler beim Speichern', 'Eroare la salvare');
-  String errorSavingWith2(String e) => _t('Fehler beim Speichern: $e', 'Eroare la salvare: $e');
-  String get associationDocuments => _t('Vereindokumente', 'Documente asociație');
-  String get authorityDocuments => _t('Behörde Unterlagen', 'Documente autoritate');
-  String associationDocsCount(int count) => _t('Vereindokumente ($count)', 'Documente asociație ($count)');
-  String authorityDocsCount(int count) => _t('Behörde Unterlagen ($count)', 'Documente autoritate ($count)');
-  String get noAssociationDocs => _t('Keine Vereindokumente vorhanden', 'Niciun document asociație');
-  String get noAuthorityDocs => _t('Keine Behörde Unterlagen vorhanden', 'Niciun document autoritate');
-  String get associationDocInfo => _t('Beitrittsantrag, Aufnahmebestätigung, Kündigung usw. | PDF, JPG, PNG, TXT (max. 100 MB, 10 Dateien)', 'Cerere de aderare, confirmare, reziliere etc. | PDF, JPG, PNG, TXT (max. 100 MB, 10 fișiere)');
-  String get authorityDocInfo => _t('Krankenkasse, Finanzamt usw. | Dokumente mit Ablaufdatum werden automatisch gelöscht', 'Asigurări de sănătate, Finanțe etc. | Documentele cu dată de expirare vor fi șterse automat');
-  String get aes256Encrypted => _t('AES-256 verschlüsselt', 'Criptat AES-256');
   String get preview => _t('Vorschau', 'Previzualizare');
-  String get revokeSessionTitle => _t('Sitzung widerrufen?', 'Revocați sesiunea?');
-  String get revokeSessionInfo => _t('Der Benutzer wird von diesem Gerät abgemeldet und muss sich neu anmelden.', 'Utilizatorul va fi deconectat de pe acest dispozitiv și va trebui să se autentifice din nou.');
-  String get revoke => _t('Widerrufen', 'Revocă');
-  String get changeStatusButton => _t('Status ändern', 'Schimbă status');
-  String get currentStatusLabel => _t('Aktueller Status: ', 'Status curent: ');
-  String get newStatusLabel => _t('Neuer Status:', 'Status nou:');
-  String statusChanged(String status) => _t('Status geändert: $status', 'Status schimbat: $status');
-  String get membershipDateSaved => _t('Mitgliedschaftsdatum gespeichert', 'Data de membru salvată');
-  String get changeDateRetroactive => _t('Datum ändern (z.B. rückwirkend)', 'Schimbă data (ex. retroactiv)');
-  String get feeExemption => _t('Beitragsbefreiung', 'Scutire de contribuții');
-  String get exemptLabel => _t('Befreit', 'Scutit');
-  String get uploadCertificate => _t('Bescheid hochladen', 'Încarcă decizia');
-  String get noExemptionInfo => _t('Keine Befreiung vorhanden. Bewilligungsbescheid vom Jobcenter oder Sozialamt hochladen.', 'Nu există scutire. Încărcați decizia de aprobare de la Jobcenter sau Oficiul de asistență socială.');
-  String get noVerificationData => _t('Keine Verifizierungsdaten geladen', 'Nicio dată de verificare încărcată');
-  String get reloadData => _t('Erneut laden', 'Reîncarcă');
-  String stagesChecked(int checked, int total) => _t('$checked/$total Stufen geprüft', '$checked/$total etape verificate');
-  String stageLabel(int stufe, String stageName) => _t('Stufe $stufe: $stageName', 'Etapa $stufe: $stageName');
-  String checkedOnBy(String date, String byName) => _t('Geprüft am $date von $byName', 'Verificat la $date de $byName');
-  String get resetLabel => _t('Zurücksetzen', 'Resetează');
-  String get rejectLabel => _t('Ablehnen', 'Respinge');
-  String get checkedStatus => _t('Geprüft', 'Verificat');
-  String get filledIn => _t('Ausgefüllt', 'Completat');
-  String get rejectedStatus => _t('Abgelehnt', 'Respins');
-  String get openStatus => _t('Offen', 'Deschis');
-  String get notSpecified => _t('Nicht angegeben', 'Nespecificat');
-  String get memberHasNotChosenType => _t('Das Mitglied hat noch keine Mitgliedsart gewählt.', 'Membrul nu a ales încă tipul de membru.');
-  String get memberHasNotSpecifiedFinancial => _t('Das Mitglied hat noch keine Angabe zur finanziellen Situation gemacht.', 'Membrul nu a specificat încă situația financiară.');
-  String get noPaymentMethod => _t('Keine Zahlungsmethode gewählt.', 'Nicio metodă de plată selectată.');
-  String get memberChosenStartDate => _t('Das Mitglied hat gewählt, ab wann die Mitgliedschaft beginnen soll.', 'Membrul a ales de când ar trebui să înceapă calitatea de membru.');
-  String get feeExemptRetroactive => _t('Beitragsbefreit (Ermäßigung) – 0 € retroaktiv', 'Scutit de contribuții (reducere) - 0 € retroactiv');
-  String get paymentMethodSaved => _t('Zahlungsmethode gespeichert', 'Metoda de plată salvată');
-  String acceptedAtRegistrationDate(String date) => _t('Bei Registrierung akzeptiert am $date', 'Acceptat la înregistrare pe $date');
-  String get statuteLabel2 => _t('Satzung', 'Statut');
-  String get statuteDesc => _t('Die Satzung des Vereins muss vom Mitglied gelesen und akzeptiert werden.', 'Statutul asociației trebuie citit și acceptat de membru.');
-  String get openStatute => _t('Satzung öffnen', 'Deschide statutul');
-  String get privacyLabel => _t('Datenschutz', 'Protecția datelor');
-  String get privacyDesc => _t('Die Datenschutzerklärung muss vom Mitglied gelesen und akzeptiert werden.', 'Declarația de confidențialitate trebuie citită și acceptată de membru.');
-  String get openPrivacy => _t('Datenschutz öffnen', 'Deschide confidențialitatea');
-  String get withdrawalLabelFull => _t('Widerrufsbelehrung', 'Instrucțiuni de retragere');
-  String get withdrawalDesc => _t('Die Widerrufsbelehrung muss vom Mitglied gelesen und akzeptiert werden.', 'Instrucțiunile de retragere trebuie citite și acceptate de membru.');
-  String get openWithdrawal => _t('Widerrufsbelehrung öffnen', 'Deschide instrucțiunile de retragere');
-  String rejectStage(int stufe) => _t('Stufe $stufe ablehnen', 'Respinge etapa $stufe');
-  String get rejectionReasonOptional => _t('Grund der Ablehnung (optional)', 'Motivul respingerii (opțional)');
-  String stageCheckedMsg(int stufe) => _t('Stufe $stufe geprüft', 'Etapa $stufe verificată');
-  String stageRejectedMsg(int stufe) => _t('Stufe $stufe abgelehnt', 'Etapa $stufe respinsă');
-  String stageResetMsg(int stufe) => _t('Stufe $stufe zurückgesetzt', 'Etapa $stufe resetată');
-  String get deleteExemptionTitle => _t('Befreiung löschen', 'Șterge scutirea');
-  String get deleteExemptionConfirm => _t('Soll diese Befreiung mit dem Dokument endgültig gelöscht werden?', 'Doriți să ștergeți definitiv această scutire împreună cu documentul?');
-  String get exemptionDeleted => _t('Befreiung gelöscht', 'Scutire ștearsă');
-  String get rejectExemptionTitle => _t('Befreiung ablehnen', 'Respinge scutirea');
-  String get exemptionApproved => _t('Befreiung genehmigt', 'Scutire aprobată');
-  String get exemptionRejected => _t('Befreiung abgelehnt', 'Scutire respinsă');
-  String get statusResetLabel => _t('Status zurückgesetzt', 'Status resetat');
-  String get statusUpdated => _t('Status aktualisiert', 'Status actualizat');
-  String get approveLabel => _t('Genehmigen', 'Aprobă');
-  String get approvalCertificate => _t('Bewilligungsbescheid', 'Decizie de aprobare');
-  String get authorityRequired => _t('Behörde *', 'Autoritate *');
-  String get certificateDateLabel => _t('Bescheid-Datum', 'Data deciziei');
-  String get selectDatePlaceholder => _t('Datum wählen...', 'Selectați data...');
-  String get validFromRequired => _t('Gültig von *', 'Valabil de la *');
-  String get selectStartDate => _t('Startdatum wählen... *', 'Selectați data de început... *');
-  String get validUntilRequired => _t('Gültig bis *', 'Valabil până la *');
-  String get selectEndDate => _t('Enddatum wählen... *', 'Selectați data de sfârșit... *');
-  String get approvalCertificateRequired => _t('Bewilligungsbescheid *', 'Decizie de aprobare *');
-  String get selectApprovalCertificate => _t('Bewilligungsbescheid auswählen', 'Selectați decizia de aprobare');
-  String get selectFileLabel => _t('Datei auswählen (PDF, JPG, PNG)...', 'Selectați fișier (PDF, JPG, PNG)...');
-  String get noteFieldLabel => _t('Notiz', 'Notă');
-  String get optionalNote => _t('Optionale Anmerkung...', 'Notă opțională...');
-  String get certificateUploaded => _t('Bewilligungsbescheid hochgeladen', 'Decizie de aprobare încărcată');
-  String get errorDownloading2 => _t('Fehler beim Download', 'Eroare la descărcare');
-  String get discountApplications => _t('Ermäßigungsanträge', 'Cereri de reducere');
-  String openCountLabel(int count) => _t('$count offen', '$count deschise');
-  String get noDiscountApplications => _t('Keine Ermäßigungsanträge vorhanden.', 'Nu există cereri de reducere.');
-  String get submittedStatus => _t('Eingereicht', 'Depus');
-  String get approvedStatus => _t('Genehmigt', 'Aprobat');
-  String get rejectedStatus2 => _t('Abgelehnt', 'Respins');
-  String get expiredStatus => _t('Abgelaufen', 'Expirat');
-  String daysOpen(int days) => _t('$days Tage offen', '$days zile deschise');
-  String get checkSectionLabel => _t('Prüfung', 'Verificare');
-  String get documentReadable => _t('Dokument lesbar', 'Document lizibil');
-  String get benefitTypeRecognizable => _t('Leistungsart erkennbar', 'Tip de prestație recognoscibil');
-  String get currentWithin12Months => _t('Aktuell (innerhalb 12 Monate)', 'Actual (în ultimele 12 luni)');
-  String get readableShort => _t('Lesbar', 'Lizibil');
-  String get benefitTypeShort => _t('Leistungsart', 'Tip prestație');
-  String get currentShortLabel => _t('Aktuell', 'Actual');
-  String get rejectionReasonHeading => _t('Ablehnungsgrund:', 'Motiv respingere:');
-  String get deleteApplicationTitle => _t('Antrag löschen', 'Șterge cererea');
-  String get deleteApplicationConfirm => _t('Soll dieser Ermäßigungsantrag endgültig gelöscht werden?', 'Doriți să ștergeți definitiv această cerere de reducere?');
-  String get applicationDeleted => _t('Antrag gelöscht', 'Cerere ștearsă');
-  String get discountApproved => _t('Ermäßigung genehmigt', 'Reducere aprobată');
-  String get discountRejected => _t('Ermäßigung abgelehnt', 'Reducere respinsă');
-  String get rejectDiscountTitle => _t('Ermäßigung ablehnen', 'Respinge reducerea');
-  String get rejectionReasonRequired => _t('Bitte geben Sie den Grund der Ablehnung an (Pflichtfeld):', 'Vă rugăm indicați motivul respingerii (câmp obligatoriu):');
-  String get rejectionReasonField => _t('Ablehnungsgrund *', 'Motiv respingere *');
-  String get rejectionReasonMandatory => _t('Ablehnungsgrund ist Pflicht', 'Motivul respingerii este obligatoriu');
-  String get newNote => _t('Neue Notiz', 'Notă nouă');
-  String get internalNoteHint => _t('Interne Notiz über dieses Mitglied...', 'Notă internă despre acest membru...');
-  String get importantLabel => _t('Wichtig', 'Important');
-  String get noNotesAvailable => _t('Keine Notizen vorhanden', 'Niciun notă disponibilă');
-  String get noteSaved => _t('Notiz gespeichert', 'Notă salvată');
-  String get deleteNoteTitle => _t('Notiz löschen', 'Șterge nota');
-  String get deleteNoteConfirm => _t('Möchten Sie diese Notiz wirklich löschen?', 'Doriți cu adevărat să ștergeți această notă?');
-  String get noteDeleted => _t('Notiz gelöscht', 'Notă ștearsă');
-  String notesCountInfo(int count) => _t('$count Notiz${count == 1 ? '' : 'en'} — Nur für Admins sichtbar', '$count ${count == 1 ? 'notă' : 'note'} - Vizibil doar pentru administratori');
-  String fromAuthor(String authorName, String number) => _t('von $authorName ($number)', 'de la $authorName ($number)');
   String get noTicketsAvailable2 => _t('Keine Tickets vorhanden', 'Niciun tichet disponibil');
   String ticketsCount(int count) => _t('$count Tickets', '$count tichete');
   String get openTickets => _t('Offen', 'Deschise');
@@ -922,24 +671,8 @@ class AppLocalizations {
   String get travelTime => _t('Fahrzeit', 'Timp de deplasare');
   String get workTime => _t('Arbeitszeit', 'Timp de lucru');
   String get waitTime => _t('Wartezeit', 'Timp de așteptare');
-  String get noAppointmentsAvailable => _t('Keine Termine vorhanden', 'Nicio programare disponibilă');
-  String appointmentsCount(int count) => _t('$count Termine', '$count programări');
-  String get upcomingAppointments => _t('Anstehende Termine', 'Programări viitoare');
-  String get pastAppointments => _t('Vergangene Termine', 'Programări trecute');
-  String get upcomingShort => _t('Anstehend', 'Viitoare');
-  String get pastShort => _t('Vergangen', 'Trecute');
-  String get cancelledStatus => _t('Abgesagt', 'Anulat');
-  String confirmedOfTotal(int confirmed, int totalCount) => _t('$confirmed/$totalCount bestätigt', '$confirmed/$totalCount confirmate');
   String get ipCleanNotListed => _t('IP sauber - nicht gelistet', 'IP curat - nelistat');
-  String get validFromLabel => _t('Gültig von', 'Valabil de la');
-  String get validUntilLabel => _t('Gültig bis', 'Valabil până la');
-  String get certificateFrom => _t('Bescheid vom', 'Decizie din');
-  String expiredOnDate(String date) => _t('Abgelaufen am $date', 'Expirat la $date');
-  String validUntilDate(String date) => _t('Gültig bis $date', 'Valabil până la $date');
-  String validUntilDays(String date, int days) => _t('Gültig bis $date ($days Tage)', 'Valabil până la $date ($days zile)');
-  String get fromFieldLabel => _t('Von:', 'De la:');
   String nDocumentsLabel(int count) => _t('$count Dokumente', '$count documente');
-  String get categoryLabel => _t('Kategorie', 'Categorie');
 
   // ============================================================
   // CHANGELOG DIALOG
@@ -967,126 +700,26 @@ class AppLocalizations {
   // ============================================================
   // ADMIN CHAT DIALOG
   // ============================================================
-  String get liveChatSupport => _t('Live Chat - Support', 'Live Chat - Suport');
-  String get newConversation => _t('Neue Konversation', 'Conversație nouă');
-  String get noConversations => _t('Keine Konversationen', 'Nicio conversație');
-  String get selectConversation => _t('Wählen Sie eine Konversation', 'Selectați o conversație');
-  String get noMessages => _t('Keine Nachrichten', 'Niciun mesaj');
-  String get closeConversation => _t('Konversation schließen', 'Închide conversația');
-  String get closeConversationConfirm => _t(
-    'Möchten Sie diese Konversation wirklich schließen?',
-    'Doriți cu adevărat să închideți această conversație?',
-  );
-  String get conversationClosed => _t('Konversation geschlossen', 'Conversație închisă');
-  String get muteTitle => _t('Stummschalten', 'Dezactivează sunetul');
-  String get muteDurationQuestion => _t(
-    'Wie lange soll diese Konversation stummgeschaltet werden?',
-    'Cât timp doriți să dezactivați notificările pentru această conversație?',
-  );
-  String get eightHours => _t('8 Stunden', '8 ore');
-  String get oneWeek => _t('1 Woche', '1 săptămână');
-  String get always => _t('Immer', 'Întotdeauna');
-  String get conversationMuted => _t('Konversation stummgeschaltet', 'Conversație cu sunetul dezactivat');
-  String get muteRemoved => _t('Stummschaltung aufgehoben', 'Sunetul a fost reactivat');
-  String get userBusyInCall => _t('Der Benutzer ist bereits in einem anderen Anruf', 'Utilizatorul este deja într-un alt apel');
-  String get userIsBusy => _t('Der Benutzer ist beschäftigt', 'Utilizatorul este ocupat');
-  String get maxFilesAllowed => _t('Maximal 10 Dateien erlaubt', 'Maximum 10 fișiere permise');
-  String get errorSelecting => _t('Fehler beim Auswählen', 'Eroare la selectare');
-  String get uploadFailed => _t('Upload fehlgeschlagen', 'Încărcarea a eșuat');
-  String get uploadError => _t('Upload Fehler', 'Eroare la încărcare');
-  String get largeFileDownload => _t('Große Datei - Download via URL nicht implementiert', 'Fișier mare - descărcare via URL neimplementat');
   String get downloadFailed2 => _t('Download fehlgeschlagen', 'Descărcarea a eșuat');
-  String get downloadError => _t('Download Fehler', 'Eroare la descărcare');
-  String conversationStartedWith(String name) => _t('Konversation mit $name gestartet', 'Conversație cu $name începută');
-  String get errorStartingConversation => _t('Fehler beim Starten der Konversation', 'Eroare la pornirea conversației');
-  String get startNewConversation => _t('Neue Konversation starten', 'Începe conversație nouă');
-  String get noMembersFoundChat => _t('Keine Mitglieder gefunden', 'Niciun membru găsit');
-  String get statusMessageLabel => _t('Statusnachricht', 'Mesaj de status');
-  String get statusMessageManage => _t('Statusnachricht verwalten', 'Administrare mesaj de status');
-  String get statusMessageHint => _t('z.B. Notfallintervention - Bin derzeit nicht erreichbar', 'ex. Intervenție de urgență - Nu sunt disponibil momentan');
-  String get removeLabel => _t('Entfernen', 'Elimină');
-  String get manageMessages => _t('Nachrichten verwalten', 'Administrare mesaje');
 
-  // Scheduled Messages
-  String get automaticMessages => _t('Automatische Nachrichten', 'Mesaje automate');
-  String get newMessage => _t('Neue Nachricht', 'Mesaj nou');
-  String get noAutomaticMessages => _t('Keine automatischen Nachrichten', 'Niciun mesaj automat');
-  String get createReminders => _t(
-    'Erstellen Sie Erinnerungen für Mahlzeiten, Medikamente, etc.',
-    'Creați mementouri pentru mese, medicamente etc.',
-  );
-  String get deleteMessageTitle => _t('Nachricht löschen?', 'Ștergeți mesajul?');
-  String messageWillBeDeleted(String msg) => _t('„$msg" wird gelöscht.', '„$msg" va fi șters.');
-  String get newAutomaticMessage => _t('Neue automatische Nachricht', 'Mesaj automat nou');
-  String get editMessage => _t('Nachricht bearbeiten', 'Editare mesaj');
-  String get categoryBreakfast => _t('Frühstück', 'Mic dejun');
-  String get categoryLunch => _t('Mittagessen', 'Prânz');
-  String get categoryDinner => _t('Abendessen', 'Cină');
-  String get categoryMedicine => _t('Medikament', 'Medicament');
-  String get categoryOther => _t('Sonstiges', 'Altele');
-  String get weekdays => _t('Wochentage', 'Zilele săptămânii');
   String get daily => _t('Täglich', 'Zilnic');
-  String get messageHintMorning => _t('z.B. Guten Morgen! Haben Sie Ihr Frühstück eingenommen?', 'ex. Bună dimineața! Ați luat micul dejun?');
-  String get replyHint => _t('Antwort eingeben...', 'Introduceți răspunsul...');
-  String get noMessagesAvailable => _t('Keine automatischen Nachrichten vorhanden', 'Nu există mesaje automate');
-  String get createMessagesFirst => _t('Erstellen Sie zuerst Nachrichten über das Hauptmenü', 'Creați întâi mesaje din meniul principal');
-  String get urgentMessage => _t('Als dringende Nachricht markieren (Full-Screen Alert)', 'Marchează ca mesaj urgent (alertă pe ecran complet)');
-  String get conversationClosedIndicator => _t('Diese Konversation wurde geschlossen', 'Această conversație a fost închisă');
 
   // ============================================================
   // CHAT HEADER
   // ============================================================
   String get automaticMessagesSettings => _t('Automatische Nachrichten', 'Mesaje automate');
-  String get unmuteNotifications => _t('Stummschaltung aufheben', 'Activează notificările');
-  String get muteNotifications => _t('Stummschalten', 'Dezactivează notificările');
-  String get callUser => _t('Benutzer anrufen', 'Apelează utilizatorul');
-  String get closeConversationTooltip => _t('Konversation schließen', 'Închide conversația');
-  String get onlineStatus => 'Online';
-  String get offlineStatus => 'Offline';
 
   // ============================================================
   // CHAT MESSAGE BUBBLE
   // ============================================================
-  String get urgentBadge => _t('DRINGEND', 'URGENT');
-  String get translatedLabel => _t('Übersetzt', 'Tradus');
-  String get copiedLabel => _t('Kopiert!', 'Copiat!');
-  String get userLabel => _t('Benutzer', 'Utilizator');
 
   // ============================================================
   // CHAT INPUT AREA
   // ============================================================
-  String get attachFilesMax => _t('Dateien anhängen (max. 10, 100MB)', 'Atașați fișiere (max. 10, 100MB)');
 
   // ============================================================
   // CONVERSATION LIST ITEM
   // ============================================================
-  String get noMessagesConv => _t('Keine Nachrichten', 'Niciun mesaj');
-  String get inCallLabel => _t('Im Anruf...', 'În apel...');
-  String lastActiveSecondsAgo(int seconds) => _t('zuletzt aktiv vor $seconds Sekunden', 'ultima activitate acum $seconds secunde');
-  String lastActiveMinutesAgo(int minutes) => _t(
-    'zuletzt aktiv vor $minutes ${minutes == 1 ? "Minute" : "Minuten"}',
-    'ultima activitate acum $minutes ${minutes == 1 ? "minut" : "minute"}',
-  );
-  String lastActiveHoursAgo(int hours) => _t(
-    'zuletzt aktiv vor $hours ${hours == 1 ? "Stunde" : "Stunden"}',
-    'ultima activitate acum $hours ${hours == 1 ? "oră" : "ore"}',
-  );
-  String lastActiveDaysAgo(int days) => _t(
-    'zuletzt aktiv vor $days ${days == 1 ? "Tag" : "Tagen"}',
-    'ultima activitate acum $days ${days == 1 ? "zi" : "zile"}',
-  );
-  String lastActiveWeeksAgo(int weeks) => _t(
-    'zuletzt aktiv vor $weeks ${weeks == 1 ? "Woche" : "Wochen"}',
-    'ultima activitate acum $weeks ${weeks == 1 ? "săptămână" : "săptămâni"}',
-  );
-  String lastActiveMonthsAgo(int months) => _t(
-    'zuletzt aktiv vor $months ${months == 1 ? "Monat" : "Monaten"}',
-    'ultima activitate acum $months ${months == 1 ? "lună" : "luni"}',
-  );
-  String lastActiveYearsAgo(int years) => _t(
-    'zuletzt aktiv vor $years ${years == 1 ? "Jahr" : "Jahren"}',
-    'ultima activitate acum $years ${years == 1 ? "an" : "ani"}',
-  );
 
   // ============================================================
   // DEBUG CONSOLE
@@ -1451,71 +1084,26 @@ class AppLocalizations {
   // ============================================================
   // USER DETAILS DIALOG - STUFE NAMES (8 stages)
   // ============================================================
-  String get stageFinancialSituation => _t('Finanzielle Situation', 'Situația financiară');
-  String get stageMembershipStart => _t('Mitgliedschaftsbeginn', 'Începutul calității de membru');
-
-  String stageNameExtended(int stufe) {
-    switch (stufe) {
-      case 1: return personalData;
-      case 2: return membershipType;
-      case 3: return stageFinancialSituation;
-      case 4: return paymentMethod;
-      case 5: return stageMembershipStart;
-      case 6: return statute;
-      case 7: return privacy;
-      case 8: return withdrawalLabelFull;
-      default: return _t('Stufe $stufe', 'Etapa $stufe');
-    }
-  }
 
   // ============================================================
   // USER DETAILS DIALOG - DOCUMENT TYPES
   // ============================================================
-  String get docTypeApplicationForm => _t('Beitrittsantrag', 'Cerere de aderare');
-  String get docTypeAdmissionConfirmation => _t('Aufnahmebestätigung', 'Confirmare de admitere');
-  String get docTypeCancellation => _t('Kündigung', 'Reziliere');
-  String get docTypeOther => _t('Sonstiges', 'Altele');
-  String get docTypeHealthInsurance => _t('Krankenkasse', 'Asigurare de sănătate');
-  String get docTypeTaxOffice => _t('Finanzamt', 'Oficiul fiscal');
-  String get docTypeSocialInsurance => _t('Sozialversicherung', 'Asigurări sociale');
-  String get docTypeEmploymentOffice => _t('Arbeitsamt', 'Oficiul de muncă');
-  String get docTypeAdmissionShort => _t('Aufnahme', 'Admitere');
-  String get docTypeSocialInsuranceShort => _t('Sozialvers.', 'Asig. soc.');
 
   // ============================================================
   // USER DETAILS DIALOG - FINANCIAL SITUATIONS
   // ============================================================
-  String get citizenBenefit => _t('Bürgergeld', 'Ajutor social (Bürgergeld)');
-  String get socialWelfareOffice => _t('Sozialamt', 'Oficiul de asistență socială');
-  String get noSocialBenefits => _t('Keine Sozialleistungen', 'Fără prestații sociale');
 
   // ============================================================
   // USER DETAILS DIALOG - ASSISTANCE TYPES (DISCOUNT TAB)
   // ============================================================
-  String get assistUnemploymentBenefit => _t('Arbeitslosengeld', 'Ajutor de șomaj');
-  String get assistCitizenBenefit => _t('Bürgergeld', 'Ajutor social (Bürgergeld)');
-  String get assistSocialWelfare => _t('Sozialhilfe', 'Asistență socială');
-  String get assistBasicSecurity => _t('Grundsicherung', 'Securitate de bază');
-  String get assistHousingBenefit => _t('Wohngeld', 'Ajutor pentru locuință');
-  String get assistBafog => _t('BAföG', 'BAföG');
-  String get assistTrainingAllowance => _t('Ausbildungsbeihilfe', 'Alocație de formare');
-  String get assistChildSupplement => _t('Kinderzuschlag', 'Supliment pentru copii');
-  String get assistPension => _t('Rente', 'Pensie');
-  String get assistOther => _t('Sonstiges', 'Altele');
 
   // ============================================================
   // USER DETAILS DIALOG - DISCIPLINARY MEASURE FALLBACK
   // ============================================================
-  String get disciplinaryMeasure => _t('Ordnungsmaßnahme', 'Măsură disciplinară');
 
   // ============================================================
   // USER DETAILS DIALOG - NOTE CATEGORY LABELS
   // ============================================================
-  String get categoryGeneral => _t('Allgemein', 'General');
-  String get categoryBehavior => _t('Verhalten', 'Comportament');
-  String get categoryPayment => _t('Zahlung', 'Plată');
-  String get categoryCommunication => _t('Kommunikation', 'Comunicare');
-  String get categoryOtherNotes => _t('Sonstiges', 'Altele');
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

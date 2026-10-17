@@ -756,26 +756,6 @@ Antwort? teil8Antworten(String methode, Uri url, String rumpf) {
       ],
     });
   }
-  if (p.endsWith('/admin/verifizierung_list.php')) {
-    final a = Teil8Daten.verifizierung == 'A';
-    return (status: 200, json: {
-      'success': true,
-      'stages': [
-        {
-          'stufe': 1,
-          'status': a ? 'geprueft' : 'offen',
-          if (a) 'geprueft_am': '2026-05-04 09:12:00',
-          if (a) 'geprueft_von_name': 'Alexandru-Constantin Popescu-Ionescu',
-        },
-        {
-          'stufe': 3,
-          'status': a ? 'offen' : 'geprueft',
-          if (!a) 'geprueft_am': '2026-05-04 09:12:00',
-          if (!a) 'geprueft_von_name': 'Alexandru-Constantin Popescu-Ionescu',
-        },
-      ],
-    });
-  }
   if (p.endsWith('/schatzmeister/verwarnungen_list.php')) {
     Map<String, dynamic> w(int id, String typ, String grund) => {
           'id': id,
@@ -851,54 +831,6 @@ Antwort? teil8Antworten(String methode, Uri url, String rumpf) {
       'success': true,
       'online_admins': [
         {'connection_type': 'ethernet', 'latency_ms': 1048, 'network_quality': 'medium'},
-      ],
-    });
-  }
-  if (p.endsWith('/admin/status_message.php')) {
-    return (status: 200, json: {
-      'success': true,
-      'data': {
-        'is_active': true,
-        'message':
-            'Ich bin bis zum 14. Oktober im Urlaub — dringende Anfragen bitte an den Vorsitzenden.',
-      },
-    });
-  }
-  if (p.endsWith('/chat/scheduled_messages.php')) {
-    return (status: 200, json: {
-      'success': true,
-      'data': [
-        {
-          'id': 1,
-          'send_time': '07:30:00',
-          'message': 'Guten Morgen! Bitte denken Sie an Ihre Medikamente und an das Frühstück.',
-          'category': 'medikament',
-          'days_of_week': '1,3,5',
-          'is_active': true,
-        },
-        {
-          'id': 2,
-          'send_time': '12:00:00',
-          'message': 'Poftă bună la prânz!',
-          'category': 'mittagessen',
-          'days_of_week': '1,2,3,4,5,6,7',
-          'is_active': false,
-        },
-      ],
-    });
-  }
-  if (p.endsWith('/chat/conversation_scheduled.php')) {
-    return (status: 200, json: {
-      'success': true,
-      'data': [
-        {
-          'id': 1,
-          'send_time': '07:30:00',
-          'message': 'Guten Morgen! Bitte denken Sie an Ihre Medikamente und an das Frühstück.',
-          'category': 'medikament',
-          'days_of_week': '1,2,4,6',
-          'is_enabled': true,
-        },
       ],
     });
   }

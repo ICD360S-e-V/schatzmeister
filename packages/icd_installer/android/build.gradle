@@ -1,0 +1,51 @@
+group 'de.icd360sev.icd_installer'
+version '1.0-SNAPSHOT'
+
+buildscript {
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
+
+rootProject.allprojects {
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
+
+apply plugin: 'com.android.library'
+// Die App steht auf AGP 8 mit `android.builtInKotlin=false` — KGP muss also
+// angewendet werden (wie die App selbst mit „kotlin-android"). ⚠️ Bei einem
+// Umstieg auf Built-in Kotlin fliegt diese Zeile raus (siehe die Notiz
+// „Built-in Kotlin" der Vorsitzer-App).
+apply plugin: 'kotlin-android'
+
+android {
+    namespace 'de.icd360sev.icd_installer'
+    compileSdk = flutter.compileSdkVersion
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    kotlinOptions {
+        jvmTarget = '17'
+    }
+
+    sourceSets {
+        main.java.srcDirs += 'src/main/kotlin'
+    }
+
+    defaultConfig {
+        // Wie die App (android/app/build.gradle.kts). Ein HÖHERER Wert als der
+        // der App bricht die Manifest-Zusammenführung.
+        minSdkVersion 24
+    }
+
+    lintOptions {
+        disable 'InvalidPackage'
+    }
+}

@@ -108,7 +108,6 @@ class User {
   bool get isNeu => status == 'neu';
   bool get isPassiv => status == 'passiv';
   bool get isRuhend => status == 'ruhend';
-  bool get isGesperrt => status == 'gesperrt' || status == 'suspended';
   bool get isSuspended => status == 'suspended' || status == 'gesperrt';
   bool get isDeleted => status == 'deleted';
   bool get isGekuendigt => status == 'gekuendigt' || status == 'gekuendigt_selbst' || status == 'gekuendigt_verein';

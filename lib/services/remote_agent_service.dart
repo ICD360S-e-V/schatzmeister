@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:http/io_client.dart';
 
@@ -127,6 +128,11 @@ class RemoteAgentService {
     _state = s;
     if (!_stateController.isClosed) _stateController.add(s);
   }
+
+  /// Für Tests: den Zustand setzen, ohne eine Verbindung aufzubauen (z. B. die
+  /// Update-Sperre während einer Fernwartung, test/update_von_selbst_test.dart).
+  @visibleForTesting
+  void testZustand(RemoteAgentState s) => _setState(s);
 
   // ─── TURN-Zugang (nur der eigene coturn) ──────────────────────────────────
   static Map<String, dynamic>? _cachedIceServers;
