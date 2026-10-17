@@ -258,7 +258,16 @@ class NotificationService {
         );
       }
 
-      _log.info('Notification angezeigt: "$title" - $body', tag: 'NOTIF');
+      // 🔴 Hier stand `'... "$title" - $body'` — der volle Wortlaut JEDER
+      // angezeigten Benachrichtigung, also auch jeder Chat-Nachricht.
+      // `LoggerService` lädt alle Zeilen zum Server (Abgleich 17.10.2026:
+      // 1.258 solcher Zeilen in logs/schatzmeister/). Nur Länge, kein
+      // Wortlaut — wie in der Vorsitzer-App seit dem 30.08.2026.
+      _log.info(
+        'Benachrichtigung angezeigt (Titel ${title.length} Z., '
+        'Text ${body.length} Z.)',
+        tag: 'NOTIF',
+      );
     } catch (e) {
       _log.error('Notification fehlgeschlagen: $e', tag: 'NOTIF');
     }
@@ -302,7 +311,9 @@ class NotificationService {
     int? conversationId,
   }) async {
     _log.info(
-        'Chat-Benachrichtigung: "$senderName" - $message',
+        // 🔴 Hier standen Absendername UND voller Nachrichtentext.
+        'Chat-Benachrichtigung (Absender ${senderName.length} Z., '
+        'Text ${message.length} Z.)',
         tag: 'NOTIF');
 
     // Native notification on all platforms
@@ -379,7 +390,8 @@ class NotificationService {
       body: message,
       payload: 'error',
     );
-    _log.error('Fehler-Benachrichtigung: $message', tag: 'NOTIF');
+    _log.error('Fehler-Benachrichtigung angezeigt (${message.length} Z.)',
+        tag: 'NOTIF');
   }
 
   /// Show success notification
@@ -392,7 +404,13 @@ class NotificationService {
       body: message,
       payload: 'success',
     );
-    _log.info('Erfolg: $title - $message', tag: 'NOTIF');
+    // Auch hier kein Wortlaut: `showSuccess` wird mit Texten gerufen, in denen
+    // Namen und Vorgänge stehen.
+    _log.info(
+      'Erfolgsmeldung angezeigt (Titel ${title.length} Z., '
+      'Text ${message.length} Z.)',
+      tag: 'NOTIF',
+    );
   }
 
   /// Test notification

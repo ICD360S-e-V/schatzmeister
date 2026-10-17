@@ -474,7 +474,6 @@ class ApiService {
 
     LoggerService().debug('getMySessions: Response status=${response.statusCode}', tag: 'API');
     LoggerService().debug('getMySessions: Response body length=${response.body.length}', tag: 'API');
-    LoggerService().debug('getMySessions: Response body=${response.body}', tag: 'API');
 
     if (response.body.isEmpty) {
       LoggerService().error('getMySessions: Empty response body!', tag: 'API');
@@ -1687,7 +1686,6 @@ class ApiService {
       );
 
       log.info('Changelog API Response Status: ${response.statusCode}', tag: 'CHANGELOG');
-      log.debug('Changelog API Response Body: ${response.body}', tag: 'CHANGELOG');
 
       final decoded = jsonDecode(response.body);
       log.info('Changelog decoded successfully', tag: 'CHANGELOG');

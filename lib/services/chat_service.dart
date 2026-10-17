@@ -166,7 +166,10 @@ class ChatService {
 
       _subscription = _channel!.stream.listen(
         (data) {
-          _log.debug('WS received: ${data.toString().substring(0, data.toString().length > 100 ? 100 : data.toString().length)}...', tag: 'WS');
+          // 🔴 Hier standen die ersten 100 Zeichen JEDES Rahmens — bei einer
+          // Chat-Nachricht Absender und Anfang des Textes. Die Art steht eine
+          // Zeile später in `_handleMessage` („WS received type“).
+          _log.debug('WS received: ${data.toString().length} Z.', tag: 'WS');
           _handleMessage(data, completer);
         },
         onError: (error) {
@@ -571,7 +574,7 @@ class ChatService {
         case 'system_notification':
           // System notifications are messages FROM admin TO members
           // Schatzmeister should NOT see these (they are the sender/admin side)
-          _log.debug('System notification IGNORED (admin portal): ${json['title']}', tag: 'TICKET');
+          _log.debug('Systemmeldung ignoriert (Verwaltungsseite)', tag: 'TICKET');
           break;
 
         case 'ticket_notification':
@@ -584,9 +587,10 @@ class ChatService {
               title: ticketEvent.title,
               body: ticketEvent.message,
             );
-            _log.info('Ticket notification received: ${ticketEvent.title}', tag: 'TICKET');
+            // Ohne Titel und Text — nur die Ticketnummer.
+            _log.info('Ticket-Benachrichtigung angezeigt (Ticket #${ticketEvent.ticketId})', tag: 'TICKET');
           } else {
-            _log.debug('Ticket notification SKIPPED (own action): ${ticketEvent.title}', tag: 'TICKET');
+            _log.debug('Ticket-Benachrichtigung übersprungen (eigene Aktion, Ticket #${ticketEvent.ticketId})', tag: 'TICKET');
           }
           break;
 
