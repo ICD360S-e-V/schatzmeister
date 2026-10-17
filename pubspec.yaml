@@ -44,6 +44,10 @@ dependencies:
   # Local storage for tokens
   shared_preferences: ^2.3.0
 
+  # SHA-256 des geladenen Updates gegen das Manifest (17.10.2026: es
+  # installiert sich auf Android von selbst). War schon da, nur indirekt.
+  crypto: ^3.0.3
+
   # State management
   provider: ^6.1.0
 
@@ -100,11 +104,14 @@ dependencies:
   # Dateien und dasselbe Paket wie in der Mitglieder-App.
   flutter_svg: ^2.0.10
 
-  # APK-Installation auf Android. Der Weg ueber `launchUrl(Uri.file(...))`
-  # scheitert seit Android 7 (API 24, unser minSdk): ein file://-URI an eine
-  # fremde App zu reichen loest FileUriExposedException aus. Dieses Paket
-  # kapselt den PackageInstaller samt FileProvider.
-  android_package_installer: ^0.0.3
+  # APK-Installation auf Android über die PackageInstaller-Session — ab
+  # Android 12 ohne Rückfrage (17.10.2026, wie die Vorsitzer-App). Kopie aus
+  # der Vorsitzer-App; ersetzt android_package_installer 0.0.3, das immer
+  # fragte und seit 16 Monaten verwaist ist. Der Weg ueber
+  # `launchUrl(Uri.file(...))` scheitert seit Android 7 (API 24, unser
+  # minSdk): ein file://-URI an eine fremde App loest FileUriExposedException aus.
+  icd_installer:
+    path: packages/icd_installer
 
   # Handwritten signature capture (pure Dart, cross-platform)
   signature: ^6.3.0
