@@ -91,7 +91,8 @@ class TicketNotificationService {
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        _log.debug('Poll response: ${response.body.substring(0, response.body.length > 200 ? 200 : response.body.length)}', tag: 'TICKET_NOTIF');
+        // Ohne den Rumpf: darin stehen Titel und Text der Benachrichtigungen.
+        _log.debug('Poll-Antwort: ${response.body.length} Byte', tag: 'TICKET_NOTIF');
 
         if (data['success'] == true) {
           // Handle both response formats: with/without 'data' wrapper
@@ -115,7 +116,7 @@ class TicketNotificationService {
           _log.warning('Poll fehlgeschlagen: ${data['message']}', tag: 'TICKET_NOTIF');
         }
       } else {
-        _log.warning('Poll HTTP ${response.statusCode}: ${response.body}', tag: 'TICKET_NOTIF');
+        _log.warning('Poll HTTP ${response.statusCode} (${response.body.length} Byte)', tag: 'TICKET_NOTIF');
       }
     } catch (e) {
       _log.error('Poll-Fehler: $e', tag: 'TICKET_NOTIF');
@@ -205,7 +206,13 @@ class TicketNotificationService {
         duration: const Duration(seconds: 8),
       );
 
-      _log.info('Notification angezeigt: "$title" - Ticket #$ticketId', tag: 'TICKET_NOTIF');
+      // ⚠️ Ohne den Betreff: in einem Ticket steht das Anliegen eines
+      // Mitglieds. Die Nummer genügt, um den Weg nachzuvollziehen.
+      _log.info(
+        'Benachrichtigung angezeigt (Ticket #$ticketId, '
+        'Titel ${title.length} Z.)',
+        tag: 'TICKET_NOTIF',
+      );
     } catch (e) {
       _log.error('Fehler beim Anzeigen der Benachrichtigung: $e', tag: 'TICKET_NOTIF');
     }

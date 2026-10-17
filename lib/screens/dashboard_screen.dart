@@ -282,7 +282,8 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
   void _setupTicketNotificationListener() {
     // Listen for ticket notifications via WebSocket
     _ticketNotificationSubscription = _chatService.ticketNotificationStream.listen((event) {
-      _log.info('Ticket notification received: ${event.title}', tag: 'TICKET');
+      // Ohne Titel: darin steht das Anliegen. Die Nummer genügt.
+      _log.info('Ticket-Benachrichtigung erhalten (Ticket #${event.ticketId})', tag: 'TICKET');
 
       // Auto-refresh ticket list when notification arrives
       if (mounted) {

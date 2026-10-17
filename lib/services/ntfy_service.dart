@@ -166,10 +166,16 @@ class NtfyService {
       // Skip keepalive/open events
       if (data['event'] != 'message') return;
 
-      final title = data['title'] ?? tr('Benachrichtigung', 'Notificare');
-      final message = data['message'] ?? '';
+      final title = '${data['title'] ?? tr('Benachrichtigung', 'Notificare')}';
+      final message = '${data['message'] ?? ''}';
 
-      _log.info('NtfyService: Received: $title - $message', tag: 'NTFY');
+      // 🔴 Hier stand `'... $title - $message'`: der Text der Mitteilung ist
+      // bei einer Chat-Nachricht deren Anfang. Nur Länge, kein Wortlaut.
+      _log.info(
+        'NtfyService: Benachrichtigung erhalten '
+        '(Titel ${title.length} Z., Text ${message.length} Z.)',
+        tag: 'NTFY',
+      );
 
       // Show local notification
       NotificationService().show(

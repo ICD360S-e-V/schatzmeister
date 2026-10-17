@@ -150,15 +150,14 @@ class DokumenteService {
       request.files.add(await http.MultipartFile.fromPath('file', file.path));
 
       _log.debug('Upload request to: ${uri.toString()}', tag: 'DOKUMENTE');
-      _log.debug('Headers: ${request.headers}', tag: 'DOKUMENTE');
-      _log.debug('Fields: ${request.fields}', tag: 'DOKUMENTE');
+      // ⚠️ Keine Kopfzeilen (Bearer + Geräteschlüssel) und keine Felder ins
+      // Protokoll — es geht zum Server.
       _log.debug('Files count: ${request.files.length}', tag: 'DOKUMENTE');
 
       final streamedResponse = await _client.send(request);
       final response = await http.Response.fromStream(streamedResponse);
 
       _log.debug('Upload response status: ${response.statusCode}', tag: 'DOKUMENTE');
-      _log.debug('Upload response body: ${response.body}', tag: 'DOKUMENTE');
 
       final data = jsonDecode(response.body);
 
@@ -166,7 +165,7 @@ class DokumenteService {
         return MemberDokument.fromJson(data['dokument']);
       }
 
-      _log.error('Upload failed: status=${response.statusCode}, body=${response.body}', tag: 'DOKUMENTE');
+      _log.error('Upload failed: status=${response.statusCode} (${response.body.length} Byte)', tag: 'DOKUMENTE');
       return null;
     } catch (e) {
       _log.error('Upload exception: $e', tag: 'DOKUMENTE');
@@ -221,7 +220,6 @@ class DokumenteService {
       final response = await http.Response.fromStream(streamedResponse);
 
       _log.debug('Multi-upload response status: ${response.statusCode}', tag: 'DOKUMENTE');
-      _log.debug('Multi-upload response body: ${response.body}', tag: 'DOKUMENTE');
 
       final data = jsonDecode(response.body);
 
@@ -233,7 +231,7 @@ class DokumenteService {
         }
       }
 
-      _log.error('Multi-upload failed: status=${response.statusCode}, body=${response.body}', tag: 'DOKUMENTE');
+      _log.error('Multi-upload failed: status=${response.statusCode} (${response.body.length} Byte)', tag: 'DOKUMENTE');
       return [];
     } catch (e) {
       _log.error('Multi-upload exception: $e', tag: 'DOKUMENTE');

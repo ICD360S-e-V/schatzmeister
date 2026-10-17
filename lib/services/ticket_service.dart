@@ -739,15 +739,14 @@ class TicketService {
         'is_internal': isInternal,
       };
 
-      _log.debug('API: Request body: ${jsonEncode(requestBody)}', tag: 'TICKET_API');
-
       final response = await _client.post(
         Uri.parse('$baseUrl/tickets/comments/add.php'),
         headers: _headers,
         body: jsonEncode(requestBody),
       );
 
-      _log.info('API: Response status=${response.statusCode}, body=${response.body}', tag: 'TICKET_API');
+      // Ohne den Rumpf: die Antwort enthält den Kommentar im Wortlaut.
+      _log.info('API: Response status=${response.statusCode} (${response.body.length} Byte)', tag: 'TICKET_API');
 
       final data = jsonDecode(response.body);
 
@@ -850,7 +849,7 @@ class TicketService {
         return TicketAttachment.fromJson(data['attachment']);
       }
 
-      _log.error('Upload failed: status=${response.statusCode}, body=${response.body}', tag: 'TICKET_UPLOAD');
+      _log.error('Upload failed: status=${response.statusCode} (${response.body.length} Byte)', tag: 'TICKET_UPLOAD');
       return null;
     } catch (e) {
       _log.error('Upload exception: $e', tag: 'TICKET_UPLOAD');
