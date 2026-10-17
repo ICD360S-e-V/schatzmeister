@@ -443,91 +443,6 @@ class ApiService {
     return jsonDecode(response.body);
   }
 
-  // Update user status
-  Future<Map<String, dynamic>> updateUserStatus(int userId, String status) async {
-    final response = await _client.post(
-      Uri.parse('$baseUrl/admin/user_status.php'),
-      headers: _headers,
-      body: jsonEncode({
-        'user_id': userId,
-        'status': status,
-      }),
-    );
-
-    return jsonDecode(response.body);
-  }
-
-  // Delete user
-  Future<Map<String, dynamic>> deleteUser(int userId) async {
-    final response = await _client.post(
-      Uri.parse('$baseUrl/admin/user_delete.php'),
-      headers: _headers,
-      body: jsonEncode({
-        'user_id': userId,
-      }),
-    );
-
-    return jsonDecode(response.body);
-  }
-
-  // Get user details with sessions and devices (admin only)
-  Future<Map<String, dynamic>> getUserDetails(int userId) async {
-    final response = await _client.post(
-      Uri.parse('$baseUrl/admin/user_details.php'),
-      headers: _headers,
-      body: jsonEncode({
-        'user_id': userId,
-      }),
-    );
-
-    return jsonDecode(response.body);
-  }
-
-  // Update user (admin only)
-  Future<Map<String, dynamic>> updateUser({
-    required int userId,
-    String? email,
-    String? password,
-    String? name,
-    String? role,
-    String? mitgliedschaftDatum,
-    String? vorname2,
-    String? bundesland,
-    String? land,
-    String? mitgliedsart,
-    String? zahlungsmethode,
-    int? zahlungstag,
-    String? geburtsdatum,
-    String? geburtsort,
-    String? staatsangehoerigkeit,
-    String? muttersprache,
-  }) async {
-    final response = await _client.post(
-      Uri.parse('$baseUrl/admin/user_update.php'),
-      headers: _headers,
-      body: jsonEncode({
-        'user_id': userId,
-        if (email != null) 'email': email,
-        if (password != null) 'password': password,
-        if (name != null) 'name': name,
-        if (role != null) 'role': role,
-        if (mitgliedschaftDatum != null) 'mitgliedschaft_datum': mitgliedschaftDatum,
-        if (vorname2 != null) 'vorname2': vorname2,
-        if (bundesland != null) 'bundesland': bundesland,
-        if (land != null) 'land': land,
-        if (mitgliedsart != null) 'mitgliedsart': mitgliedsart,
-        if (zahlungsmethode != null) 'zahlungsmethode': zahlungsmethode,
-        if (zahlungstag != null) 'zahlungstag': zahlungstag,
-        if (geburtsdatum != null) 'geburtsdatum': geburtsdatum,
-        if (geburtsort != null) 'geburtsort': geburtsort,
-        if (staatsangehoerigkeit != null) 'staatsangehoerigkeit': staatsangehoerigkeit,
-        if (muttersprache != null) 'muttersprache': muttersprache,
-      }),
-    );
-
-    return jsonDecode(response.body);
-  }
-
   // Admin register new member (status: neu)
   Future<Map<String, dynamic>> adminRegisterMember({
     required String name,
@@ -543,19 +458,6 @@ class ApiService {
         'email': email,
         'password': password,
         'role': role,
-      }),
-    );
-
-    return jsonDecode(response.body);
-  }
-
-  // Revoke session (admin only)
-  Future<Map<String, dynamic>> revokeSession(int sessionId) async {
-    final response = await _client.post(
-      Uri.parse('$baseUrl/admin/session_revoke.php'),
-      headers: _headers,
-      body: jsonEncode({
-        'session_id': sessionId,
       }),
     );
 
@@ -646,45 +548,6 @@ class ApiService {
         'mitgliedernummer': mitgliedernummer,
         'recovery_code': recoveryCode,
         'new_password': newPassword,
-      }),
-    );
-
-    return jsonDecode(response.body);
-  }
-
-  // Register
-  Future<Map<String, dynamic>> register(String email, String password, String name, String recoveryCode) async {
-    final deviceKey = _deviceKeyService.deviceKey;
-    if (deviceKey == null) {
-      return {
-        'success': false,
-        'message': 'Device not registered.',
-      };
-    }
-
-    // ✅ SECURITY FIX: Sanitize email input
-    final sanitizedEmail = sanitizeEmail(email);
-
-    if (!isValidEmail(sanitizedEmail)) {
-      return {
-        'success': false,
-        'message': tr('Ungültige E-Mail-Adresse.', 'Adresă de e-mail invalidă.'),
-      };
-    }
-
-    final response = await _client.post(
-      Uri.parse('$baseUrl/auth/register.php'),
-      headers: {
-        'Content-Type': 'application/json',
-        'User-Agent': 'ICD360S-Schatzmeister/1.0',
-        'X-Device-Key': deviceKey,
-      },
-      body: jsonEncode({
-        'email': sanitizedEmail,
-        'password': password,
-        'name': name,
-        'recovery_code': recoveryCode,
-        'device_language': Platform.localeName,
       }),
     );
 
@@ -805,20 +668,6 @@ class ApiService {
     return jsonDecode(response.body);
   }
 
-  // Admin: Start a chat conversation with a member
-  Future<Map<String, dynamic>> adminStartChat(String adminMitgliedernummer, String memberMitgliedernummer) async {
-    final response = await _client.post(
-      Uri.parse('$baseUrl/chat/admin_start.php'),
-      headers: _headers,
-      body: jsonEncode({
-        'admin_mitgliedernummer': adminMitgliedernummer,
-        'member_mitgliedernummer': memberMitgliedernummer,
-      }),
-    );
-
-    return jsonDecode(response.body);
-  }
-
   // Send a chat message
   /// 🆕 URGENT NOTIFICATIONS (2026-02-11): Added urgent parameter for full-screen alerts
   Future<Map<String, dynamic>> sendChatMessage(
@@ -864,35 +713,6 @@ class ApiService {
       body: jsonEncode({
         'mitgliedernummer': mitgliedernummer,
         if (status != null) 'status': status,
-      }),
-    );
-
-    return jsonDecode(response.body);
-  }
-
-  // Close a chat conversation (admin only)
-  Future<Map<String, dynamic>> closeChatConversation(int conversationId, String mitgliedernummer) async {
-    final response = await _client.post(
-      Uri.parse('$baseUrl/chat/close.php'),
-      headers: _headers,
-      body: jsonEncode({
-        'conversation_id': conversationId,
-        'mitgliedernummer': mitgliedernummer,
-      }),
-    );
-
-    return jsonDecode(response.body);
-  }
-
-  // Mute or unmute a chat conversation (admin only)
-  Future<Map<String, dynamic>> muteConversation(int conversationId, String mitgliedernummer, String duration) async {
-    final response = await _client.post(
-      Uri.parse('$baseUrl/chat/mute.php'),
-      headers: _headers,
-      body: jsonEncode({
-        'conversation_id': conversationId,
-        'mitgliedernummer': mitgliedernummer,
-        'duration': duration,
       }),
     );
 
@@ -1434,76 +1254,6 @@ class ApiService {
 
   // ============= FINANZAMT DOKUMENTE API =============
 
-  // List finanzamt documents
-  Future<Map<String, dynamic>> getFinanzamtDokumente() async {
-    try {
-      final response = await _client.get(
-        Uri.parse('$baseUrl/admin/finanzamt/dokumente.php'),
-        headers: _headers,
-      );
-      return jsonDecode(response.body);
-    } catch (e) {
-      return {'success': false, 'message': 'Failed to load documents: $e'};
-    }
-  }
-
-  // Upload finanzamt document
-  Future<Map<String, dynamic>> uploadFinanzamtDokument({
-    required String filePath,
-    required String fileName,
-    String kategorie = 'sonstiges',
-    String beschreibung = '',
-  }) async {
-    try {
-      final uri = Uri.parse('$baseUrl/admin/finanzamt/dokumente.php');
-      final request = http.MultipartRequest('POST', uri);
-
-      for (final entry in _headers.entries) {
-        request.headers[entry.key] = entry.value;
-      }
-      request.headers.remove('Content-Type');
-
-      request.fields['kategorie'] = kategorie;
-      request.fields['beschreibung'] = beschreibung;
-      request.files.add(await http.MultipartFile.fromPath('file', filePath, filename: fileName));
-
-      final streamedResponse = await _client.send(request);
-      final response = await http.Response.fromStream(streamedResponse);
-      return jsonDecode(response.body);
-    } catch (e) {
-      return {'success': false, 'message': 'Failed to upload: $e'};
-    }
-  }
-
-  // Delete finanzamt document
-  Future<Map<String, dynamic>> deleteFinanzamtDokument(int id) async {
-    try {
-      final request = http.Request('DELETE', Uri.parse('$baseUrl/admin/finanzamt/dokumente.php'));
-      request.headers.addAll(_headers);
-      request.body = jsonEncode({'id': id});
-
-      final streamedResponse = await _client.send(request);
-      final response = await http.Response.fromStream(streamedResponse);
-      return jsonDecode(response.body);
-    } catch (e) {
-      return {'success': false, 'message': 'Failed to delete: $e'};
-    }
-  }
-
-  // Download finanzamt document (returns bytes)
-  Future<http.Response?> downloadFinanzamtDokument(int id) async {
-    try {
-      final response = await _client.get(
-        Uri.parse('$baseUrl/admin/finanzamt/download.php?id=$id'),
-        headers: _headers,
-      );
-      if (response.statusCode == 200) return response;
-      return null;
-    } catch (_) {
-      return null;
-    }
-  }
-
   // ============= NOTAR API =============
 
   // Get Notar Rechnungen (Invoices)
@@ -1783,117 +1533,6 @@ class ApiService {
     }
   }
 
-  // ============= CHAT SCHEDULED MESSAGES API =============
-
-  Future<Map<String, dynamic>> getScheduledMessages() async {
-    try {
-      final response = await _client.get(
-        Uri.parse('$baseUrl/chat/scheduled_messages.php'),
-        headers: _headers,
-      );
-      return jsonDecode(response.body);
-    } catch (e) {
-      return {'success': false, 'message': 'Failed to load scheduled messages: $e'};
-    }
-  }
-
-  Future<Map<String, dynamic>> createScheduledMessage({
-    required String sendTime,
-    required String message,
-    String category = 'mahlzeit',
-    String daysOfWeek = '1,2,3,4,5,6,7',
-    String? createdBy,
-  }) async {
-    try {
-      final response = await _client.post(
-        Uri.parse('$baseUrl/chat/scheduled_messages.php'),
-        headers: _headers,
-        body: jsonEncode({
-          'send_time': sendTime,
-          'message': message,
-          'category': category,
-          'days_of_week': daysOfWeek,
-          if (createdBy != null) 'created_by': createdBy,
-        }),
-      );
-      return jsonDecode(response.body);
-    } catch (e) {
-      return {'success': false, 'message': 'Failed to create scheduled message: $e'};
-    }
-  }
-
-  Future<Map<String, dynamic>> updateScheduledMessage({
-    required int id,
-    String? sendTime,
-    String? message,
-    String? category,
-    String? daysOfWeek,
-    bool? isActive,
-  }) async {
-    try {
-      final response = await _client.put(
-        Uri.parse('$baseUrl/chat/scheduled_messages.php'),
-        headers: _headers,
-        body: jsonEncode({
-          'id': id,
-          if (sendTime != null) 'send_time': sendTime,
-          if (message != null) 'message': message,
-          if (category != null) 'category': category,
-          if (daysOfWeek != null) 'days_of_week': daysOfWeek,
-          if (isActive != null) 'is_active': isActive ? 1 : 0,
-        }),
-      );
-      return jsonDecode(response.body);
-    } catch (e) {
-      return {'success': false, 'message': 'Failed to update scheduled message: $e'};
-    }
-  }
-
-  Future<Map<String, dynamic>> deleteScheduledMessage(int id) async {
-    try {
-      final response = await _client.delete(
-        Uri.parse('$baseUrl/chat/scheduled_messages.php?id=$id'),
-        headers: _headers,
-      );
-      return jsonDecode(response.body);
-    } catch (e) {
-      return {'success': false, 'message': 'Failed to delete scheduled message: $e'};
-    }
-  }
-
-  // ============= PER-CONVERSATION SCHEDULED MESSAGES =============
-
-  // Get scheduled messages for a conversation (with enabled/disabled status)
-  Future<Map<String, dynamic>> getConversationScheduled(int conversationId) async {
-    try {
-      final response = await _client.get(
-        Uri.parse('$baseUrl/chat/conversation_scheduled.php?conversation_id=$conversationId'),
-        headers: _headers,
-      );
-      return jsonDecode(response.body);
-    } catch (e) {
-      return {'success': false, 'message': 'Failed to load conversation scheduled: $e'};
-    }
-  }
-
-  // Toggle a scheduled message for a conversation
-  Future<Map<String, dynamic>> toggleConversationScheduled(int conversationId, int scheduledMessageId, bool enable) async {
-    try {
-      final response = await _client.post(
-        Uri.parse('$baseUrl/chat/conversation_scheduled.php'),
-        headers: _headers,
-        body: jsonEncode({
-          'conversation_id': conversationId,
-          'scheduled_message_id': scheduledMessageId,
-          'enable': enable,
-        }),
-      );
-      return jsonDecode(response.body);
-    } catch (e) {
-      return {'success': false, 'message': 'Failed to toggle scheduled message: $e'};
-    }
-  }
-
   // ============= DHL TRACKING API =============
 
   // Get saved tracking shipments
@@ -2002,54 +1641,6 @@ class ApiService {
       return jsonDecode(response.body);
     } catch (e) {
       return {'success': false, 'message': tr('Filialfinder Fehler: $e', 'Eroare la căutarea filialelor: $e')};
-    }
-  }
-
-  // ============= ADMIN STATUS MESSAGE API =============
-
-  // Get active admin status message (banner)
-  Future<Map<String, dynamic>> getAdminStatusMessage() async {
-    try {
-      final response = await _client.get(
-        Uri.parse('$baseUrl/admin/status_message.php'),
-        headers: _headers,
-      );
-
-      return jsonDecode(response.body);
-    } catch (e) {
-      return {'success': false, 'message': 'Failed to load status message: $e'};
-    }
-  }
-
-  // Set or update admin status message
-  Future<Map<String, dynamic>> setAdminStatusMessage(String message, {String? createdBy}) async {
-    try {
-      final response = await _client.post(
-        Uri.parse('$baseUrl/admin/status_message.php'),
-        headers: _headers,
-        body: jsonEncode({
-          'message': message,
-          if (createdBy != null) 'created_by': createdBy,
-        }),
-      );
-
-      return jsonDecode(response.body);
-    } catch (e) {
-      return {'success': false, 'message': 'Failed to set status message: $e'};
-    }
-  }
-
-  // Clear (deactivate) admin status message
-  Future<Map<String, dynamic>> clearAdminStatusMessage() async {
-    try {
-      final response = await _client.delete(
-        Uri.parse('$baseUrl/admin/status_message.php'),
-        headers: _headers,
-      );
-
-      return jsonDecode(response.body);
-    } catch (e) {
-      return {'success': false, 'message': 'Failed to clear status message: $e'};
     }
   }
 
@@ -2163,16 +1754,6 @@ class ApiService {
     return jsonDecode(response.body);
   }
 
-  // Get verification stages for a user
-  Future<Map<String, dynamic>> getVerifizierung(int userId) async {
-    final response = await _client.post(
-      Uri.parse('$baseUrl/admin/verifizierung_list.php'),
-      headers: _headers,
-      body: jsonEncode({'user_id': userId}),
-    );
-    return jsonDecode(response.body);
-  }
-
   // ========== VERIFIZIERUNG — EIGENE ANGABEN (Profil ▸ Verifizierung) ==========
   //
   // Kopie der Aufrufe aus der Mitglieder-App (Stand 15.10.2026), aber gegen
@@ -2182,9 +1763,9 @@ class ApiService {
   // wie bei `member/…`, damit die kopierte Oberfläche unverändert bleibt.
   //
   // ⚠️ Nie `/member/` oder `/admin/` — der Schatzmeister hat sein eigenes API
-  // (Entscheidung des Vorsitzenden, 02.10.2026). `getVerifizierung` oben ist
-  // der alte Weg über `admin/verifizierung_list` (immer 403); ihn ruft nur noch
-  // der abgehängte user_details_dialog.
+  // (Entscheidung des Vorsitzenden, 02.10.2026). Den alten Weg über
+  // `admin/verifizierung_list` (immer 403) gibt es seit dem 16.10.2026 nicht
+  // mehr — er ging mit dem abgehängten user_details_dialog.
 
   static const String _verifizierung = '$baseUrl/schatzmeister/verifizierung';
 
@@ -2528,206 +2109,6 @@ class ApiService {
     final streamed = await _client.send(request);
     final body = await streamed.stream.bytesToString();
     return jsonDecode(body);
-  }
-
-  // Update a verification stage
-  Future<Map<String, dynamic>> updateVerifizierung({
-    required int userId,
-    required int stufe,
-    required String status,
-    String? notiz,
-  }) async {
-    final response = await _client.post(
-      Uri.parse('$baseUrl/admin/verifizierung_update.php'),
-      headers: _headers,
-      body: jsonEncode({
-        'user_id': userId,
-        'stufe': stufe,
-        'status': status,
-        if (notiz != null) 'notiz': notiz,
-      }),
-    );
-    return jsonDecode(response.body);
-  }
-
-  // ========== BEFREIUNG ==========
-
-  // List befreiung entries for a user
-  Future<Map<String, dynamic>> getBefreiungen(int userId) async {
-    final response = await _client.post(
-      Uri.parse('$baseUrl/schatzmeister/befreiung_list.php'),
-      headers: _headers,
-      body: jsonEncode({'user_id': userId}),
-    );
-    return jsonDecode(response.body);
-  }
-
-  // Upload befreiung document (multipart)
-  Future<Map<String, dynamic>> uploadBefreiung({
-    required int userId,
-    required String behoerde,
-    required String gueltigVon,
-    required String gueltigBis,
-    String? bescheidDatum,
-    String? notiz,
-    required String filePath,
-    required String fileName,
-  }) async {
-    final uri = Uri.parse('$baseUrl/schatzmeister/befreiung_upload.php');
-    final request = http.MultipartRequest('POST', uri);
-    request.headers.addAll(_headers);
-    request.fields['user_id'] = userId.toString();
-    request.fields['behoerde'] = behoerde;
-    request.fields['gueltig_von'] = gueltigVon;
-    request.fields['gueltig_bis'] = gueltigBis;
-    if (bescheidDatum != null) request.fields['bescheid_datum'] = bescheidDatum;
-    if (notiz != null) request.fields['notiz'] = notiz;
-    request.files.add(await http.MultipartFile.fromPath('file', filePath, filename: fileName));
-    final streamed = await _client.send(request);
-    final body = await streamed.stream.bytesToString();
-    return jsonDecode(body);
-  }
-
-  // Update befreiung status (genehmigt/abgelehnt/eingereicht)
-  Future<Map<String, dynamic>> updateBefreiung({
-    required int id,
-    required String status,
-    String? notiz,
-  }) async {
-    final response = await _client.post(
-      Uri.parse('$baseUrl/schatzmeister/befreiung_update.php'),
-      headers: _headers,
-      body: jsonEncode({
-        'id': id,
-        'status': status,
-        if (notiz != null) 'notiz': notiz,
-      }),
-    );
-    return jsonDecode(response.body);
-  }
-
-  // Delete befreiung entry
-  Future<Map<String, dynamic>> deleteBefreiung(int id) async {
-    final response = await _client.post(
-      Uri.parse('$baseUrl/schatzmeister/befreiung_delete.php'),
-      headers: _headers,
-      body: jsonEncode({'id': id}),
-    );
-    return jsonDecode(response.body);
-  }
-
-  // Download befreiung document (returns base64 data)
-  Future<Map<String, dynamic>> downloadBefreiung(int id) async {
-    final response = await _client.post(
-      Uri.parse('$baseUrl/schatzmeister/befreiung_download.php'),
-      headers: _headers,
-      body: jsonEncode({'id': id}),
-    );
-    return jsonDecode(response.body);
-  }
-
-  // ══════════════════════════════════════════════════════════════
-  // ERMÄSSIGUNG (fee reduction applications)
-  // ══════════════════════════════════════════════════════════════
-
-  // List Ermäßigungsanträge (optional filter by user_id)
-  Future<Map<String, dynamic>> getErmaessigungsantraege({int? userId}) async {
-    final response = await _client.post(
-      Uri.parse('$baseUrl/schatzmeister/ermaessigung_list.php'),
-      headers: _headers,
-      body: jsonEncode({if (userId != null) 'user_id': userId}),
-    );
-    return jsonDecode(response.body);
-  }
-
-  // Update Ermäßigungsantrag (status, checklist, rejection reason)
-  Future<Map<String, dynamic>> updateErmaessigung({
-    required int id,
-    String? status,
-    bool? checkDokumentLesbar,
-    bool? checkLeistungsartErkennbar,
-    bool? checkAktuell12Monate,
-    String? ablehnungsgrund,
-    String? notiz,
-  }) async {
-    final response = await _client.post(
-      Uri.parse('$baseUrl/schatzmeister/ermaessigung_update.php'),
-      headers: _headers,
-      body: jsonEncode({
-        'id': id,
-        if (status != null) 'status': status,
-        if (checkDokumentLesbar != null) 'check_dokument_lesbar': checkDokumentLesbar,
-        if (checkLeistungsartErkennbar != null) 'check_leistungsart_erkennbar': checkLeistungsartErkennbar,
-        if (checkAktuell12Monate != null) 'check_aktuell_12monate': checkAktuell12Monate,
-        if (ablehnungsgrund != null) 'ablehnungsgrund': ablehnungsgrund,
-        if (notiz != null) 'notiz': notiz,
-      }),
-    );
-    return jsonDecode(response.body);
-  }
-
-  // Delete Ermäßigungsantrag
-  Future<Map<String, dynamic>> deleteErmaessigung(int id) async {
-    final response = await _client.post(
-      Uri.parse('$baseUrl/schatzmeister/ermaessigung_delete.php'),
-      headers: _headers,
-      body: jsonEncode({'id': id}),
-    );
-    return jsonDecode(response.body);
-  }
-
-  // Download Ermäßigung document (returns base64 data)
-  Future<Map<String, dynamic>> downloadErmaessigung(int id) async {
-    final response = await _client.post(
-      Uri.parse('$baseUrl/schatzmeister/ermaessigung_download.php'),
-      headers: _headers,
-      body: jsonEncode({'id': id}),
-    );
-    return jsonDecode(response.body);
-  }
-
-  // ══════════════════════════════════════════════════════════════
-  // NOTIZEN (internal notes per member)
-  // ══════════════════════════════════════════════════════════════
-
-  // List notes for a user
-  Future<Map<String, dynamic>> getNotizen(int userId) async {
-    final response = await _client.post(
-      Uri.parse('$baseUrl/schatzmeister/notizen_list.php'),
-      headers: _headers,
-      body: jsonEncode({'user_id': userId}),
-    );
-    return jsonDecode(response.body);
-  }
-
-  // Create a note for a user
-  Future<Map<String, dynamic>> createNotiz({
-    required int userId,
-    required String notiz,
-    String kategorie = 'allgemein',
-    bool wichtig = false,
-  }) async {
-    final response = await _client.post(
-      Uri.parse('$baseUrl/schatzmeister/notizen_create.php'),
-      headers: _headers,
-      body: jsonEncode({
-        'user_id': userId,
-        'notiz': notiz,
-        'kategorie': kategorie,
-        'wichtig': wichtig,
-      }),
-    );
-    return jsonDecode(response.body);
-  }
-
-  // Delete a note
-  Future<Map<String, dynamic>> deleteNotiz(int id) async {
-    final response = await _client.post(
-      Uri.parse('$baseUrl/schatzmeister/notizen_delete.php'),
-      headers: _headers,
-      body: jsonEncode({'id': id}),
-    );
-    return jsonDecode(response.body);
   }
 
   // ══════════════════════════════════════════════════════════════

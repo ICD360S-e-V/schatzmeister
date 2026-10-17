@@ -51,7 +51,6 @@ import 'package:icd360sev_schatzmeister/screens/routinenaufgaben_screen.dart';
 import 'package:icd360sev_schatzmeister/screens/sendungsverfolgung.dart';
 import 'package:icd360sev_schatzmeister/screens/statistik_screen.dart';
 import 'package:icd360sev_schatzmeister/screens/stifter_helfen_screen.dart';
-import 'package:icd360sev_schatzmeister/screens/terminverwaltung_screen.dart';
 import 'package:icd360sev_schatzmeister/screens/vereinregister_screen.dart';
 import 'package:icd360sev_schatzmeister/screens/vereinverwaltung_screen.dart';
 import 'package:icd360sev_schatzmeister/screens/vr_bank_screen.dart';
@@ -199,7 +198,6 @@ void main() {
   pruefeBildschirm('Sendungsverfolgung', () => SendungsverfolgungView(apiService: api));
   pruefeBildschirm('Statistik', () => StatistikScreen(apiService: api, users: users, currentMitgliedernummer: 'S1'));
   pruefeBildschirm('Stifter-helfen', () => StifterHelfenScreen(apiService: api, onBack: zurueck));
-  pruefeBildschirm('Terminverwaltung', () => const TerminverwaltungScreen(currentMitgliedernummer: 'S1'));
   pruefeBildschirm('Vereinregister', () => VereinregisterScreen(apiService: api, onBack: zurueck));
   pruefeBildschirm('Vereinverwaltung', () => VereinverwaltungScreen(
         apiService: api,

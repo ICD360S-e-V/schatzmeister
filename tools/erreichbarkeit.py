@@ -25,7 +25,11 @@ import sys
 #       und wurden hier abgehängt. Der Sprung ist gewollt: die Dateien
 #       bleiben liegen, statt sie zu löschen, solange nicht entschieden ist,
 #       ob sie drüben gebraucht werden.
-ERWARTET_GEPARKT = 44
+#   32  2026-10-16 — Admin-Chat, Mitglieder-Dialog, Terminverwaltung und
+#       Termin-Dialoge gelöscht, mit den sechs Bausteinen, die nur sie
+#       nutzten: sie riefen ausschließlich Endpunkte des Vorsitzes (immer
+#       403). Der Vorsitzer hat seine eigenen Fassungen.
+ERWARTET_GEPARKT = 32
 
 
 def main() -> int:

@@ -1,5 +1,5 @@
-// Passen die übrigen Dialoge und Bausteine (Notar, Termine, Update,
-// Diagnose, Änderungsprotokoll, Dateibetrachter, Debug-Konsole, Visitenkarte,
+// Passen die übrigen Dialoge und Bausteine (Notar, Update, Diagnose,
+// Änderungsprotokoll, Dateibetrachter, Debug-Konsole, Visitenkarte,
 // Fußleiste) MIT DATEN auf jedes Telefon — auf Deutsch und auf Rumänisch?
 //
 // Der gemeinsame Test (bildschirme_telefon_test.dart) erreicht sie nicht:
@@ -27,13 +27,10 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:icd360sev_schatzmeister/l10n/app_localizations.dart';
-import 'package:icd360sev_schatzmeister/models/user.dart';
 import 'package:icd360sev_schatzmeister/services/api_service.dart';
 import 'package:icd360sev_schatzmeister/services/device_key_service.dart';
 import 'package:icd360sev_schatzmeister/services/language_service.dart';
 import 'package:icd360sev_schatzmeister/services/logger_service.dart';
-import 'package:icd360sev_schatzmeister/services/termin_service.dart';
-import 'package:icd360sev_schatzmeister/services/ticket_service.dart';
 import 'package:icd360sev_schatzmeister/services/update_service.dart';
 import 'package:icd360sev_schatzmeister/widgets/changelog.dart';
 import 'package:icd360sev_schatzmeister/widgets/debug_console.dart';
@@ -42,7 +39,6 @@ import 'package:icd360sev_schatzmeister/widgets/file_viewer_dialog.dart';
 import 'package:icd360sev_schatzmeister/widgets/legal_footer.dart';
 import 'package:icd360sev_schatzmeister/widgets/notar_cards.dart';
 import 'package:icd360sev_schatzmeister/widgets/notar_dialogs.dart';
-import 'package:icd360sev_schatzmeister/widgets/termin_dialogs.dart';
 import 'package:icd360sev_schatzmeister/widgets/update_dialog.dart';
 import 'package:icd360sev_schatzmeister/widgets/visitenkarte.dart';
 
@@ -115,42 +111,6 @@ final _zahlungen = <Map<String, dynamic>>[
   {'verwendungszweck': 'Notarkosten Beglaubigung Satzungsänderung RE-2026-000187/NOT-NU', 'datum': '2026-09-20', 'betrag': 1234.56, 'zahlungsart': 'ueberweisung'},
   {'verwendungszweck': null, 'datum': '2026-06-05', 'betrag': 89.25, 'zahlungsart': 'karte'},
 ];
-
-List<User> _mitglieder() => [
-      for (var i = 0; i < 6; i++)
-        User(
-          id: 100 + i,
-          mitgliedernummer: 'M10018$i',
-          email: 'mitglied$i@example.de',
-          name: i.isEven ? _langerName : 'Ioana Dumitrescu-Hoffmann',
-          status: 'active',
-          role: i == 0 ? 'schatzmeister' : 'mitglied',
-        ),
-    ];
-
-List<Ticket> _tickets() => [
-      Ticket(
-        id: 1288,
-        subject: 'Fahrkostenerstattung zur außerordentlichen Mitgliederversammlung beantragt (Bahn, 2. Klasse, Hin- und Rückfahrt)',
-        message: 'x',
-        status: 'open',
-        priority: 'high',
-        createdAt: DateTime(2026, 9, 20),
-      ),
-    ];
-
-Termin _termin() => Termin(
-      id: 101,
-      title: 'Außerordentliche Mitgliederversammlung zur Satzungsänderung §6 und Wahl der Kassenprüfer',
-      category: 'mitgliederversammlung',
-      description: 'Tagesordnung: 1. Begrüßung 2. Satzungsänderung §6 3. Wahl der Kassenprüfer 4. Verschiedenes.',
-      terminDate: DateTime(2026, 10, 11, 14, 0),
-      durationMinutes: 150,
-      location: 'Bürgerhaus Neu-Ulm, Großer Saal (2. OG), Augsburger Straße 15, 89231 Neu-Ulm',
-      createdBy: 1,
-      status: 'scheduled',
-      createdAt: DateTime(2026, 9, 20),
-    );
 
 final _update = UpdateInfo(
   version: '1.0.35',
@@ -358,23 +318,6 @@ List<_Fall> _faelle() {
             ),
         () => find.textContaining('RE-2026-000187'),
         abBreite: 800),
-    _Fall('Termin anlegen',
-        () => _dialog((_) => CreateTerminDialog(
-              terminService: TerminService(),
-              users: _mitglieder(),
-              tickets: _tickets(),
-              onTerminCreated: () {},
-            )),
-        () => find.textContaining('Popescu-Weißenberger')),
-    _Fall('Termin bearbeiten',
-        () => _dialog((_) => EditTerminDialog(
-              termin: _termin(),
-              terminService: TerminService(),
-              users: _mitglieder(),
-              tickets: _tickets(),
-              onTerminUpdated: () {},
-            )),
-        () => find.text('Bürgerhaus Neu-Ulm, Großer Saal (2. OG), Augsburger Straße 15, 89231 Neu-Ulm')),
     _Fall('Update verfügbar', () => _dialog((_) => UpdateDialog(updateInfo: _update)),
         () => find.textContaining('Ticket-Zeiterfassung')),
     _Fall('Diagnose-Einwilligung', () => _dialog((_) => const DiagnosticConsentDialog()),

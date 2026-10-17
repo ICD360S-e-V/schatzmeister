@@ -1,18 +1,7 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:file_picker/file_picker.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../services/api_service.dart';
 import '../services/language_service.dart';
-import '../widgets/file_viewer_dialog.dart';
-
-/// Rumänische Mengenangabe: 1 document, 5 documente, ab 20 mit „de“ (20 de documente).
-String _roAnzahl(int n, String eins, String mehrere) {
-  if (n == 1) return '1 $eins';
-  final rest = n % 100;
-  return (n != 0 && rest == 0) || rest >= 20 ? '$n de $mehrere' : '$n $mehrere';
-}
 
 class FinanzamtScreen extends StatefulWidget {
   final ApiService apiService;
@@ -32,10 +21,6 @@ class _FinanzamtScreenState extends State<FinanzamtScreen> {
   Map<String, dynamic>? _data;
   bool _isLoading = true;
 
-  // Documents
-  List<Map<String, dynamic>> _dokumente = [];
-  bool _docsLoading = false;
-  bool _uploading = false;
 
   // Zuständiger (Vorsitzer - automatic)
   String? _zustaendigerName;
@@ -45,7 +30,6 @@ class _FinanzamtScreenState extends State<FinanzamtScreen> {
   void initState() {
     super.initState();
     _loadData();
-    _loadDokumente();
     _loadZustaendiger();
   }
 
@@ -82,251 +66,6 @@ class _FinanzamtScreenState extends State<FinanzamtScreen> {
         }
       }
     } catch (_) {}
-  }
-
-  Future<void> _loadDokumente() async {
-    setState(() => _docsLoading = true);
-    try {
-      final result = await widget.apiService.getFinanzamtDokumente();
-      if (mounted && result['success'] == true) {
-        setState(() {
-          _dokumente = List<Map<String, dynamic>>.from(result['data']?['dokumente'] ?? []);
-          _docsLoading = false;
-        });
-        return;
-      }
-    } catch (_) {}
-    if (mounted) setState(() => _docsLoading = false);
-  }
-
-  Future<void> _uploadDokument() async {
-    final result = await FilePicker.platform.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: ['pdf', 'png', 'jpg', 'jpeg', 'doc', 'docx', 'tiff', 'bmp'],
-      dialogTitle: tr('Dokument auswählen', 'Selectați documentul'),
-    );
-
-    if (result == null || result.files.isEmpty) return;
-    final file = result.files.first;
-    if (file.path == null) return;
-
-    // Show category/description dialog
-    final info = await _showUploadDialog(file.name);
-    if (info == null) return;
-
-    setState(() => _uploading = true);
-    try {
-      final uploadResult = await widget.apiService.uploadFinanzamtDokument(
-        filePath: file.path!,
-        fileName: file.name,
-        kategorie: info['kategorie'] ?? 'sonstiges',
-        beschreibung: info['beschreibung'] ?? '',
-      );
-
-      if (mounted) {
-        if (uploadResult['success'] == true) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(tr('Dokument hochgeladen', 'Document încărcat')), backgroundColor: Colors.green),
-          );
-          _loadDokumente();
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(uploadResult['message'] ?? tr('Upload fehlgeschlagen', 'Încărcarea a eșuat')),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(tr('Fehler: $e', 'Eroare: $e')), backgroundColor: Colors.red),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _uploading = false);
-    }
-  }
-
-  Future<Map<String, String>?> _showUploadDialog(String fileName) async {
-    final beschreibungController = TextEditingController();
-    String selectedKategorie = 'gemeinnuetzigkeit';
-
-    final kategorien = {
-      'gemeinnuetzigkeit': tr('Gemeinnützigkeit', 'Utilitate publică (Gemeinnützigkeit)'),
-      'steuerbescheid': tr('Steuerbescheid', 'Decizie de impunere (Steuerbescheid)'),
-      'freistellungsbescheid': tr('Freistellungsbescheid', 'Decizie de scutire (Freistellungsbescheid)'),
-      'korrespondenz': tr('Korrespondenz', 'Corespondență'),
-      'sonstiges': tr('Sonstiges', 'Altele'),
-    };
-
-    return showDialog<Map<String, String>>(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setDialogState) {
-          // Dialoge liegen über der ganzen App: hier zählt die Fensterbreite
-          // (LayoutBuilder geht in AlertDialog nicht, der misst seinen Inhalt
-          // mit IntrinsicWidth). Auf dem Telefon füllt die Auswahl die Breite,
-          // statt mit langen rumänischen Kategorien hinauszulaufen.
-          final telefon = MediaQuery.sizeOf(ctx).width < 600;
-          return AlertDialog(
-            insetPadding: telefon ? const EdgeInsets.symmetric(horizontal: 16, vertical: 24) : null,
-            title: Row(
-              children: [
-                Icon(Icons.upload_file, color: Colors.teal.shade700),
-                const SizedBox(width: 8),
-                Expanded(child: Text(tr('Dokument hochladen', 'Încarcă document'))),
-              ],
-            ),
-            content: SizedBox(
-              width: 400,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // File name
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade100,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(Icons.insert_drive_file, size: 18, color: Colors.teal.shade600),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(fileName, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  // Category dropdown
-                  Text(tr('Kategorie', 'Categorie'), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                  const SizedBox(height: 6),
-                  DropdownButtonFormField<String>(
-                    initialValue: selectedKategorie,
-                    isExpanded: telefon,
-                    decoration: const InputDecoration(
-                      border: OutlineInputBorder(),
-                      contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                      isDense: true,
-                    ),
-                    items: kategorien.entries
-                        .map((e) => DropdownMenuItem(value: e.key, child: Text(e.value)))
-                        .toList(),
-                    // Im geschlossenen Feld eine Zeile mit „…“ — sonst
-                    // verschwände der Rest eines langen Namens unsichtbar in
-                    // der zweiten Zeile; die Liste zeigt ihn ganz.
-                    selectedItemBuilder: telefon
-                        ? (_) => kategorien.values
-                            .map((t) => Text(t, maxLines: 1, overflow: TextOverflow.ellipsis))
-                            .toList()
-                        : null,
-                    onChanged: (v) {
-                      if (v != null) setDialogState(() => selectedKategorie = v);
-                    },
-                  ),
-                  const SizedBox(height: 16),
-                  // Description
-                  Text(tr('Beschreibung (optional)', 'Descriere (opțional)'), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                  const SizedBox(height: 6),
-                  TextField(
-                    controller: beschreibungController,
-                    maxLines: 2,
-                    decoration: InputDecoration(
-                      border: const OutlineInputBorder(),
-                      hintText: tr('z.B. Freistellungsbescheid vom 15.01.2026', 'de ex. Freistellungsbescheid din 15.01.2026'),
-                      isDense: true,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(ctx),
-                child: Text(tr('Abbrechen', 'Anulare')),
-              ),
-              ElevatedButton.icon(
-                icon: const Icon(Icons.upload, size: 18),
-                label: Text(tr('Hochladen', 'Încarcă')),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.teal.shade600,
-                  foregroundColor: Colors.white,
-                ),
-                onPressed: () => Navigator.pop(ctx, {
-                  'kategorie': selectedKategorie,
-                  'beschreibung': beschreibungController.text.trim(),
-                }),
-              ),
-            ],
-          );
-        },
-      ),
-    );
-  }
-
-  Future<void> _deleteDokument(Map<String, dynamic> doc) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(tr('Dokument löschen?', 'Ștergeți documentul?')),
-        content: Text(tr('Möchten Sie "${doc['original_name']}" wirklich löschen?',
-            'Sigur doriți să ștergeți „${doc['original_name']}”?')),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(tr('Abbrechen', 'Anulare'))),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
-            onPressed: () => Navigator.pop(ctx, true),
-            child: Text(tr('Löschen', 'Șterge')),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed != true) return;
-
-    final result = await widget.apiService.deleteFinanzamtDokument(doc['id'] is int ? doc['id'] : int.parse(doc['id'].toString()));
-    if (mounted) {
-      if (result['success'] == true) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(tr('Dokument gelöscht', 'Document șters')), backgroundColor: Colors.green),
-        );
-        _loadDokumente();
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(result['message'] ?? tr('Löschen fehlgeschlagen', 'Ștergerea a eșuat')),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
-  }
-
-  Future<void> _viewDokument(Map<String, dynamic> doc) async {
-    final docId = doc['id'] is int ? doc['id'] : int.parse(doc['id'].toString());
-    final response = await widget.apiService.downloadFinanzamtDokument(docId);
-    if (response == null || !mounted) return;
-
-    try {
-      final tempDir = await getTemporaryDirectory();
-      final filePath = '${tempDir.path}/${doc['original_name']}';
-      await File(filePath).writeAsBytes(response.bodyBytes);
-      if (mounted) {
-        await FileViewerDialog.show(context, filePath, doc['original_name']);
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(tr('Fehler: $e', 'Eroare: $e')), backgroundColor: Colors.red),
-        );
-      }
-    }
   }
 
   @override
@@ -507,7 +246,7 @@ class _FinanzamtScreenState extends State<FinanzamtScreen> {
       ),
     );
 
-    // Middle: Steuernummer & Gemeinnützigkeit + Zuständiger
+    // Right: Steuernummer & Gemeinnützigkeit + Zuständiger
     final verein = Card(
       child: Padding(
         padding: const EdgeInsets.all(20),
@@ -668,102 +407,15 @@ class _FinanzamtScreenState extends State<FinanzamtScreen> {
       ),
     );
 
-    final dokumentListe = _docsLoading
-        ? const Center(child: CircularProgressIndicator())
-        : _dokumente.isEmpty
-            ? Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.folder_open, size: 40, color: Colors.grey.shade300),
-                    const SizedBox(height: 8),
-                    Text(
-                      tr('Noch keine Dokumente\nhochgeladen', 'Niciun document\nîncărcat încă'),
-                      style: TextStyle(color: Colors.grey.shade400, fontSize: 13),
-                      textAlign: TextAlign.center,
-                    ),
-                  ],
-                ),
-              )
-            : ListView.separated(
-                shrinkWrap: schmal,
-                physics: schmal ? const NeverScrollableScrollPhysics() : null,
-                itemCount: _dokumente.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 8),
-                itemBuilder: (_, i) => _buildDocItem(_dokumente[i]),
-              );
-
-    // Right: Dokumente
-    final dokumente = Card(
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: Colors.amber.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: const Icon(Icons.folder_open, color: Colors.amber, size: 24),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    tr('Dokumente', 'Documente'),
-                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 4),
-            Text(
-              tr('${_dokumente.length} Dokument${_dokumente.length == 1 ? '' : 'e'}',
-                  _roAnzahl(_dokumente.length, 'document', 'documente')),
-              style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
-            ),
-            const Divider(height: 24),
-            // Upload button
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                icon: _uploading
-                    ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                    : const Icon(Icons.upload_file, size: 18),
-                label: Text(_uploading
-                    ? tr('Wird hochgeladen...', 'Se încarcă...')
-                    : tr('Dokument hochladen', 'Încarcă document')),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.teal.shade600,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                ),
-                onPressed: _uploading ? null : _uploadDokument,
-              ),
-            ),
-            const SizedBox(height: 16),
-            // Document list — untereinander (schmal) ohne eigenes Scrollen,
-            // die ganze Seite scrollt.
-            if (schmal) dokumentListe else Expanded(child: dokumentListe),
-          ],
-        ),
-      ),
-    );
-
     if (schmal) {
       // Unter 900 dp untereinander in natürlicher Höhe, die Seite scrollt —
-      // statt dreier Spalten, von denen zwei auf dem Telefon kaum 60 dp
+      // statt Spalten nebeneinander, die auf dem Telefon kaum 60 dp
       // breit wären.
       return ListView(
         children: [
           kontakt,
           const SizedBox(height: 16),
           verein,
-          const SizedBox(height: 16),
-          dokumente,
         ],
       );
     }
@@ -782,149 +434,13 @@ class _FinanzamtScreenState extends State<FinanzamtScreen> {
           ),
         ),
         const SizedBox(width: 16),
-        // Middle: Steuernummer & Gemeinnützigkeit + Zuständiger
+        // Right: Steuernummer & Gemeinnützigkeit + Zuständiger
         Expanded(
           flex: 1,
           child: verein,
         ),
-        const SizedBox(width: 16),
-        // Right: Dokumente
-        Expanded(
-          flex: 1,
-          child: dokumente,
-        ),
       ],
     );
-  }
-
-  Widget _buildDocItem(Map<String, dynamic> doc) {
-    final name = doc['original_name'] ?? tr('Unbekannt', 'Necunoscut');
-    final kategorie = doc['kategorie'] ?? 'sonstiges';
-    final beschreibung = doc['beschreibung'] ?? '';
-    final createdAt = doc['created_at'] ?? '';
-    final extension = name.contains('.') ? name.split('.').last.toLowerCase() : '';
-
-    IconData fileIcon;
-    Color fileColor;
-    switch (extension) {
-      case 'pdf':
-        fileIcon = Icons.picture_as_pdf;
-        fileColor = Colors.red;
-        break;
-      case 'png':
-      case 'jpg':
-      case 'jpeg':
-      case 'tiff':
-      case 'bmp':
-        fileIcon = Icons.image;
-        fileColor = Colors.blue;
-        break;
-      case 'doc':
-      case 'docx':
-        fileIcon = Icons.description;
-        fileColor = Colors.indigo;
-        break;
-      default:
-        fileIcon = Icons.insert_drive_file;
-        fileColor = Colors.grey;
-    }
-
-    final kategorieLabels = {
-      'gemeinnuetzigkeit': tr('Gemeinnützigkeit', 'Utilitate publică'),
-      'steuerbescheid': tr('Steuerbescheid', 'Decizie de impunere'),
-      'freistellungsbescheid': tr('Freistellung', 'Scutire'),
-      'korrespondenz': tr('Korrespondenz', 'Corespondență'),
-      'sonstiges': tr('Sonstiges', 'Altele'),
-    };
-
-    return Container(
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: Colors.grey.shade50,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.grey.shade200),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(fileIcon, size: 20, color: fileColor),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  name,
-                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 4),
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: Colors.teal.shade50,
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Text(
-                  kategorieLabels[kategorie] ?? kategorie,
-                  style: TextStyle(fontSize: 10, color: Colors.teal.shade700),
-                ),
-              ),
-              const SizedBox(width: 6),
-              if (createdAt.isNotEmpty)
-                Text(
-                  _formatDate(createdAt),
-                  style: TextStyle(fontSize: 10, color: Colors.grey.shade500),
-                ),
-            ],
-          ),
-          if (beschreibung.isNotEmpty) ...[
-            const SizedBox(height: 4),
-            Text(
-              beschreibung,
-              style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ],
-          const SizedBox(height: 6),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              InkWell(
-                onTap: () => _viewDokument(doc),
-                child: Padding(
-                  padding: const EdgeInsets.all(4),
-                  child: Icon(Icons.visibility, size: 18, color: Colors.teal.shade600),
-                ),
-              ),
-              const SizedBox(width: 8),
-              InkWell(
-                onTap: () => _deleteDokument(doc),
-                child: Padding(
-                  padding: const EdgeInsets.all(4),
-                  child: Icon(Icons.delete_outline, size: 18, color: Colors.red.shade400),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  String _formatDate(String dateStr) {
-    try {
-      final dt = DateTime.parse(dateStr);
-      return '${dt.day.toString().padLeft(2, '0')}.${dt.month.toString().padLeft(2, '0')}.${dt.year}';
-    } catch (_) {
-      return dateStr;
-    }
   }
 
   Widget _buildInfoRow(IconData icon, String label, String value, {bool gestapelt = false}) {

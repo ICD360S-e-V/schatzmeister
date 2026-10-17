@@ -172,20 +172,4 @@ class VerwarnungService {
       return null;
     }
   }
-
-  /// Delete a warning
-  Future<bool> deleteVerwarnung(int id) async {
-    try {
-      final response = await _client.post(
-        Uri.parse('$baseUrl/schatzmeister/verwarnungen_delete.php'),
-        headers: _headers,
-        body: jsonEncode({'id': id}),
-      );
-
-      final data = jsonDecode(response.body);
-      return response.statusCode == 200 && data['success'] == true;
-    } catch (e) {
-      return false;
-    }
-  }
 }
