@@ -45,7 +45,8 @@ void main() {
   /// Wie in der Vorsitzer-App: `$message` ist Inhalt, `${message.id}` nicht.
   final wortlaut = RegExp(
     r'\$\{?(title|body|message|senderName|nachricht|betreff|subject|content)'
-    r'\b(?!\w)(?!\.(length|id|isEmpty|isNotEmpty))',
+    // `${message.conversationId}` ist eine Nummer — jede Eigenschaft auf …Id
+    r'\b(?!\w)(?!\.(length|id|isEmpty|isNotEmpty|\w*Id\b))',
   );
 
   /// Wortlaut, der unter einem anderen Namen kommt.
@@ -64,7 +65,7 @@ void main() {
   );
 
   /// Alle Log-Aufrufe in lib/ — jeweils der ganze Aufruf bis zur schließenden
-  /// Klammer, über Zeilen hinweg.
+  /// Klammer, über Zeilen hinweg, ohne `//`-Kommentare darin.
   List<({String ort, String aufruf})> logAufrufe() {
     final dateien = Directory('lib')
         .listSync(recursive: true)
@@ -76,28 +77,39 @@ void main() {
     for (final f in dateien) {
       final q = f.readAsStringSync();
       for (final m in logAnfang.allMatches(q)) {
-        var i = m.end;
-        var tiefe = 1;
+        final aufruf = StringBuffer();
+        var i = m.start;
+        var tiefe = 0;
         String? zeichen;
-        while (i < q.length && tiefe > 0) {
+        while (i < q.length) {
           final c = q[i];
           if (zeichen != null) {
             if (c == r'\') {
+              aufruf.write(q.substring(i, (i + 2).clamp(0, q.length)));
               i += 2;
               continue;
             }
             if (c == zeichen) zeichen = null;
+          } else if (c == '/' && i + 1 < q.length && q[i + 1] == '/') {
+            final ende = q.indexOf('\n', i);
+            i = ende < 0 ? q.length : ende;
+            continue;
           } else if (c == "'" || c == '"') {
             zeichen = c;
           } else if (c == '(') {
             tiefe++;
           } else if (c == ')') {
             tiefe--;
+            if (tiefe == 0) {
+              aufruf.write(c);
+              break;
+            }
           }
+          aufruf.write(c);
           i++;
         }
         final zeile = '\n'.allMatches(q.substring(0, m.start)).length + 1;
-        ergebnis.add((ort: '${f.path}:$zeile', aufruf: q.substring(m.start, i)));
+        ergebnis.add((ort: '${f.path}:$zeile', aufruf: aufruf.toString()));
       }
     }
     expect(ergebnis.length, greaterThan(400), reason: 'zu wenige Log-Aufrufe — Test blind');
@@ -131,6 +143,9 @@ void main() {
     expect(nutzdaten.hasMatch(r"_log.info('x ${ticketEvent.title}')"), isTrue);
     expect(nutzdaten.hasMatch(r"_log.info('x ${json['title']}')"), isTrue);
     expect(nutzdaten.hasMatch(r"_log.info('id=${data['comment']['id']}')"), isFalse);
+    expect(wortlaut.hasMatch(r"'Neue Nachricht (conv ${message.conversationId})'"), isFalse);
+    expect(logAnfang.hasMatch("LoggerService().info('x')"), isTrue);
+    expect(logAnfang.hasMatch("dialog.info('x')"), isFalse);
     expect(nutzdaten.hasMatch(r"_log.info('x ${data['comment']}')"), isTrue);
     expect(nutzdaten.hasMatch(r"_log.info('x ${jsonEncode(rumpf)}')"), isTrue);
     expect(nutzdaten.hasMatch(r"_log.info('x ${request.headers}')"), isTrue);

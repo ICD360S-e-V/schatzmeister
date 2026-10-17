@@ -57,15 +57,17 @@ void main() {
   Iterable<String> zeilen() => LoggerService().logs.map((e) => e.message);
 
   test('eine Chat-Nachricht: kein Wort davon im Protokoll — aber die Zeile ist da', () async {
+    // ⚠️ Der Inhalt steht VORN im Rahmen: eine Zeile, die nur dessen Anfang
+    // protokolliert (die alte `WS received`), sähe ihn sonst nicht.
     verbindungen.single.add(jsonEncode({
       'type': 'new_message',
+      'message': 'MARKE-CHATTEXT Blutdruck 180 zu 110',
       'message_id': 901,
       'conversation_id': 34,
       'sender_id': 2,
       'sender_name': 'Vorsitz',
       'sender_role': 'vorsitzer',
       'is_admin': true,
-      'message': 'MARKE-CHATTEXT Blutdruck 180 zu 110',
       'created_at': '2026-10-17 10:00:00',
     }));
     await kurz();
@@ -79,11 +81,11 @@ void main() {
   test('eine Ticket-Benachrichtigung: weder Titel noch Text noch Betreff', () async {
     verbindungen.single.add(jsonEncode({
       'type': 'ticket_notification',
-      'ticket_id': 42,
-      'notification_type': 'comment_added',
       'title': 'MARKE-TITEL',
       'message': 'MARKE-TICKETTEXT',
       'ticket_subject': 'MARKE-BETREFF',
+      'ticket_id': 42,
+      'notification_type': 'comment_added',
       'sender_name': 'Vorsitz',
       'timestamp': '2026-10-17 10:00:00',
     }));
