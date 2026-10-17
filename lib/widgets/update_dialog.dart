@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../l10n/app_localizations.dart';
+import '../services/language_service.dart';
+import '../services/notification_service.dart';
 import '../services/update_service.dart';
 
 /// Update Available Dialog - prompts user to download and install update
@@ -161,31 +163,70 @@ class _UpdateDialogState extends State<UpdateDialog> {
     final installerPath = await updateService.downloadUpdate(
       widget.updateInfo.downloadUrl,
       (progress) {
-        setState(() => _downloadProgress = progress);
+        if (mounted) setState(() => _downloadProgress = progress);
       },
+      expectedSha256: widget.updateInfo.sha256,
     );
 
-    if (installerPath != null) {
-      // Launch installer and exit app
-      await updateService.launchInstaller(installerPath);
-    } else {
-      if (mounted) {
-        final l = AppLocalizations.of(context);
-        setState(() {
-          _isDownloading = false;
-          _errorMessage = l.downloadFailed;
-        });
-      }
+    // Launch installer and exit app. Kommt die Antwort, kam das Update nicht
+    // durch (seit 17.10.2026 meldet Android auch einen Abbruch zurück) — dann
+    // nicht ewig „wird installiert", sondern wieder der Knopf.
+    final uebergeben =
+        installerPath != null && await updateService.launchInstaller(installerPath);
+    if (!uebergeben && mounted) {
+      final l = AppLocalizations.of(context);
+      setState(() {
+        _isDownloading = false;
+        _errorMessage = l.downloadFailed;
+      });
     }
   }
 }
 
+/// Der kurze Hinweis, bevor die App für ein Update zugeht (Android, seit dem
+/// 17.10.2026 von selbst — UpdateService.installUnattended).
+///
+/// Über [context], solange der noch steht, sonst über den Navigator der App:
+/// das Paket ist oft erst Minuten später geladen.
+void updateHinweisZeigen(String version, {BuildContext? context}) {
+  final ort = context != null && context.mounted
+      ? context
+      : NotificationService.navigatorKey.currentContext;
+  if (ort == null) return;
+  ScaffoldMessenger.maybeOf(ort)?.showSnackBar(
+    SnackBar(
+      content: Text(tr(
+        'Version $version wird im Hintergrund installiert. Die App startet gleich neu.',
+        'Versiunea $version se instalează în fundal. Aplicația va reporni imediat.',
+      )),
+      duration: const Duration(seconds: 8),
+    ),
+  );
+}
+
 /// Shows update dialog if update is available
+///
+/// Auf Android installiert sich das Update seit dem 17.10.2026 von selbst —
+/// wie bei der Vorsitzer-App: im Hintergrund laden, nie während eines Anrufs
+/// oder einer Fernwartung, je Fassung ein Versuch, kurz davor der Hinweis
+/// (UpdateService.installUnattended). Der Dialog kommt nur noch, wo das nicht
+/// geht oder der Versuch nicht durchkam.
 Future<void> checkAndShowUpdateDialog(BuildContext context) async {
   final updateService = UpdateService();
+  // Ein Update von selbst läuft schon: nicht noch einmal prüfen, laden oder
+  // fragen.
+  if (updateService.unattendedInProgress) return;
   final updateInfo = await updateService.checkForUpdate();
+  if (updateInfo == null) return;
 
-  if (updateInfo != null && context.mounted) {
+  if (await updateService.installUnattended(
+    updateInfo,
+    vorDemNeustart: (v) => updateHinweisZeigen(v, context: context),
+  )) {
+    return; // Android installiert gerade, oder ein anderer Lauf ist dabei
+  }
+
+  if (context.mounted) {
     showDialog(
       context: context,
       barrierDismissible: !updateInfo.forceUpdate,

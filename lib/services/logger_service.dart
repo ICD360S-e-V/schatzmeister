@@ -220,6 +220,11 @@ class LoggerService {
     }
   }
 
+  /// Alles Gesammelte JETZT hinaus — kurz bevor die App für ein Update zugeht
+  /// (UpdateService.installUnattended). Sonst gingen die letzten Zeilen
+  /// („installiert sich selbst“) mit dem Prozess verloren.
+  Future<void> jetztHochladen() => _uploadLogsToServer();
+
   @visibleForTesting
   void zuruecksetzen() {
     _logs.clear();
