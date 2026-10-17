@@ -4,7 +4,6 @@ import 'package:http/http.dart' as http;
 import 'package:http/io_client.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:android_package_installer/android_package_installer.dart';
-import 'device_key_service.dart';
 import 'platform_service.dart';
 import 'logger_service.dart';
 
@@ -14,7 +13,6 @@ final _log = LoggerService();
 /// Cross-platform: Windows (Inno Setup), macOS (DMG), Linux (AppImage),
 /// Android (APK), iOS (not supported - use TestFlight)
 class UpdateService {
-  // Protected API endpoint (requires Device Key)
   /// Versionsauskunft aus dem GitHub-Release, nicht mehr vom Vereinsserver.
   ///
   /// ⚠️ Vorher: `https://icd360sev.icd360s.de/api/version_schatzmeister.php`.
@@ -41,7 +39,6 @@ class UpdateService {
 
   late http.Client _client;
   late HttpClient _httpClient;
-  final _deviceKeyService = DeviceKeyService();
 
   // Singleton
   static final UpdateService _instance = UpdateService._internal();
@@ -51,21 +48,19 @@ class UpdateService {
     _client = IOClient(_httpClient);
   }
 
-  /// Check if an update is available (protected endpoint - requires Device Key)
+  /// Fragt das GitHub-Release, ob es eine neuere Fassung gibt.
+  ///
+  /// ⚠️ OHNE Geräteschlüssel (17.10.2026). Bis dahin ging hier `X-Device-Key`
+  /// mit — an github.com, alle 5 Minuten aus der Fußleiste und alle 15 aus dem
+  /// Dashboard. Mit diesem Schlüssel meldet sich die App bei UNSEREM Server
+  /// an; GitHub ist ein Dritter, und die Datei dort ist öffentlich. mitglieder
+  /// schickt ihn an derselben Stelle bewusst nie mit. Seitdem fragt auch ein
+  /// Gerät ohne Schlüssel (frisch installiert, noch nicht aktiviert).
   Future<UpdateInfo?> checkForUpdate() async {
     try {
-      final deviceKey = _deviceKeyService.deviceKey;
-
-      // Build headers with Device Key authentication
-      if (deviceKey == null) {
-        _log.error('Device not registered - cannot check for updates', tag: 'UPDATE');
-        return null;
-      }
-
       final headers = <String, String>{
         'Content-Type': 'application/json',
         'User-Agent': 'ICD360S-Schatzmeister/1.0',
-        'X-Device-Key': deviceKey,
       };
 
       final response = await _client.get(
