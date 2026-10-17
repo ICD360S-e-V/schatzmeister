@@ -39,6 +39,8 @@ on:
   # release.yml ihn mit dem GITHUB_TOKEN startet.
   # „Build Android" ist hier beides — die Prüfung eines PR und der Bau einer
   # Fassung.
+  # Wird ein Entwurf fertig gemeldet oder kommt `asteapta` weg, läuft die
+  # PR-Prüfung neu (`types:` dort) — ihr Ende weckt sie ebenso.
   workflow_run:
     workflows: ["Build Android"]
     types: [completed]

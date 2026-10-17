@@ -29,6 +29,12 @@ on:
     tags: ['v*']
   pull_request:
     branches: [main]
+    # Die drei, die GitHub von sich aus nimmt, und zwei dazu: ein Entwurf wird
+    # fertig gemeldet, oder das Etikett `asteapta` kommt weg. Dann läuft die
+    # Prüfung neu, gegen das main von jetzt, und ihr Ende weckt die
+    # Merge-Warteschlange (workflow_run). Ohne die zwei blieb so ein PR
+    # liegen, bis zufällig etwas anderes fertig wurde (17.10.2026).
+    types: [opened, synchronize, reopened, ready_for_review, unlabeled]
   workflow_dispatch:
     inputs:
       flutter_version:
