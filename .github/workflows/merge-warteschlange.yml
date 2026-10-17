@@ -16,6 +16,13 @@ name: Merge-Warteschlange
 # grün, ohne Konflikt. Rote, Entwürfe usw. werden übersprungen; laufen beim
 # ältesten noch die Prüfungen, wartet die Schlange (kein jüngerer zieht vorbei).
 #
+# Ein Lauf arbeitet die Schlange ab: er mergt, wartet SELBST, bis die Fassung
+# gebaut und im GitHub-Release ist, und nimmt dann den nächsten — höchstens
+# 40 Minuten lang (WARTEN_HOECHSTENS im Skript). Kein Zeitplan: am 17.10.2026
+# kam die Schlange nach einem Bau nicht von selbst wieder, und der 15-Minuten-
+# Zeitplan lief nie an. Der Vorsitzende: „trebuie sa astepte cand se termina
+# versionarea cand apare versiunea“.
+#
 # ⚠️ Gemergt wird mit dem GITHUB_TOKEN. Dessen Push startet KEINE Abläufe
 # (Schleifenschutz von GitHub) — das Skript startet danach selbst, was ein Push
 # auf main sonst startet (NACH_DEM_MERGEN). Ein neuer Ablauf mit
@@ -27,24 +34,20 @@ name: Merge-Warteschlange
 
 on:
   # Ein PR ist fertig geprüft, oder eine Fassung ist gebaut: gleich nachsehen.
+  # Das Ende eines Baus meldet build-android.yml selbst (letzter Schritt,
+  # workflow_dispatch): sein Ende löst hier kein workflow_run aus, weil
+  # release.yml ihn mit dem GITHUB_TOKEN startet.
   # „Build Android" ist hier beides — die Prüfung eines PR und der Bau einer
   # Fassung.
   workflow_run:
     workflows: ["Build Android"]
     types: [completed]
-  # Sonst alle 15 Minuten — z. B. nachdem ein Etikett `asteapta` weg ist.
-  schedule:
-    - cron: '*/15 * * * *'
   workflow_dispatch:
     inputs:
       trocken:
         description: 'Nur sagen, was geschähe'
         type: boolean
         default: false
-      nach_lauf:
-        description: 'Erst das Ende dieses Laufs abwarten (der Bau, der anstößt)'
-        type: string
-        default: ''
 
 permissions:
   contents: write
@@ -62,21 +65,12 @@ jobs:
   naechster:
     name: Nächsten PR mergen
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    # WARTEN_HOECHSTENS (40 Min.) im Skript, und Luft dazu.
+    timeout-minutes: 50
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
         with:
           sparse-checkout: .github/scripts
-
-      # Angestoßen vom Bau einer Fassung (build-android.yml, letzter Schritt):
-      # der läuft in diesem Moment noch — erst sein Ende abwarten.
-      - name: Auf den Bau warten, der angestoßen hat
-        if: inputs.nach_lauf != ''
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GH_REPO: ${{ github.repository }}
-          NACH_LAUF: ${{ inputs.nach_lauf }}
-        run: gh run watch "$NACH_LAUF" --interval 10 > /dev/null || true
 
       - name: Entscheiden und mergen
         env:

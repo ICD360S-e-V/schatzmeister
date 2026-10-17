@@ -396,16 +396,16 @@ jobs:
           done
 
       # Die Fassung ist draußen: die Merge-Warteschlange gleich anstoßen
-      # (merge-warteschlange.yml), statt auf ihren 15-Minuten-Takt zu warten.
+      # (merge-warteschlange.yml), damit sie den nächsten PR nimmt.
       # ⚠️ Ihr `workflow_run` auf diesen Ablauf greift hier nicht: diesen Lauf
       # startet release.yml mit dem GITHUB_TOKEN, und dessen Läufe lösen keine
       # weiteren aus (Schleifenschutz von GitHub, gesehen am 17.10.2026). Ein
-      # workflow_dispatch ist davon ausgenommen. `nach_lauf`: dieser Lauf ist
-      # in dem Moment noch nicht fertig — die Schlange wartet sein Ende ab,
-      # sonst sähe sie ihn laufen und täte nichts.
+      # workflow_dispatch ist davon ausgenommen. Dieser Lauf ist in dem Moment
+      # noch nicht ganz fertig — die Schlange sieht ihn laufen und wartet
+      # selbst, bis er es ist.
       - name: Merge-Warteschlange anstoßen
         continue-on-error: true
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
-        run: gh workflow run merge-warteschlange.yml --ref main -f nach_lauf=${{ github.run_id }}
+        run: gh workflow run merge-warteschlange.yml --ref main
