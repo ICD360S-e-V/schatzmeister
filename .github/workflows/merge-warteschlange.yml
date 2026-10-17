@@ -41,6 +41,10 @@ on:
         description: 'Nur sagen, was geschähe'
         type: boolean
         default: false
+      nach_lauf:
+        description: 'Erst das Ende dieses Laufs abwarten (der Bau, der anstößt)'
+        type: string
+        default: ''
 
 permissions:
   contents: write
@@ -63,6 +67,16 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
         with:
           sparse-checkout: .github/scripts
+
+      # Angestoßen vom Bau einer Fassung (build-android.yml, letzter Schritt):
+      # der läuft in diesem Moment noch — erst sein Ende abwarten.
+      - name: Auf den Bau warten, der angestoßen hat
+        if: inputs.nach_lauf != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          NACH_LAUF: ${{ inputs.nach_lauf }}
+        run: gh run watch "$NACH_LAUF" --interval 10 > /dev/null || true
 
       - name: Entscheiden und mergen
         env:

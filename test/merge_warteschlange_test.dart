@@ -1,6 +1,7 @@
 // Die Merge-Warteschlange: .github/workflows/merge-warteschlange.yml und
 // .github/scripts/merge_warteschlange.py (gleich in vorsitzer, mitglieder und
-// schatzmeister — nur diese Konstante unterscheidet sich je App).
+// schatzmeister — nur diese Konstante unterscheidet sich je App; den Test
+// „stößt der Bau sie an“ haben vorsitzer und schatzmeister seit dem 17.10.2026).
 //
 // Wunsch des Vorsitzenden (17.10.2026): die PRs der Reihe nach mergen, vom
 // ältesten zum neuesten, und den nächsten erst, wenn die Fassung des vorigen
@@ -424,6 +425,26 @@ void main() {
         isTrue,
         reason: 'den Schritt „$schritt“ gibt es in ${_k['bau']} nicht',
       );
+    });
+
+    // Startet der Release den Bau mit dem GITHUB_TOKEN (vorsitzer,
+    // schatzmeister: `gh workflow run build-android.yml`), löst dessen Ende
+    // KEIN workflow_run aus — der Bau muss die Schlange selbst anstoßen.
+    // In mitglieder kommt der Tag von release-please mit eigenem Token; dort
+    // greift workflow_run, und der Test hat nichts zu prüfen.
+    test('startet der Release den Bau mit dem GITHUB_TOKEN, stößt der Bau sie an', () {
+      if (!ablaeufe[_k['freigabe']]!.contains('gh workflow run ${_k['bau']}')) return;
+      final String bau = ablaeufe[_k['bau']]!;
+      final int anstoss =
+          bau.indexOf('gh workflow run merge-warteschlange.yml --ref main -f nach_lauf=\${{ github.run_id }}');
+      expect(anstoss, greaterThan(0));
+      // Im Veröffentlichungs-Job, als letzter Schritt — nach dem Hochladen.
+      expect(anstoss, greaterThan(bau.indexOf('name: "${_k['veroeffentlicht']}"')));
+      expect(bau.indexOf('\n      - name:', anstoss), -1, reason: 'danach kommt kein Schritt mehr');
+      // Die Schlange wartet sein Ende ab, bevor sie entscheidet.
+      final int warten = text.indexOf('gh run watch "\$NACH_LAUF"');
+      expect(warten, greaterThan(0));
+      expect(warten, lessThan(text.indexOf('run: python3 .github/scripts/merge_warteschlange.py')));
     });
 
     test('nie zwei auf einmal, und nie den Code eines PR', () {
