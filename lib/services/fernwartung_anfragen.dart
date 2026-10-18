@@ -73,7 +73,7 @@ class FernwartungAnfragen {
   void anfrageErhalten(RemoteOfferEvent e) {
     final chat = ChatService();
     final agent = RemoteAgentService();
-    _log.info('Fernwartung: Anfrage von ${e.controllerName} (conv ${e.conversationId}, '
+    _log.info('Fernwartung: Anfrage von ${e.controllerId} (conv ${e.conversationId}, '
         '${_imBlick ? "App vorne" : "App im Hintergrund"})', tag: 'REMOTE');
 
     // Die Schatzmeister-App wird nur für Android gebaut. Anderswo sofort

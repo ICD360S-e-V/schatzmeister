@@ -10,6 +10,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'platform_service.dart';
 import 'logger_service.dart';
 import 'update_gespraechssperre.dart';
+import '../utils/protokoll_schutz.dart';
 
 final _log = LoggerService();
 
@@ -295,12 +296,12 @@ class UpdateService {
 
       if (soll != null && soll.isNotEmpty && await file.exists() &&
           (await sha256.bind(file.openRead()).first).toString() == soll) {
-        _log.info('Update schon geladen und geprüft: $filePath', tag: 'UPDATE');
+        _log.info('Update schon geladen und geprüft: ${protokollDatei(filePath)}', tag: 'UPDATE');
         onProgress(1.0);
         return filePath;
       }
 
-      _log.info('Downloading update to: $filePath', tag: 'UPDATE');
+      _log.info('Downloading update to: ${protokollDatei(filePath)}', tag: 'UPDATE');
 
       final request = http.Request('GET', Uri.parse(downloadUrl));
       final response = await _client.send(request);
@@ -331,7 +332,7 @@ class UpdateService {
           _log.info('SHA-256 geprüft', tag: 'UPDATE');
         }
 
-        _log.info('Update downloaded successfully: $filePath', tag: 'UPDATE');
+        _log.info('Update downloaded successfully: ${protokollDatei(filePath)}', tag: 'UPDATE');
         return filePath;
       }
     } catch (e) {
@@ -351,7 +352,7 @@ class UpdateService {
   /// kehrt der Aufruf auf Windows, Linux und Android nicht zurück — die App
   /// ist dann weg.
   Future<bool> launchInstaller(String installerPath, {bool silent = true}) async {
-    _log.info('Launching installer: $installerPath (${PlatformService.platformName})', tag: 'UPDATE');
+    _log.info('Launching installer: ${protokollDatei(installerPath)} (${PlatformService.platformName})', tag: 'UPDATE');
 
     if (Platform.isWindows) {
       // Windows: Inno Setup silent installer
@@ -392,7 +393,7 @@ class UpdateService {
       //
       // ⚠️ Kommt die Antwort, kam das Update NICHT durch: bei Erfolg beendet
       // Android die App vorher.
-      _log.info('Installiere APK: $installerPath', tag: 'UPDATE');
+      _log.info('Installiere APK: ${protokollDatei(installerPath)}', tag: 'UPDATE');
       try {
         final status = await IcdInstaller.apkInstallieren(installerPath, ohneNachfrage: true);
         _log.info('APK-Installation: ${status.name}', tag: 'UPDATE');

@@ -5,6 +5,7 @@ import 'package:windows_taskbar/windows_taskbar.dart';
 import 'language_service.dart';
 import 'logger_service.dart';
 import 'platform_service.dart';
+import '../utils/protokoll_schutz.dart';
 
 /// System Tray Service - manages System Tray Icon and minimize-to-tray
 /// Currently Windows only (ICO icons available)
@@ -185,7 +186,7 @@ class TrayService with TrayListener {
               : 'tray_icon_$count$ext';
 
       final trayIconPath = _getTrayIconPath(trayIconName);
-      _log.debug('Setze Tray-Icon: $trayIconPath', tag: 'TRAY');
+      _log.debug('Setze Tray-Icon: ${protokollDatei(trayIconPath)}', tag: 'TRAY');
       await _trayManager.setIcon(trayIconPath);
 
       // WINDOWS ONLY: Taskbar overlay badge
@@ -193,7 +194,7 @@ class TrayService with TrayListener {
         if (count > 0) {
           final badgeIconName = count >= 9 ? 'badge_9plus.ico' : 'badge_$count.ico';
           final badgePath = _getBadgeIconPath(badgeIconName);
-          _log.debug('Setze Taskbar-Badge: $badgePath', tag: 'TRAY');
+          _log.debug('Setze Taskbar-Badge: ${protokollDatei(badgePath)}', tag: 'TRAY');
           await WindowsTaskbar.setOverlayIcon(
             ThumbnailToolbarAssetIcon(badgePath),
             tooltip: tr('$count neue Nachricht${count > 1 ? 'en' : ''}',
