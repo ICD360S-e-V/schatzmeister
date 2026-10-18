@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import 'notification_service.dart';
 import 'logger_service.dart';
 import 'language_service.dart';
+import '../utils/protokoll_schutz.dart';
 
 final _log = LoggerService();
 
@@ -201,7 +202,7 @@ class WeatherService {
     if (lat != null && lon != null) {
       _latitude = lat;
       _longitude = lon;
-      _log.info('Weather: Starting with GPS ($_latitude, $_longitude)', tag: 'WEATHER');
+      _log.info('Weather: Starting with GPS (${protokollPosition(_latitude, _longitude)})', tag: 'WEATHER');
     } else if (city.isNotEmpty) {
       _log.info('Weather: Starting for city "$city"', tag: 'WEATHER');
       final success = await _geocodeCity(city);
@@ -250,7 +251,7 @@ class WeatherService {
         if (results != null && results.isNotEmpty) {
           _latitude = (results[0]['latitude'] as num).toDouble();
           _longitude = (results[0]['longitude'] as num).toDouble();
-          _log.info('Weather: Geocoded "$city" → $_latitude, $_longitude', tag: 'WEATHER');
+          _log.info('Weather: Geocoded "$city" → ${protokollPosition(_latitude, _longitude)}', tag: 'WEATHER');
           return true;
         }
       }
@@ -483,7 +484,7 @@ class WeatherService {
     _city = city;
     _latitude = lat;
     _longitude = lon;
-    _log.info('Weather: Location updated → $city ($lat, $lon)', tag: 'WEATHER');
+    _log.info('Weather: Location updated → $city (${protokollPosition(lat, lon)})', tag: 'WEATHER');
     await _fetchWeather();
     await _fetchAlerts();
   }

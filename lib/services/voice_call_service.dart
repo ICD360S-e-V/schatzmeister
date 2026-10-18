@@ -96,7 +96,7 @@ class VoiceCallService {
   Future<bool> startCall(int conversationId, String targetUserId, String targetUserName,
       {bool video = false}) async {
     _log.info('VoiceCallService: ========================================', tag: 'CALL');
-    _log.info('VoiceCallService: 📞 START CALL - conv: $conversationId, target: $targetUserName', tag: 'CALL');
+    _log.info('VoiceCallService: 📞 START CALL - conv: $conversationId, target: $targetUserId', tag: 'CALL');
     _log.info('VoiceCallService: Current state: $_callState', tag: 'CALL');
 
     if (_callState != CallState.idle) {
@@ -181,7 +181,7 @@ class VoiceCallService {
 
   /// Handle incoming call offer (callee side)
   Future<void> handleIncomingCall(int conversationId, String callerId, String callerName, String sdp, String sdpType) async {
-    _log.info('VoiceCallService: handleIncomingCall() - from: $callerName (conv: $conversationId), current state: $_callState', tag: 'CALL');
+    _log.info('VoiceCallService: handleIncomingCall() - from: $callerId (conv: $conversationId), current state: $_callState', tag: 'CALL');
     if (_callState != CallState.idle) {
       // Already in a call, reject
       _log.warning('VoiceCallService: Already in call ($_callState), auto-rejecting with busy', tag: 'CALL');

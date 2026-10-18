@@ -255,7 +255,7 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
   }
 
   void _handleIncomingCall(CallOfferEvent event) {
-    _log.info('Incoming call from ${event.callerName} (conv: ${event.conversationId})', tag: 'DASH');
+    _log.info('Incoming call (conv: ${event.conversationId})', tag: 'DASH');
     _pendingCall = event;
 
     // Show incoming call dialog

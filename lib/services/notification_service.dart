@@ -345,7 +345,7 @@ class NotificationService {
       await TrayService().flashTaskbar();
     }
 
-    _log.info('Anruf-Benachrichtigung: $callerName', tag: 'NOTIF');
+    _log.info('Anruf-Benachrichtigung gezeigt', tag: 'NOTIF');
   }
 
   /// Show update available notification

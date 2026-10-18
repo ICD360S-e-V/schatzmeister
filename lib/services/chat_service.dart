@@ -142,7 +142,7 @@ class ChatService {
     // Store current user name for notification filtering
     if (userName != null) {
       _currentUserName = userName;
-      _log.debug('Stored current user name: $_currentUserName', tag: 'WS');
+      _log.debug('Stored current user name (${_currentUserName?.length ?? 0} Zeichen)', tag: 'WS');
     }
 
     if (_isConnected) {
@@ -533,7 +533,7 @@ class ChatService {
           _messageController.add(chatMsg);
 
           // DEBUG: Log all message details for notification debugging
-          _log.info('NEW_MESSAGE received: sender="${chatMsg.senderName}", isAdmin=${chatMsg.isAdmin}, role="${chatMsg.senderRole}", currentUser="$_currentUserName"', tag: 'NOTIF');
+          _log.info('NEW_MESSAGE received: isAdmin=${chatMsg.isAdmin}, role="${chatMsg.senderRole}"', tag: 'NOTIF');
 
           // DON'T show notification for our own messages
           final isOwnMessage = (_currentUserId != null && chatMsg.senderId == _currentUserId) ||
@@ -543,14 +543,14 @@ class ChatService {
 
           if (!isOwnMessage) {
             // Message from anyone else → show notification
-            _log.info('TRIGGERING notification from: ${chatMsg.senderName}', tag: 'NOTIF');
+            _log.info('TRIGGERING notification (role=${chatMsg.senderRole})', tag: 'NOTIF');
             NotificationService().showChatMessage(
               senderName: chatMsg.senderName,
               message: chatMsg.message,
               conversationId: chatMsg.conversationId,
             );
           } else {
-            _log.debug('SKIPPED notification - own message (from: ${chatMsg.senderName})', tag: 'NOTIF');
+            _log.debug('SKIPPED notification - own message', tag: 'NOTIF');
           }
           break;
 
@@ -681,7 +681,7 @@ class ChatService {
 
         // Fernwartung — Angebot, ICE und Ende kommen vom Vorsitz.
         case 'remote_offer':
-          _log.info('WebSocket: REMOTE_OFFER von ${json['controller_name'] ?? '?'} '
+          _log.info('WebSocket: REMOTE_OFFER von ${json['controller_id'] ?? '?'} '
               '(conv ${json['conversation_id']})', tag: 'REMOTE');
           _remoteOfferController.add(RemoteOfferEvent(
             conversationId: json['conversation_id'] ?? 0,
